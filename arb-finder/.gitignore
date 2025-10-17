@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# Poetry
+poetry.lock
+
+# Output files
+situations.jsonl
+*.jsonl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

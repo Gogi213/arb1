@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbitrage Opportunities Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            color: #00d4ff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-label {
+            color: #888;
+            font-size: 0.9em;
+        }
+
+        .stat-value {
+            color: #00d4ff;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .status.connected {
+            background: #03dac6;
+            color: #121212;
+        }
+
+        .status.disconnected {
+            background: #cf6679;
+            color: #121212;
+        }
+
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
+
+        .btn-primary:hover {
+            background: #00b8e6;
+            transform: translateY(-2px);
+        }
+
+        .table-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        th {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            padding: 15px 10px;
+            text-align: left;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        td {
+            padding: 12px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        tr:hover {
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .profit {
+            font-weight: bold;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .profit-high {
+            color: #03dac6;
+            background: rgba(3, 218, 198, 0.2);
+        }
+
+        .profit-medium {
+            color: #ffd700;
+            background: rgba(255, 215, 0, 0.2);
+        }
+
+        .profit-low {
+            color: #ff9800;
+            background: rgba(255, 152, 0, 0.2);
+        }
+
+        .exchange {
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            font-size: 0.85em;
+            display: inline-block;
+        }
+
+        .symbol {
+            font-weight: bold;
+            color: #00d4ff;
+            font-size: 1.05em;
+        }
+
+        .time {
+            color: #888;
+            font-size: 0.85em;
+        }
+
+        .no-data {
+            text-align: center;
+            padding: 50px;
+            color: #888;
+            font-size: 1.2em;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #00d4ff;
+            font-size: 1.2em;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="status disconnected" id="status">Loading...</div>
+
+    <div class="header">
+        <h1>⚡ ARBITRAGE OPPORTUNITIES</h1>
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">Total Found:</span>
+                <span class="stat-value" id="total-count">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Last Update:</span>
+                <span class="stat-value" id="last-update">Never</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Auto-Refresh:</span>
+                <span class="stat-value" id="refresh-interval">2s</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn btn-primary" onclick="fetchData()">🔄 Refresh Now</button>
+        <button class="btn btn-primary" onclick="clearTable()">🗑️ Clear Table</button>
+    </div>
+
+    <div class="table-container">
+        <div id="loading" class="loading">Loading opportunities...</div>
+        <div id="no-data" class="no-data" style="display: none;">
+            No arbitrage opportunities found yet.<br>
+            <small>Make sure main.py is running and finding opportunities.</small>
+        </div>
+        <table id="opportunities-table" style="display: none;">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Symbol</th>
+                    <th>Buy Exchange</th>
+                    <th>Sell Exchange</th>
+                    <th>Buy Price</th>
+                    <th>Sell Price</th>
+                    <th>Profit %</th>
+                    <th>Buy Spread</th>
+                    <th>Sell Spread</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        let updateInterval;
+
+        function formatTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function getProfitClass(profit) {
+            if (profit >= 0.5) return 'profit-high';
+            if (profit >= 0.3) return 'profit-medium';
+            return 'profit-low';
+        }
+
+        function updateStats(opportunities) {
+            document.getElementById('total-count').textContent = opportunities.length;
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function renderTable(opportunities) {
+            const loading = document.getElementById('loading');
+            const noData = document.getElementById('no-data');
+            const table = document.getElementById('opportunities-table');
+            const tbody = document.getElementById('table-body');
+
+            loading.style.display = 'none';
+
+            if (opportunities.length === 0) {
+                noData.style.display = 'block';
+                table.style.display = 'none';
+                return;
+            }
+
+            noData.style.display = 'none';
+            table.style.display = 'table';
+
+            // Sort by timestamp descending (newest first)
+            opportunities.sort((a, b) => new Date(b.timestamp_iso) - new Date(a.timestamp_iso));
+
+            tbody.innerHTML = opportunities.map(opp => `
+                <tr>
+                    <td class="time">${formatTime(opp.timestamp_iso)}</td>
+                    <td class="symbol">${opp.symbol}</td>
+                    <td><span class="exchange">${opp.buy_exchange}</span></td>
+                    <td><span class="exchange">${opp.sell_exchange}</span></td>
+                    <td>${opp.buy_price.toFixed(8)}</td>
+                    <td>${opp.sell_price.toFixed(8)}</td>
+                    <td><span class="profit ${getProfitClass(opp.profit_pct)}">${opp.profit_pct.toFixed(2)}%</span></td>
+                    <td>${opp.buy_spread_pct.toFixed(2)}%</td>
+                    <td>${opp.sell_spread_pct.toFixed(2)}%</td>
+                </tr>
+            `).join('');
+
+            updateStats(opportunities);
+        }
+
+        async function fetchData() {
+            const status = document.getElementById('status');
+
+            try {
+                status.textContent = 'Updating...';
+                status.className = 'status disconnected';
+
+                const response = await fetch('/api/opportunities');
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const opportunities = await response.json();
+                renderTable(opportunities);
+
+                status.textContent = 'Connected';
+                status.className = 'status connected';
+
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                status.textContent = 'Error';
+                status.className = 'status disconnected';
+
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('no-data').style.display = 'block';
+                document.getElementById('no-data').innerHTML = `
+                    Connection error.<br>
+                    <small>Make sure web_server.py is running.</small>
+                `;
+            }
+        }
+
+        function clearTable() {
+            if (confirm('Clear all opportunities from view? (Does not delete the file)')) {
+                document.getElementById('table-body').innerHTML = '';
+                document.getElementById('total-count').textContent = '0';
+                document.getElementById('no-data').style.display = 'block';
+                document.getElementById('opportunities-table').style.display = 'none';
+            }
+        }
+
+        // Initial fetch
+        fetchData();
+
+        // Auto-refresh every 2 seconds
+        updateInterval = setInterval(fetchData, 2000);
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            if (updateInterval) {
+                clearInterval(updateInterval);
+            }
+        });
+    </script>
+</body>
+</html>

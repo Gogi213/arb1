@@ -11,12 +11,10 @@ namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 public class BinanceExchangeClient : IExchangeClient
 {
     public string ExchangeName => "Binance";
-    private readonly BinanceSocketClient _socketClient;
     private readonly BinanceRestClient _restClient;
 
     public BinanceExchangeClient()
     {
-        _socketClient = new BinanceSocketClient();
         _restClient = new BinanceRestClient();
     }
 
@@ -39,14 +37,17 @@ public class BinanceExchangeClient : IExchangeClient
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
         var symbolsList = symbols.ToList();
-        const int batchSize = 100; // Binance allows up to 200 streams per connection, 100 is a safe number.
+        const int batchSize = 50; // Reduced from 100 to fit within message size limits
+        const int delayBetweenSubscriptions = 500; // 0.5 second
 
         for (int i = 0; i < symbolsList.Count; i += batchSize)
         {
             var batch = symbolsList.Skip(i).Take(batchSize).ToList();
-            Console.WriteLine($"[BinanceExchangeClient] Subscribing to batch {i / batchSize + 1}, containing {batch.Count} symbols.");
+            var batchNumber = i / batchSize + 1;
+            Console.WriteLine($"[BinanceExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
 
-            var result = await _socketClient.SpotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(batch, data =>
+            var socketClient = new BinanceSocketClient();
+            var result = await socketClient.SpotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(batch, data =>
             {
                 onData(new SpreadData
                 {
@@ -59,14 +60,16 @@ public class BinanceExchangeClient : IExchangeClient
 
             if (!result.Success)
             {
-                Console.WriteLine($"[ERROR] Failed to subscribe to batch {i / batchSize + 1}: {result.Error}");
+                Console.WriteLine($"[ERROR] Failed to subscribe to batch {batchNumber}: {result.Error}");
             }
             else
             {
-                Console.WriteLine($"[BinanceExchangeClient] Successfully subscribed to batch {i / batchSize + 1}.");
-                result.Data.ConnectionLost += () => Console.WriteLine($"[BinanceExchangeClient] Connection lost for batch {i / batchSize + 1}.");
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[BinanceExchangeClient] Connection restored for batch {i / batchSize + 1} after {t}.");
+                Console.WriteLine($"[BinanceExchangeClient] Successfully subscribed to batch {batchNumber}.");
+                result.Data.ConnectionLost += () => Console.WriteLine($"[BinanceExchangeClient] Connection lost for batch {batchNumber}.");
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[BinanceExchangeClient] Connection restored for batch {batchNumber} after {t}.");
             }
+
+            await Task.Delay(delayBetweenSubscriptions);
         }
     }
 

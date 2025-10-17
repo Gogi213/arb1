@@ -1,9 +1,0 @@
-GET
-/v2/stats1/vwap:1d:tETHUST/hist
-false
-[
-  [
-   	1573560420000, 
-   	369005353.5945115 
-  ]
-]

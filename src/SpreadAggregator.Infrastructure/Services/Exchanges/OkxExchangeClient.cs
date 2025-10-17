@@ -11,12 +11,10 @@ namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 public class OkxExchangeClient : IExchangeClient
 {
     public string ExchangeName => "OKX";
-    private readonly OKXSocketClient _socketClient;
     private readonly OKXRestClient _restClient;
 
     public OkxExchangeClient()
     {
-        _socketClient = new OKXSocketClient();
         _restClient = new OKXRestClient();
     }
 
@@ -39,38 +37,43 @@ public class OkxExchangeClient : IExchangeClient
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
         var symbolsList = symbols.ToList();
-        // OKX has a limit of 100 subscriptions per connection.
-        const int maxSubscriptions = 100;
-        if (symbolsList.Count > maxSubscriptions)
-        {
-            Console.WriteLine($"[WARNING] [OkxExchangeClient] Attempted to subscribe to {symbolsList.Count} symbols, but the limit is {maxSubscriptions}. Subscribing to the first {maxSubscriptions} symbols only.");
-            symbolsList = symbolsList.Take(maxSubscriptions).ToList();
-        }
+        const int batchSize = 100; // OKX official limit
+        const int delayBetweenSubscriptions = 500; // 0.5 second delay
 
-        var result = await _socketClient.UnifiedApi.ExchangeData.SubscribeToTickerUpdatesAsync(symbolsList, data =>
+        for (int i = 0; i < symbolsList.Count; i += batchSize)
         {
-            var ticker = data.Data;
-            if (ticker.BestBidPrice.HasValue && ticker.BestAskPrice.HasValue)
+            var batch = symbolsList.Skip(i).Take(batchSize).ToList();
+            var batchNumber = i / batchSize + 1;
+            Console.WriteLine($"[OkxExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
+
+            var socketClient = new OKXSocketClient();
+            var result = await socketClient.UnifiedApi.ExchangeData.SubscribeToTickerUpdatesAsync(batch, data =>
             {
-                onData(new SpreadData
+                var ticker = data.Data;
+                if (ticker.BestBidPrice.HasValue && ticker.BestAskPrice.HasValue)
                 {
-                    Exchange = ExchangeName,
-                    Symbol = ticker.Symbol,
-                    BestBid = ticker.BestBidPrice.Value,
-                    BestAsk = ticker.BestAskPrice.Value
-                });
-            }
-        });
+                    onData(new SpreadData
+                    {
+                        Exchange = ExchangeName,
+                        Symbol = ticker.Symbol,
+                        BestBid = ticker.BestBidPrice.Value,
+                        BestAsk = ticker.BestAskPrice.Value
+                    });
+                }
+            });
 
-        if (!result.Success)
-        {
-            Console.WriteLine($"[ERROR] [OkxExchangeClient] Failed to subscribe: {result.Error}");
-        }
-        else
-        {
-            Console.WriteLine($"[OkxExchangeClient] Successfully subscribed to {symbolsList.Count} symbols.");
-            result.Data.ConnectionLost += () => Console.WriteLine($"[OkxExchangeClient] Connection lost.");
-            result.Data.ConnectionRestored += (t) => Console.WriteLine($"[OkxExchangeClient] Connection restored after {t}.");
+            if (!result.Success)
+            {
+                Console.WriteLine($"[ERROR] [OkxExchangeClient] Failed to subscribe to batch {batchNumber}: {result.Error}");
+            }
+            else
+            {
+                Console.WriteLine($"[OkxExchangeClient] Successfully subscribed to batch {batchNumber}.");
+                result.Data.ConnectionLost += () => Console.WriteLine($"[OkxExchangeClient] Connection lost for batch {batchNumber}.");
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[OkxExchangeClient] Connection restored for batch {batchNumber} after {t}.");
+            }
+
+            await Task.Delay(delayBetweenSubscriptions);
         }
     }
 }

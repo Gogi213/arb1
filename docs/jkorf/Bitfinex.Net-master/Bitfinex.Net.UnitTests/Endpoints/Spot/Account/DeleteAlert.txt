@@ -1,6 +1,0 @@
-POST
-/v2/auth/w/alert/price:tETHUST:123/del
-true
-[
-  true
-]

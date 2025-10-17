@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "yQQPGWzE6t8=",
+  "dgSpecHash": "CRbGaDhf/ZQ=",
   "success": true,
-  "projectFilePath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
+  "projectFilePath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Георгий\\.nuget\\packages\\binance.net\\11.8.0\\binance.net.11.8.0.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\bybit.net\\5.9.0\\bybit.net.5.9.0.nupkg.sha512",

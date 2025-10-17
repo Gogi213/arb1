@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "J7z20rFV7no=",
+  "dgSpecHash": "R6gA3VJH6jM=",
   "success": true,
-  "projectFilePath": "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
+  "projectFilePath": "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Георгий\\.nuget\\packages\\configureawaitchecker.analyzer\\5.0.0.1\\configureawaitchecker.analyzer.5.0.0.1.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\cryptoexchange.net\\9.9.0\\cryptoexchange.net.9.9.0.nupkg.sha512",

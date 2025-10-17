@@ -11,12 +11,10 @@ namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 public class GateIoExchangeClient : IExchangeClient
 {
     public string ExchangeName => "GateIo";
-    private readonly GateIoSocketClient _socketClient;
     private readonly GateIoRestClient _restClient;
 
     public GateIoExchangeClient()
     {
-        _socketClient = new GateIoSocketClient();
         _restClient = new GateIoRestClient();
     }
 
@@ -50,7 +48,8 @@ public class GateIoExchangeClient : IExchangeClient
             Console.WriteLine($"[GateIoExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
 
             // Note: Gate.io uses SubscribeToBookTickerUpdatesAsync for book ticker data.
-            var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(batch, data =>
+            var socketClient = new GateIoSocketClient();
+            var result = await socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(batch, data =>
             {
                 onData(new SpreadData
                 {

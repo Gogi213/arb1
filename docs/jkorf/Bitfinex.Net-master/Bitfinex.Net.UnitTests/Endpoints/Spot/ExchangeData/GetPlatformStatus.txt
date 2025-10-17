@@ -1,6 +1,0 @@
-GET
-/v2/platform/status
-false
-[
-  1
-]

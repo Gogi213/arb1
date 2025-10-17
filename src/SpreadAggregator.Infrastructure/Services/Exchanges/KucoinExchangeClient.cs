@@ -11,12 +11,10 @@ namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 public class KucoinExchangeClient : IExchangeClient
 {
     public string ExchangeName => "Kucoin";
-    private readonly KucoinSocketClient _socketClient;
     private readonly KucoinRestClient _restClient;
 
     public KucoinExchangeClient()
     {
-        _socketClient = new KucoinSocketClient();
         _restClient = new KucoinRestClient();
     }
 
@@ -38,38 +36,43 @@ public class KucoinExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        // Kucoin has a limit of 100 subscriptions per connection.
-        var symbolsToSubscribe = symbols.ToList();
-        const int maxSubscriptions = 100;
-        if (symbolsToSubscribe.Count > maxSubscriptions)
-        {
-            Console.WriteLine($"[WARNING] [KucoinExchangeClient] Attempted to subscribe to {symbolsToSubscribe.Count} symbols, but the limit is {maxSubscriptions}. Subscribing to the first {maxSubscriptions} symbols only.");
-            symbolsToSubscribe = symbolsToSubscribe.Take(maxSubscriptions).ToList();
-        }
+        var symbolsList = symbols.ToList();
+        const int batchSize = 100; // Kucoin official limit
+        const int delayBetweenSubscriptions = 500; // 0.5 second delay
 
-        var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(symbolsToSubscribe, data =>
+        for (int i = 0; i < symbolsList.Count; i += batchSize)
         {
-            if (data.Data?.BestBid != null && data.Data?.BestAsk != null && data.Symbol != null)
+            var batch = symbolsList.Skip(i).Take(batchSize).ToList();
+            var batchNumber = i / batchSize + 1;
+            Console.WriteLine($"[KucoinExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
+
+            var socketClient = new KucoinSocketClient();
+            var result = await socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(batch, data =>
             {
-                onData(new SpreadData
+                if (data.Data?.BestBid != null && data.Data?.BestAsk != null && data.Symbol != null)
                 {
-                    Exchange = ExchangeName,
-                    Symbol = data.Symbol,
-                    BestBid = data.Data.BestBid.Price,
-                    BestAsk = data.Data.BestAsk.Price
-                });
-            }
-        });
+                    onData(new SpreadData
+                    {
+                        Exchange = ExchangeName,
+                        Symbol = data.Symbol,
+                        BestBid = data.Data.BestBid.Price,
+                        BestAsk = data.Data.BestAsk.Price
+                    });
+                }
+            });
 
-        if (!result.Success)
-        {
-            Console.WriteLine($"[ERROR] [KucoinExchangeClient] Failed to subscribe: {result.Error}");
-        }
-        else
-        {
-            Console.WriteLine($"[KucoinExchangeClient] Successfully subscribed to {symbolsToSubscribe.Count} symbols.");
-            result.Data.ConnectionLost += () => Console.WriteLine($"[KucoinExchangeClient] Connection lost.");
-            result.Data.ConnectionRestored += (t) => Console.WriteLine($"[KucoinExchangeClient] Connection restored after {t}.");
+            if (!result.Success)
+            {
+                Console.WriteLine($"[ERROR] [KucoinExchangeClient] Failed to subscribe to batch {batchNumber}: {result.Error}");
+            }
+            else
+            {
+                Console.WriteLine($"[KucoinExchangeClient] Successfully subscribed to batch {batchNumber}.");
+                result.Data.ConnectionLost += () => Console.WriteLine($"[KucoinExchangeClient] Connection lost for batch {batchNumber}.");
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[KucoinExchangeClient] Connection restored for batch {batchNumber} after {t}.");
+            }
+
+            await Task.Delay(delayBetweenSubscriptions);
         }
     }
 }

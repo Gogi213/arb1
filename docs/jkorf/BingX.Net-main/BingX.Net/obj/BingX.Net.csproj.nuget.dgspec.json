@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj": {}
+    "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj": {}
   },
   "projects": {
-    "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj": {
+    "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj": {
       "version": "2.8.0",
       "restore": {
-        "projectUniqueName": "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
+        "projectUniqueName": "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
         "projectName": "JK.BingX.Net",
-        "projectPath": "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
+        "projectPath": "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\BingX.Net.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "c:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\obj\\",
+        "outputPath": "C:\\visual projects\\arb1\\docs\\jkorf\\BingX.Net-main\\BingX.Net\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "configFilePaths": [

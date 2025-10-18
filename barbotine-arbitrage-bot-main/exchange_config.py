@@ -58,10 +58,6 @@ criteria_usd = 0  # Minimum USD profit
 # Timeout settings
 first_orders_fill_timeout = 0  # Will be set to 3600 if 0
 
-# Demo settings
-demo_fake_delay = False
-demo_fake_delay_ms = 500
-
 # Utility Functions
 def calculate_average(values: List[float]) -> float:
     """Calculate the average of a list of values."""

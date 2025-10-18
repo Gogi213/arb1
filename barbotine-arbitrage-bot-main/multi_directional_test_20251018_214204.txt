@@ -1,0 +1,6 @@
+Multi-Directional Arbitrage Test
+Started: 2025-10-18 21:42:04
+Duration: 480 seconds
+Symbol: ZBTUSDT
+Exchanges: Bybit, Binance, MEXC, BingX
+Initial Balance: $10,000.00

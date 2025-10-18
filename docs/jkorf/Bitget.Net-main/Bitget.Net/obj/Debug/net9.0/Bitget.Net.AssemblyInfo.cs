@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(@"JK.Bitget.Net is a client library for accessing the Bitget REST and Websocket API. All data is mapped to readable models and enum values. Additional features include automatic websocket (re)connection management, client side rate limiting, an implementation for maintaining a client side order book, easy integration with other exchange client libraries and more.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("2.8.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0a0e93f884bcb28c6ba41f04c8659ce22277a093")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f01efb3de32dbc7466774c12a5e8b289b0f8758e")]
 [assembly: System.Reflection.AssemblyProductAttribute("Bitget.Net")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Bitget.Net")]
 [assembly: System.Reflection.AssemblyVersionAttribute("2.8.0")]

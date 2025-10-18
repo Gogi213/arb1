@@ -1,0 +1,23 @@
+Multi-Directional Arbitrage Test
+Started: 2025-10-18 20:50:21
+Duration: 480 seconds
+Symbol: ZBTUSDT
+Exchanges: Bybit, Binance, MEXC, BingX
+Initial Balance: $10,000.00
+
+
+================================================================================
+TEST SUMMARY
+================================================================================
+Duration: 480 seconds
+Total Updates: 480
+Total Trades: 0
+Total Profit: $0.00
+
+TRADES BY DIRECTION:
+
+FINAL BALANCES:
+  Bybit     : $    250.00 USDT + 6668.64256076 ZBT
+  Binance   : $    250.00 USDT + 6678.53962600 ZBT
+  MEXC      : $    250.00 USDT + 6670.61962645 ZBT
+  BingX     : $    250.00 USDT + 6672.15265885 ZBT

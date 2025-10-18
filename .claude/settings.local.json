@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dir \"c:\\visual projects\\arb1\\barbotine-arbitrage-bot-main\")"
+      "Bash(dir)",
+      "Bash(dir barbotine-arbitrage-bot-main)"
     ],
     "deny": [],
     "ask": []

@@ -1,0 +1,9 @@
+ccxt>=4.0.42
+colorama>=0.4.6
+requests>=2.31.0
+pytz>=2023.3
+websockets>=12.0
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+textual>=0.47.0
+rich>=13.7.0

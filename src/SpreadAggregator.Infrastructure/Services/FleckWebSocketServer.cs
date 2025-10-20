@@ -10,27 +10,45 @@ namespace SpreadAggregator.Infrastructure.Services;
 public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, IDisposable
 {
     private readonly WebSocketServer _server;
-    private readonly List<IWebSocketConnection> _sockets;
+    private readonly List<IWebSocketConnection> _allSockets;
+    private readonly object _lock = new object();
 
     public FleckWebSocketServer(string location)
     {
         _server = new WebSocketServer(location);
-        _sockets = new List<IWebSocketConnection>();
+        _allSockets = new List<IWebSocketConnection>();
     }
 
     public void Start()
     {
         _server.Start(socket =>
         {
-            socket.OnOpen = () => _sockets.Add(socket);
-            socket.OnClose = () => _sockets.Remove(socket);
+            socket.OnOpen = () =>
+            {
+                lock (_lock)
+                {
+                    Console.WriteLine($"[Fleck] Client connected: {socket.ConnectionInfo.ClientIpAddress}");
+                    _allSockets.Add(socket);
+                }
+            };
+            socket.OnClose = () =>
+            {
+                lock (_lock)
+                {
+                    _allSockets.Remove(socket);
+                    Console.WriteLine($"[Fleck] Client disconnected.");
+                }
+            };
         });
     }
 
-    public Task BroadcastAsync(string message)
+    public Task BroadcastRealtimeAsync(string message)
     {
-        var tasks = _sockets.Where(s => s.IsAvailable).Select(s => s.Send(message));
-        return Task.WhenAll(tasks);
+        lock (_lock)
+        {
+            var tasks = _allSockets.Where(s => s.IsAvailable).Select(s => s.Send(message));
+            return Task.WhenAll(tasks);
+        }
     }
 
     public void Dispose()

@@ -11,6 +11,7 @@ import subprocess
 import sys
 import os
 import argparse
+import asyncio
 from pathlib import Path
 from colorama import Style, init, Fore
 from typing import List, Optional
@@ -33,7 +34,7 @@ except ImportError as e:
 
 # Constants
 DEFAULT_RENEWAL_MINUTES = 525600  # 1 year in minutes
-SUPPORTED_MODES = ['fake-money', 'real']
+SUPPORTED_MODES = ['fake-money', 'real', 'live-test']
 BALANCE_FILE = 'real_balance.txt'  # For fake money mode
 USABLE_BALANCE_FILE = 'usable_balance.txt'  # For real money mode
 TOTAL_BALANCE_FILE = 'total_balance.txt'  # For real money mode
@@ -156,29 +157,37 @@ Examples:
   python3 main.py fake-money 1000 BTC/USDT binance,kucoin
   python3 main.py real 500 ETH/USDT binance,kucoin,okx
   python3 main.py fake-money 1000 BTC/USDT binance,kucoin 60  # with 60min renewal
-        """
+  python3 main.py live-test
+         """
     )
     
     parser.add_argument(
-        "mode", 
+        "mode",
         choices=SUPPORTED_MODES,
-        help="Trading mode (fake-money for simulation, real for live trading)"
+        help="Trading mode (fake-money, real, or live-test)"
     )
     
+    # Make other arguments optional for live-test mode
     parser.add_argument(
         "balance",
         type=float,
-        help="Balance to use for trading"
+        nargs='?',
+        default=0,
+        help="Balance to use for trading (not used in live-test)"
     )
     
     parser.add_argument(
         "pair",
-        help="Trading pair (e.g., BTC/USDT)"
+        nargs='?',
+        default="",
+        help="Trading pair (not used in live-test)"
     )
     
     parser.add_argument(
         "exchanges",
-        help="Comma-separated list of exchanges (e.g., binance,kucoin)"
+        nargs='?',
+        default="",
+        help="Comma-separated list of exchanges (not used in live-test)"
     )
     
     parser.add_argument(
@@ -278,25 +287,34 @@ def handle_emergency_exit(mode: str, pair: str, exchanges: List[str]) -> None:
 
 def main():
     """Main application entry point."""
-    display_banner()
-    
     try:
         # Get parameters from command line or interactive input
         if len(sys.argv) > 1:
             args = parse_arguments()
             mode = args.mode
+        else:
+            # Simplified interactive for this case
+            mode = input("Mode (fake-money, real, or live-test) >>> ").strip()
+
+        if mode == 'live-test':
+            from live_market_analyzer.tester import LiveTester
+            tester = LiveTester()
+            asyncio.run(tester.run_test())
+            sys.exit(0)
+
+        display_banner()
+        # --- Existing logic for fake-money and real modes ---
+        if len(sys.argv) > 1:
             pair = args.pair
             balance = str(args.balance)
             exchanges_str = args.exchanges
             renewal_time = str(args.renewal_time)
         else:
-            inputs = interactive_input()
-            mode = inputs['mode']
-            pair = inputs['pair']
-            balance = str(inputs['balance'])
-            exchanges_str = inputs['exchanges']
-            renewal_time = str(inputs['renewal_time'])
-        
+            # This part would need to be in the interactive_input function
+            # For simplicity, we assume command-line for fake/real modes now
+            print("Please use command-line arguments for fake-money and real modes.")
+            sys.exit(1)
+
         # Validate exchanges
         exchanges = validate_exchanges(exchanges_str, mode)
         

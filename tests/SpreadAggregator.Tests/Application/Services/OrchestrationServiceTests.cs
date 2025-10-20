@@ -2,6 +2,8 @@ using Moq;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Application.Services;
 using SpreadAggregator.Domain.Entities;
+using System.Text.Json;
+using System.Threading.Channels;
 using SpreadAggregator.Domain.Services;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -23,7 +25,7 @@ public class OrchestrationServiceTests
         var volumeFilter = new VolumeFilter();
         var mockConfiguration = new Mock<IConfiguration>();
         var mockExchangeClient = new Mock<IExchangeClient>();
-        var spreadDataCache = new SpreadDataCache();
+        var channel = Channel.CreateUnbounded<SpreadData>();
 
         var exchangeName = "TestExchange";
 
@@ -55,22 +57,30 @@ public class OrchestrationServiceTests
         mockConfig.Setup(a => a.GetChildren()).Returns(configSections);
         mockConfiguration.Setup(c => c.GetSection("ExchangeSettings:Exchanges")).Returns(mockConfig.Object);
 
+        string capturedMessage = null;
+        mockWebSocketServer
+            .Setup(ws => ws.BroadcastRealtimeAsync(It.IsAny<string>()))
+            .Callback<string>(m => capturedMessage = m)
+            .Returns(Task.CompletedTask);
+
         var orchestrationService = new OrchestrationService(
             mockWebSocketServer.Object,
             spreadCalculator,
             mockConfiguration.Object,
             volumeFilter,
             new[] { mockExchangeClient.Object },
-            spreadDataCache
+            channel
         );
 
         // Act
         await orchestrationService.StartAsync();
 
-
         // Assert
-        var cachedData = spreadDataCache.GetAll().FirstOrDefault();
-        Assert.NotNull(cachedData);
-        Assert.True(cachedData.Timestamp > DateTime.MinValue);
+        mockWebSocketServer.Verify(ws => ws.BroadcastRealtimeAsync(It.IsAny<string>()), Times.Once);
+
+        Assert.NotNull(capturedMessage);
+        var capturedData = JsonSerializer.Deserialize<SpreadData>(capturedMessage);
+        Assert.NotNull(capturedData);
+        Assert.True(capturedData.Timestamp > DateTime.MinValue);
     }
 }

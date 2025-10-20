@@ -4,10 +4,12 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Application.Services;
+using SpreadAggregator.Domain.Entities;
 using SpreadAggregator.Domain.Services;
 using SpreadAggregator.Infrastructure.Services;
 using SpreadAggregator.Infrastructure.Services.Exchanges;
 using System;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 using BingX.Net.Interfaces.Clients;
 using BingX.Net.Clients;
@@ -19,12 +21,7 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        var host = CreateHostBuilder(args).Build();
-
-        var orchestrationService = host.Services.GetRequiredService<OrchestrationService>();
-        await orchestrationService.StartAsync();
-
-        await host.RunAsync();
+        await CreateHostBuilder(args).Build().RunAsync();
     }
 
     private static IHostBuilder CreateHostBuilder(string[] args) =>
@@ -58,7 +55,8 @@ class Program
 
                 services.AddSingleton<SpreadCalculator>();
                 services.AddSingleton<VolumeFilter>();
-                services.AddSingleton<SpreadDataCache>();
+                services.AddSingleton(Channel.CreateUnbounded<SpreadData>());
+                services.AddSingleton(sp => sp.GetRequiredService<Channel<SpreadData>>().Reader);
 
                 // Register all exchange clients
                 services.AddSingleton<IExchangeClient, BinanceExchangeClient>();
@@ -73,5 +71,29 @@ class Program
                 services.AddBingX();
                 services.AddBybit();
                 services.AddSingleton<OrchestrationService>();
+                services.AddHostedService<OrchestrationServiceHost>();
             });
+}
+
+public class OrchestrationServiceHost : IHostedService
+{
+    private readonly OrchestrationService _orchestrationService;
+
+    public OrchestrationServiceHost(OrchestrationService orchestrationService)
+    {
+        _orchestrationService = orchestrationService;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        // Не блокируем запуск, OrchestrationService сам управляет фоновыми задачами
+        _ = _orchestrationService.StartAsync(cancellationToken);
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        // Здесь можно добавить логику для грациозной остановки, если потребуется
+        return Task.CompletedTask;
+    }
 }

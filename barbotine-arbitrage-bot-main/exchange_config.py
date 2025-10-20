@@ -22,6 +22,7 @@ DEFAULT_PYTHON_COMMAND = 'python3'
 MIN_ORDER_VALUE_USD = 10.0  # Minimum order value in USD
 LARGE_NUMBER = 10e13  # Used for unlimited max values
 BTC_USDT_PAIR = 'BTC/USDT'  # Reference pair for fees
+DEFAULT_COMMISSION_PCT = 0.1 # Default trading commission in percent
 
 # File paths
 LOGS_DIR = 'logs'

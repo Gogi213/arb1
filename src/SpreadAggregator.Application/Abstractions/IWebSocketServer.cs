@@ -13,8 +13,8 @@ public interface IWebSocketServer
     void Start();
 
     /// <summary>
-    /// Broadcasts a message to all connected clients.
+    /// Broadcasts a message to all connected real-time clients.
     /// </summary>
     /// <param name="message">The message to send.</param>
-    Task BroadcastAsync(string message);
+    Task BroadcastRealtimeAsync(string message);
 }

@@ -21,12 +21,22 @@ public class MexcExchangeClient : IExchangeClient
     public async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
+        if (tickers == null || !tickers.Success || tickers.Data == null)
+        {
+            Console.WriteLine($"[ERROR] Failed to retrieve tickers from {ExchangeName}: {tickers?.Error?.Message ?? "No data returned"}");
+            return Enumerable.Empty<string>();
+        }
         return tickers.Data.Select(t => t.Symbol);
     }
 
     public async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
+        if (tickers == null || !tickers.Success || tickers.Data == null)
+        {
+            Console.WriteLine($"[ERROR] Failed to retrieve tickers from {ExchangeName}: {tickers?.Error?.Message ?? "No data returned"}");
+            return Enumerable.Empty<TickerData>();
+        }
         return tickers.Data.Select(t => new TickerData
         {
             Symbol = t.Symbol,

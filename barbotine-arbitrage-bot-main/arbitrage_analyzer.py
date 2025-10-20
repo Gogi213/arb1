@@ -52,39 +52,25 @@ class MultiExchangeArbitrageAnalyzer:
         """
         self.max_exchanges = max_exchanges
 
-    def find_all_opportunities(
+    def find_maker_taker_opportunities(
         self,
         spread_data: List[Dict],
         balances: Dict[str, Dict[str, float]],
-        min_profit_pct: float = 0.5
+        commission_pct: float,
+        min_profit_pct: float = 0.1
     ) -> List[DirectionalOpportunity]:
         """
-        Find ALL arbitrage opportunities across exchanges in ALL directions
-
-        Args:
-            spread_data: List of spread records from WebSocket
-            balances: Current balances {exchange: {'usdt': float, 'crypto': float}}
-            min_profit_pct: Minimum profit percentage threshold
-
-        Returns:
-            List of DirectionalOpportunity sorted by profit_pct (descending)
-
-        Example:
-            spread_data = [
-                {"symbol": "BTC/USDT", "exchange": "Bybit", "bestBid": 42500, "bestAsk": 42501},
-                {"symbol": "BTC/USDT", "exchange": "Binance", "bestBid": 42510, "bestAsk": 42511},
-                {"symbol": "BTC/USDT", "exchange": "MEXC", "bestBid": 42520, "bestAsk": 42521},
-                {"symbol": "BTC/USDT", "exchange": "BingX", "bestBid": 42505, "bestAsk": 42506},
-            ]
-
-            balances = {
-                'Bybit': {'usdt': 1000, 'crypto': 0.5},
-                'Binance': {'usdt': 500, 'crypto': 0.2},
-                'MEXC': {'usdt': 2000, 'crypto': 0.1},
-                'BingX': {'usdt': 100, 'crypto': 0.8}
-            }
+        Finds Maker/Taker opportunities (Buy at Bid, Sell at Bid).
         """
-        # Group data by symbol
+        return self._find_opportunities(spread_data, balances, commission_pct, "maker")
+
+    def _find_opportunities(
+        self,
+        spread_data: List[Dict],
+        balances: Dict[str, Dict[str, float]],
+        commission_pct: float,
+        buy_model: str
+    ) -> List[DirectionalOpportunity]:
         symbol_data = {}
         for record in spread_data:
             symbol = record.get('symbol')
@@ -96,88 +82,76 @@ class MultiExchangeArbitrageAnalyzer:
         opportunities = []
 
         for symbol, records in symbol_data.items():
-            # Limit to max_exchanges
             if len(records) > self.max_exchanges:
-                # Sort by volume or another metric, for now just take first N
                 records = records[:self.max_exchanges]
 
-            # Find opportunities between ALL pairs of exchanges
             for i, record_a in enumerate(records):
                 exchange_a = record_a.get('exchange')
                 ask_a = record_a.get('bestAsk')
                 bid_a = record_a.get('bestBid')
 
-                if not exchange_a or ask_a is None or bid_a is None:
+                if buy_model == "taker":
+                    buy_price = ask_a
+                else: # maker
+                    buy_price = bid_a
+
+                if not exchange_a or buy_price is None or buy_price == 0:
                     continue
 
                 for j, record_b in enumerate(records):
                     if i == j:
-                        continue  # Skip same exchange
-
-                    exchange_b = record_b.get('exchange')
-                    ask_b = record_b.get('bestAsk')
-                    bid_b = record_b.get('bestBid')
-
-                    if not exchange_b or ask_b is None or bid_b is None:
                         continue
 
-                    # Check opportunity: Buy on A, Sell on B
-                    if ask_a < bid_b:
-                        profit_pct = (bid_b - ask_a) / ask_a * 100
+                    exchange_b = record_b.get('exchange')
+                    sell_price = record_b.get('bestBid') # We always sell to the best bid (Taker)
+                    
+                    if not exchange_b or sell_price is None:
+                        continue
 
-                        if profit_pct >= min_profit_pct:
-                            # Check if we have balances to execute this
-                            can_execute = self._can_execute_trade(
-                                exchange_a, exchange_b, balances
-                            )
+                    if buy_price < sell_price:
+                        gross_profit_pct = ((sell_price - buy_price) / buy_price) * 100
+                        net_profit_pct = gross_profit_pct - (2 * commission_pct)
 
-                            if can_execute:
-                                opportunities.append(DirectionalOpportunity(
-                                    symbol=symbol,
-                                    buy_exchange=exchange_a,
-                                    sell_exchange=exchange_b,
-                                    buy_price=ask_a,
-                                    sell_price=bid_b,
-                                    profit_pct=profit_pct,
-                                    exchange_count=len(records)
-                                ))
+                        # For maker-taker, we can check against all thresholds
+                        # For taker-taker, it's a direct check
+                        if net_profit_pct > 0: # Check for any profitability before deeper checks
+                            if symbol.endswith('USDT'):
+                                base_currency = symbol[:-4]
+                                can_execute = self._can_execute_trade(
+                                    buy_wallet=balances.get(exchange_a, {}).get(symbol, {}),
+                                    sell_wallet=balances.get(exchange_b, {}).get(symbol, {}),
+                                    base_currency=base_currency
+                                )
 
-        # Sort by profitability (descending)
+                                if can_execute:
+                                    opportunities.append(DirectionalOpportunity(
+                                        symbol=symbol,
+                                        buy_exchange=exchange_a,
+                                        sell_exchange=exchange_b,
+                                        buy_price=buy_price,
+                                        sell_price=sell_price,
+                                        profit_pct=net_profit_pct,
+                                        exchange_count=len(records)
+                                    ))
+
         opportunities.sort(key=lambda x: x.profit_pct, reverse=True)
-
         return opportunities
 
     def _can_execute_trade(
         self,
-        buy_exchange: str,
-        sell_exchange: str,
-        balances: Dict[str, Dict[str, float]],
-        min_usdt: float = 10.0,
-        min_crypto: float = 0.001
+        buy_wallet: Dict[str, float],
+        sell_wallet: Dict[str, float],
+        base_currency: str,
+        min_usdt: float = 10.0
     ) -> bool:
         """
-        Check if we have sufficient balances to execute a trade
-
-        Args:
-            buy_exchange: Exchange to buy from
-            sell_exchange: Exchange to sell to
-            balances: Current balances
-            min_usdt: Minimum USDT required to buy
-            min_crypto: Minimum crypto required to sell
-
-        Returns:
-            True if trade can be executed, False otherwise
+        Check if we have sufficient balances to execute a trade.
         """
-        # Check if exchanges exist in balances
-        if buy_exchange not in balances or sell_exchange not in balances:
+        if not buy_wallet or not sell_wallet:
             return False
 
-        # Check if we have USDT to buy
-        has_usdt = balances[buy_exchange].get('usdt', 0) >= min_usdt
-
-        # Check if we have crypto to sell
-        has_crypto = balances[sell_exchange].get('crypto', 0) >= min_crypto
-
+        has_usdt = buy_wallet.get('USDT', 0) >= min_usdt
+        has_crypto = sell_wallet.get(base_currency, 0) > 0
         return has_usdt and has_crypto
 
     def get_opportunity_matrix(
@@ -187,45 +161,26 @@ class MultiExchangeArbitrageAnalyzer:
     ) -> Dict[Tuple[str, str], float]:
         """
         Get profit matrix for all exchange pairs
-
-        Returns:
-            Dictionary {(buy_exchange, sell_exchange): profit_pct}
-
-        Example output:
-            {
-                ('Bybit', 'Binance'): 0.023,   # Buy Bybit, Sell Binance = +0.023%
-                ('Binance', 'Bybit'): -0.015,  # Buy Binance, Sell Bybit = -0.015% (loss)
-                ('Bybit', 'MEXC'): 0.045,
-                ('MEXC', 'Bybit'): -0.030,
-                ...
-            }
         """
-        # Filter records for this symbol
         records = [r for r in spread_data if r.get('symbol') == symbol]
-
         matrix = {}
 
         for record_a in records:
             exchange_a = record_a.get('exchange')
             ask_a = record_a.get('bestAsk')
-
-            if not exchange_a or ask_a is None:
+            if not exchange_a or ask_a is None or ask_a == 0:
                 continue
 
             for record_b in records:
                 if record_a == record_b:
                     continue
-
                 exchange_b = record_b.get('exchange')
                 bid_b = record_b.get('bestBid')
-
                 if not exchange_b or bid_b is None:
                     continue
-
-                # Calculate profit for this direction
+                
                 profit_pct = (bid_b - ask_a) / ask_a * 100
                 matrix[(exchange_a, exchange_b)] = profit_pct
-
         return matrix
 
     def get_best_direction_for_balance(
@@ -235,16 +190,14 @@ class MultiExchangeArbitrageAnalyzer:
     ) -> Optional[DirectionalOpportunity]:
         """
         Get the best opportunity that can be executed with current balances
-
-        Args:
-            opportunities: List of all opportunities
-            balances: Current balances
-
-        Returns:
-            Best executable opportunity or None
         """
         for opp in opportunities:
-            if self._can_execute_trade(opp.buy_exchange, opp.sell_exchange, balances):
-                return opp
-
+            if opp.symbol.endswith('USDT'):
+                base_currency = opp.symbol[:-4]
+                if self._can_execute_trade(
+                    buy_wallet=balances.get(opp.buy_exchange, {}).get(opp.symbol, {}),
+                    sell_wallet=balances.get(opp.sell_exchange, {}).get(opp.symbol, {}),
+                    base_currency=base_currency
+                ):
+                    return opp
         return None

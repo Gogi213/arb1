@@ -20,32 +20,15 @@ if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 
+def standardize_symbol(symbol: str) -> str:
+    """Removes special characters from a symbol string to standardize it."""
+    if not isinstance(symbol, str):
+        return ""
+    return symbol.replace('/', '').replace('-', '').replace('_', '').replace(' ', '')
+
 def parse_spread_data(raw_message: str) -> List[Dict]:
     """
-    Parse spread data message from C# WebSocket server
-
-    C# sends data in columnar format:
-    {
-        "Fields": ["symbol", "exchange", "bestBid", "bestAsk"],
-        "Data": [
-            ["BTC/USDT", "Binance", 42500.5, 42501.2],
-            ["ETH/USDT", "Binance", 2250.0, 2251.5],
-            ...
-        ]
-    }
-
-    Args:
-        raw_message: Raw JSON string from WebSocket
-
-    Returns:
-        List of dictionaries with field names as keys
-
-    Example:
-        [
-            {"symbol": "BTC/USDT", "exchange": "Binance", "bestBid": 42500.5, "bestAsk": 42501.2},
-            {"symbol": "ETH/USDT", "exchange": "Binance", "bestBid": 2250.0, "bestAsk": 2251.5},
-            ...
-        ]
+    Parse spread data message from C# WebSocket server and standardize symbols.
     """
     try:
         message = json.loads(raw_message)
@@ -60,9 +43,12 @@ def parse_spread_data(raw_message: str) -> List[Dict]:
         # Convert columnar format to row format
         result = []
         for row in data_rows:
-            record = {}
-            for i, field_name in enumerate(fields):
-                record[field_name] = row[i]
+            record = dict(zip(fields, row))
+            
+            # Standardize the symbol
+            if 'symbol' in record:
+                record['symbol'] = standardize_symbol(record['symbol'])
+            
             result.append(record)
 
         return result
@@ -77,17 +63,13 @@ def parse_spread_data(raw_message: str) -> List[Dict]:
 
 class SpreadAggregatorClient:
     """
-    WebSocket client for connecting to SpreadAggregator C# server
-
-    Features:
-    - Connects to ws://127.0.0.1:8181
-    - Parses columnar data format
-    - Handles PascalCase/camelCase field names
-    - Invokes callback for each data update
+    WebSocket client for connecting to SpreadAggregator C# server.
+    Includes a buffer to handle high-frequency real-time data.
     """
 
     def __init__(self):
         self.websocket = None
+        self.buffer = asyncio.Queue()
 
     async def connect(self, url: str) -> None:
         """
@@ -99,12 +81,9 @@ class SpreadAggregatorClient:
         self.websocket = await websockets.connect(url)
         print(f"✓ Connected to {url}")
 
-    async def listen(self, callback: Callable[[List[Dict]], None]) -> None:
+    async def listen(self) -> None:
         """
-        Listen for messages and invoke callback with parsed data
-
-        Args:
-            callback: Function to call with parsed data (sync function)
+        Listens for messages and puts them into an internal buffer.
         """
         if not self.websocket:
             raise RuntimeError("Not connected. Call connect() first.")
@@ -112,8 +91,21 @@ class SpreadAggregatorClient:
         async for message in self.websocket:
             parsed_data = parse_spread_data(message)
             if parsed_data:
-                # Callback is synchronous
-                callback(parsed_data)
+                # Since each message from realtime is just one update,
+                # we put the single record dictionary into the queue.
+                await self.buffer.put(parsed_data[0])
+    
+    async def get_batch(self) -> List[Dict]:
+        """
+        Gets all currently buffered messages and clears the buffer.
+        """
+        if self.buffer.empty():
+            return []
+        
+        batch = []
+        while not self.buffer.empty():
+            batch.append(await self.buffer.get())
+        return batch
 
     async def close(self) -> None:
         """Close WebSocket connection"""
@@ -129,7 +121,7 @@ async def main():
     client = SpreadAggregatorClient()
 
     # Connect to C# server
-    await client.connect("ws://127.0.0.1:8181")
+    await client.connect("ws://127.0.0.1:8181/realtime")
 
     # Message counter
     message_count = 0

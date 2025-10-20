@@ -183,11 +183,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
+      "projectUniqueName": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
       "projectName": "SpreadAggregator.Application",
-      "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
+      "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
       "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-      "outputPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\obj\\",
+      "outputPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"

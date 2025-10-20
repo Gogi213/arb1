@@ -58,3 +58,6 @@ BenchmarkDotNet.Artifacts/
 
 # Docs or external libs you don't want в репу
 docs/jkorf/
+
+# Generated data
+data/

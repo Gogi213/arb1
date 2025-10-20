@@ -5,6 +5,7 @@ using SpreadAggregator.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
@@ -12,12 +13,12 @@ namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 public class BybitExchangeClient : IExchangeClient
 {
     public string ExchangeName => "Bybit";
-    private readonly IBybitSocketClient _socketClient;
     private readonly IBybitRestClient _restClient;
+    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
+    private Action<SpreadData> _onData;
 
-    public BybitExchangeClient(IBybitSocketClient socketClient, IBybitRestClient restClient)
+    public BybitExchangeClient(IBybitRestClient restClient)
     {
-        _socketClient = socketClient;
         _restClient = restClient;
     }
 
@@ -39,20 +40,73 @@ public class BybitExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        var symbolsList = symbols.ToList();
-        for (int i = 0; i < symbolsList.Count; i += 10)
+        _onData = onData;
+
+        foreach (var connection in _connections)
         {
-            var batch = symbolsList.Skip(i).Take(10);
-            var result = await _socketClient.V5SpotApi.SubscribeToOrderbookUpdatesAsync(batch, 1, data =>
+            await connection.StopAsync();
+        }
+        _connections.Clear();
+
+        var symbolsList = symbols.ToList();
+        // Original code used a batch size of 10. We'll use 20% of that.
+        // Original code used a batch size of 10. We'll stick to that as it's a documented limit for subscriptions per connection.
+        const int chunkSize = 10;
+
+        for (int i = 0; i < symbolsList.Count; i += chunkSize)
+        {
+            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
+            if (chunk.Any())
+            {
+                var connection = new ManagedConnection(chunk, _onData);
+                _connections.Add(connection);
+            }
+        }
+
+        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    private class ManagedConnection
+    {
+        private readonly List<string> _symbols;
+        private readonly Action<SpreadData> _onData;
+        private readonly BybitSocketClient _socketClient;
+        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
+
+        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        {
+            _symbols = symbols;
+            _onData = onData;
+            _socketClient = new BybitSocketClient();
+        }
+
+        public async Task StartAsync()
+        {
+            await SubscribeInternalAsync();
+        }
+
+        public async Task StopAsync()
+        {
+            await _socketClient.V5SpotApi.UnsubscribeAllAsync();
+            _socketClient.Dispose();
+        }
+
+        private async Task SubscribeInternalAsync()
+        {
+            Console.WriteLine($"[BybitExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
+
+            await _socketClient.V5SpotApi.UnsubscribeAllAsync();
+
+            var result = await _socketClient.V5SpotApi.SubscribeToOrderbookUpdatesAsync(_symbols, 1, data =>
             {
                 var bestBid = data.Data.Bids.FirstOrDefault();
                 var bestAsk = data.Data.Asks.FirstOrDefault();
 
                 if (bestBid != null && bestAsk != null)
                 {
-                    onData(new SpreadData
+                    _onData(new SpreadData
                     {
-                        Exchange = ExchangeName,
+                        Exchange = "Bybit",
                         Symbol = data.Data.Symbol,
                         BestBid = bestBid.Price,
                         BestAsk = bestAsk.Price
@@ -62,7 +116,32 @@ public class BybitExchangeClient : IExchangeClient
 
             if (!result.Success)
             {
-                Console.WriteLine($"[ERROR] [BybitExchangeClient] Failed to subscribe to batch starting with {batch.FirstOrDefault()}: {result.Error}");
+                Console.WriteLine($"[ERROR] [Bybit] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
+            }
+            else
+            {
+                Console.WriteLine($"[Bybit] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
+                result.Data.ConnectionLost += HandleConnectionLost;
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[Bybit] Connection restored for chunk after {t}.");
+            }
+        }
+
+        private async void HandleConnectionLost()
+        {
+            await _resubscribeLock.WaitAsync();
+            try
+            {
+                Console.WriteLine($"[Bybit] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
+                await Task.Delay(1000);
+                await SubscribeInternalAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] [Bybit] Failed to resubscribe for chunk: {ex.Message}");
+            }
+            finally
+            {
+                _resubscribeLock.Release();
             }
         }
     }

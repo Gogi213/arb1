@@ -4,6 +4,7 @@ using SpreadAggregator.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
@@ -12,6 +13,8 @@ public class MexcExchangeClient : IExchangeClient
 {
     public string ExchangeName => "MEXC";
     private readonly MexcRestClient _restClient;
+    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
+    private Action<SpreadData> _onData;
 
     public MexcExchangeClient()
     {
@@ -21,22 +24,12 @@ public class MexcExchangeClient : IExchangeClient
     public async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
-        if (tickers == null || !tickers.Success || tickers.Data == null)
-        {
-            Console.WriteLine($"[ERROR] Failed to retrieve tickers from {ExchangeName}: {tickers?.Error?.Message ?? "No data returned"}");
-            return Enumerable.Empty<string>();
-        }
         return tickers.Data.Select(t => t.Symbol);
     }
 
     public async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
-        if (tickers == null || !tickers.Success || tickers.Data == null)
-        {
-            Console.WriteLine($"[ERROR] Failed to retrieve tickers from {ExchangeName}: {tickers?.Error?.Message ?? "No data returned"}");
-            return Enumerable.Empty<TickerData>();
-        }
         return tickers.Data.Select(t => new TickerData
         {
             Symbol = t.Symbol,
@@ -46,38 +39,72 @@ public class MexcExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        // MEXC has a strict limit on the total number of active subscriptions per connection.
-        // To work around this, we create a new socket client when the limit is approached.
-        const int maxSubscriptionsPerConnection = 30; // A safe limit.
-        const int batchSize = 10; // Symbols per subscription message.
-        const int delayBetweenSubscriptions = 1000; // 1 second delay.
+        _onData = onData;
+
+        foreach (var connection in _connections)
+        {
+            await connection.StopAsync();
+        }
+        _connections.Clear();
 
         var symbolsList = symbols.ToList();
-        var activeSocketClient = new MexcSocketClient(); // Start with a fresh client.
-        var subscriptionsOnCurrentClient = 0;
+        // MEXC has a limit of 30 subscriptions per connection. We use 20% of that.
+        // MEXC has a limit on the message size for subscriptions.
+        // A chunkSize of 30 was too large and exceeded the 1024 byte limit.
+        // Reducing to 6 to keep message size down.
+        const int chunkSize = 6;
 
-        for (int i = 0; i < symbolsList.Count; i += batchSize)
+        for (int i = 0; i < symbolsList.Count; i += chunkSize)
         {
-            var batch = symbolsList.Skip(i).Take(batchSize).ToList();
-
-            // Check if we need a new client for this batch
-            if (subscriptionsOnCurrentClient > 0 && subscriptionsOnCurrentClient + batch.Count >= maxSubscriptionsPerConnection)
+            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
+            if (chunk.Any())
             {
-                Console.WriteLine($"[MexcExchangeClient] Subscription limit for current client reached. Creating a new client.");
-                activeSocketClient = new MexcSocketClient();
-                subscriptionsOnCurrentClient = 0;
+                var connection = new ManagedConnection(chunk, _onData);
+                _connections.Add(connection);
             }
+        }
 
-            var batchNumber = i / batchSize + 1;
-            Console.WriteLine($"[MexcExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
+        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
 
-            var result = await activeSocketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(batch, data =>
+    private class ManagedConnection
+    {
+        private readonly List<string> _symbols;
+        private readonly Action<SpreadData> _onData;
+        private readonly MexcSocketClient _socketClient;
+        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
+
+        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        {
+            _symbols = symbols;
+            _onData = onData;
+            _socketClient = new MexcSocketClient();
+        }
+
+        public async Task StartAsync()
+        {
+            await SubscribeInternalAsync();
+        }
+
+        public async Task StopAsync()
+        {
+            await _socketClient.SpotApi.UnsubscribeAllAsync();
+            _socketClient.Dispose();
+        }
+
+        private async Task SubscribeInternalAsync()
+        {
+            Console.WriteLine($"[MexcExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
+
+            await _socketClient.SpotApi.UnsubscribeAllAsync();
+
+            var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
             {
                 if (data.Data != null && data.Symbol != null)
                 {
-                    onData(new SpreadData
+                    _onData(new SpreadData
                     {
-                        Exchange = ExchangeName,
+                        Exchange = "MEXC",
                         Symbol = data.Symbol,
                         BestBid = data.Data.BestBidPrice,
                         BestAsk = data.Data.BestAskPrice
@@ -87,18 +114,33 @@ public class MexcExchangeClient : IExchangeClient
 
             if (!result.Success)
             {
-                Console.WriteLine($"[ERROR] Failed to subscribe to batch {batchNumber}: {result.Error}");
+                Console.WriteLine($"[ERROR] [MEXC] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
             }
             else
             {
-                subscriptionsOnCurrentClient += batch.Count;
-                Console.WriteLine($"[MexcExchangeClient] Successfully subscribed to batch {batchNumber}. Current subscriptions on this client: {subscriptionsOnCurrentClient}.");
-                result.Data.ConnectionLost += () => Console.WriteLine($"[MexcExchangeClient] Connection lost for batch {batchNumber}.");
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[MexcExchangeClient] Connection restored for batch {batchNumber} after {t}.");
+                Console.WriteLine($"[MEXC] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
+                result.Data.ConnectionLost += HandleConnectionLost;
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[MEXC] Connection restored for chunk after {t}.");
             }
+        }
 
-            // Wait before sending the next subscription request.
-            await Task.Delay(delayBetweenSubscriptions);
+        private async void HandleConnectionLost()
+        {
+            await _resubscribeLock.WaitAsync();
+            try
+            {
+                Console.WriteLine($"[MEXC] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
+                await Task.Delay(1000);
+                await SubscribeInternalAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] [MEXC] Failed to resubscribe for chunk: {ex.Message}");
+            }
+            finally
+            {
+                _resubscribeLock.Release();
+            }
         }
     }
 }

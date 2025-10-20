@@ -13,6 +13,7 @@ using System.Threading.Channels;
 using System.Threading.Tasks;
 using BingX.Net.Interfaces.Clients;
 using BingX.Net.Clients;
+using Bybit.Net.Interfaces.Clients;
 using Bybit.Net.Clients;
 
 namespace SpreadAggregator.Presentation;
@@ -68,7 +69,6 @@ class Program
                 services.AddSingleton<IExchangeClient, BingXExchangeClient>();
                 services.AddSingleton<IExchangeClient, BybitExchangeClient>();
 
-                services.AddBingX();
                 services.AddBybit();
                 services.AddSingleton<OrchestrationService>();
                 services.AddHostedService<OrchestrationServiceHost>();

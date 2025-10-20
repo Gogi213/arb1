@@ -4,6 +4,7 @@ using SpreadAggregator.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
@@ -12,6 +13,8 @@ public class GateIoExchangeClient : IExchangeClient
 {
     public string ExchangeName => "GateIo";
     private readonly GateIoRestClient _restClient;
+    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
+    private Action<SpreadData> _onData;
 
     public GateIoExchangeClient()
     {
@@ -36,22 +39,65 @@ public class GateIoExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        var symbolsList = symbols.ToList();
-        // Gate.io might have subscription limits, so we'll use a conservative batching approach.
-        const int batchSize = 10;
-        const int delayBetweenSubscriptions = 1000; // 1 second
+        _onData = onData;
 
-        for (int i = 0; i < symbolsList.Count; i += batchSize)
+        foreach (var connection in _connections)
         {
-            var batch = symbolsList.Skip(i).Take(batchSize).ToList();
-            var batchNumber = i / batchSize + 1;
-            Console.WriteLine($"[GateIoExchangeClient] Subscribing to batch {batchNumber}, containing {batch.Count} symbols.");
+            await connection.StopAsync();
+        }
+        _connections.Clear();
 
-            // Note: Gate.io uses SubscribeToBookTickerUpdatesAsync for book ticker data.
-            var socketClient = new GateIoSocketClient();
-            var result = await socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(batch, data =>
+        var symbolsList = symbols.ToList();
+        // Original code used a batch size of 10. We'll use 20% of that.
+        const int chunkSize = 30;
+
+        for (int i = 0; i < symbolsList.Count; i += chunkSize)
+        {
+            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
+            if (chunk.Any())
             {
-                onData(new SpreadData
+                var connection = new ManagedConnection(chunk, _onData);
+                _connections.Add(connection);
+            }
+        }
+
+        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    private class ManagedConnection
+    {
+        private readonly List<string> _symbols;
+        private readonly Action<SpreadData> _onData;
+        private readonly GateIoSocketClient _socketClient;
+        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
+
+        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        {
+            _symbols = symbols;
+            _onData = onData;
+            _socketClient = new GateIoSocketClient();
+        }
+
+        public async Task StartAsync()
+        {
+            await SubscribeInternalAsync();
+        }
+
+        public async Task StopAsync()
+        {
+            await _socketClient.SpotApi.UnsubscribeAllAsync();
+            _socketClient.Dispose();
+        }
+
+        private async Task SubscribeInternalAsync()
+        {
+            Console.WriteLine($"[GateIoExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
+
+            await _socketClient.SpotApi.UnsubscribeAllAsync();
+
+            var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
+            {
+                _onData(new SpreadData
                 {
                     Exchange = "GateIo",
                     Symbol = data.Data.Symbol,
@@ -62,16 +108,33 @@ public class GateIoExchangeClient : IExchangeClient
 
             if (!result.Success)
             {
-                Console.WriteLine($"[ERROR] Failed to subscribe to batch {batchNumber}: {result.Error}");
+                Console.WriteLine($"[ERROR] [GateIo] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
             }
             else
             {
-                Console.WriteLine($"[GateIoExchangeClient] Successfully subscribed to batch {batchNumber}.");
-                result.Data.ConnectionLost += () => Console.WriteLine($"[GateIoExchangeClient] Connection lost for batch {batchNumber}.");
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[GateIoExchangeClient] Connection restored for batch {batchNumber} after {t}.");
+                Console.WriteLine($"[GateIo] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
+                result.Data.ConnectionLost += HandleConnectionLost;
+                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[GateIo] Connection restored for chunk after {t}.");
             }
+        }
 
-            await Task.Delay(delayBetweenSubscriptions);
+        private async void HandleConnectionLost()
+        {
+            await _resubscribeLock.WaitAsync();
+            try
+            {
+                Console.WriteLine($"[GateIo] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
+                await Task.Delay(1000);
+                await SubscribeInternalAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] [GateIo] Failed to resubscribe for chunk: {ex.Message}");
+            }
+            finally
+            {
+                _resubscribeLock.Release();
+            }
         }
     }
 }

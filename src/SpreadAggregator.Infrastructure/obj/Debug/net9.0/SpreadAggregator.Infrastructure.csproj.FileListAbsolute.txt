@@ -1,16 +1,10 @@
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Infrastructure.deps.json
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Infrastructure.dll
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Infrastructure.pdb
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\BingX.Net.dll
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\Bitget.Net.dll
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Application.dll
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Domain.dll
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Application.pdb
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Domain.pdb
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\Bitget.Net.pdb
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\Bitget.Net.xml
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\BingX.Net.pdb
-C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\BingX.Net.xml
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.csproj.AssemblyReference.cache
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
 C:\visual projects\arb1\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.AssemblyInfoInputs.cache

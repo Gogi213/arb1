@@ -8,47 +8,46 @@
     ".NETCoreApp,Version=v9.0": {
       "SpreadAggregator.Infrastructure/1.0.0": {
         "dependencies": {
-          "Binance.Net": "11.8.0",
-          "Bybit.Net": "5.9.0",
-          "CryptoExchange.Net": "9.9.0",
+          "Binance.Net": "11.9.0",
+          "Bybit.Net": "5.10.1",
+          "CryptoExchange.Net": "9.10.0",
           "Fleck": "1.2.0",
-          "GateIo.Net": "2.10.0",
-          "JK.BingX.Net": "2.8.0",
-          "JK.Bitget.Net": "2.8.0",
-          "JK.Mexc.Net": "3.9.0",
-          "JK.OKX.Net": "3.8.0",
-          "Kucoin.Net": "7.8.0",
-          "SpreadAggregator.Application": "1.0.0",
-          "BingX.Net": "2.8.0.0",
-          "Bitget.Net": "2.8.0.0"
+          "GateIo.Net": "2.11.0",
+          "JK.BingX.Net": "2.9.0",
+          "JK.Bitget.Net": "2.9.0",
+          "JK.Mexc.Net": "3.10.0",
+          "JK.OKX.Net": "3.9.0",
+          "Kucoin.Net": "7.9.0",
+          "Parquet.Net": "5.2.0",
+          "SpreadAggregator.Application": "1.0.0"
         },
         "runtime": {
           "SpreadAggregator.Infrastructure.dll": {}
         }
       },
-      "Binance.Net/11.8.0": {
+      "Binance.Net/11.9.0": {
         "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
+          "CryptoExchange.Net": "9.10.0"
         },
         "runtime": {
           "lib/net9.0/Binance.Net.dll": {
-            "assemblyVersion": "11.8.0.0",
-            "fileVersion": "11.8.0.0"
+            "assemblyVersion": "11.9.0.0",
+            "fileVersion": "11.9.0.0"
           }
         }
       },
-      "Bybit.Net/5.9.0": {
+      "Bybit.Net/5.10.1": {
         "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
+          "CryptoExchange.Net": "9.10.0"
         },
         "runtime": {
           "lib/net9.0/Bybit.Net.dll": {
-            "assemblyVersion": "5.9.0.0",
-            "fileVersion": "5.9.0.0"
+            "assemblyVersion": "5.10.1.0",
+            "fileVersion": "5.10.1.0"
           }
         }
       },
-      "CryptoExchange.Net/9.9.0": {
+      "CryptoExchange.Net/9.10.0": {
         "dependencies": {
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
           "Microsoft.Extensions.Http": "9.0.6",
@@ -57,20 +56,20 @@
         },
         "runtime": {
           "lib/net9.0/CryptoExchange.Net.dll": {
-            "assemblyVersion": "9.9.0.0",
-            "fileVersion": "9.9.0.0"
+            "assemblyVersion": "9.10.0.0",
+            "fileVersion": "9.10.0.0"
           }
         }
       },
-      "CryptoExchange.Net.Protobuf/9.8.0": {
+      "CryptoExchange.Net.Protobuf/9.10.0": {
         "dependencies": {
-          "CryptoExchange.Net": "9.9.0",
+          "CryptoExchange.Net": "9.10.0",
           "protobuf-net": "3.2.56"
         },
         "runtime": {
           "lib/net9.0/CryptoExchange.Net.Protobuf.dll": {
-            "assemblyVersion": "9.8.0.0",
-            "fileVersion": "9.8.0.0"
+            "assemblyVersion": "9.10.0.0",
+            "fileVersion": "9.10.0.0"
           }
         }
       },
@@ -82,47 +81,103 @@
           }
         }
       },
-      "GateIo.Net/2.10.0": {
+      "GateIo.Net/2.11.0": {
         "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
+          "CryptoExchange.Net": "9.10.0"
         },
         "runtime": {
           "lib/net9.0/GateIo.Net.dll": {
-            "assemblyVersion": "2.10.0.0",
-            "fileVersion": "2.10.0.0"
+            "assemblyVersion": "2.11.0.0",
+            "fileVersion": "2.11.0.0"
           }
         }
       },
-      "JK.Mexc.Net/3.9.0": {
+      "IronCompress/1.6.3": {
         "dependencies": {
-          "CryptoExchange.Net.Protobuf": "9.8.0"
+          "Snappier": "1.1.6",
+          "ZstdSharp.Port": "0.8.1"
+        },
+        "runtime": {
+          "lib/net8.0/IronCompress.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.6.3.0"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/linux-arm64/native/libnironcompress.so": {
+            "rid": "linux-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/linux-x64/native/libnironcompress.so": {
+            "rid": "linux-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/osx-arm64/native/libnironcompress.dylib": {
+            "rid": "osx-arm64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          },
+          "runtimes/win-x64/native/nironcompress.dll": {
+            "rid": "win-x64",
+            "assetType": "native",
+            "fileVersion": "0.0.0.0"
+          }
+        }
+      },
+      "JK.BingX.Net/2.9.0": {
+        "dependencies": {
+          "CryptoExchange.Net": "9.10.0"
+        },
+        "runtime": {
+          "lib/net9.0/BingX.Net.dll": {
+            "assemblyVersion": "2.9.0.0",
+            "fileVersion": "2.9.0.0"
+          }
+        }
+      },
+      "JK.Bitget.Net/2.9.0": {
+        "dependencies": {
+          "CryptoExchange.Net": "9.10.0"
+        },
+        "runtime": {
+          "lib/net9.0/Bitget.Net.dll": {
+            "assemblyVersion": "2.9.0.0",
+            "fileVersion": "2.9.0.0"
+          }
+        }
+      },
+      "JK.Mexc.Net/3.10.0": {
+        "dependencies": {
+          "CryptoExchange.Net.Protobuf": "9.10.0"
         },
         "runtime": {
           "lib/net9.0/Mexc.Net.dll": {
+            "assemblyVersion": "3.10.0.0",
+            "fileVersion": "3.10.0.0"
+          }
+        }
+      },
+      "JK.OKX.Net/3.9.0": {
+        "dependencies": {
+          "CryptoExchange.Net": "9.10.0"
+        },
+        "runtime": {
+          "lib/net9.0/OKX.Net.dll": {
             "assemblyVersion": "3.9.0.0",
             "fileVersion": "3.9.0.0"
           }
         }
       },
-      "JK.OKX.Net/3.8.0": {
+      "Kucoin.Net/7.9.0": {
         "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
-        },
-        "runtime": {
-          "lib/net9.0/OKX.Net.dll": {
-            "assemblyVersion": "3.8.0.0",
-            "fileVersion": "3.8.0.0"
-          }
-        }
-      },
-      "Kucoin.Net/7.8.0": {
-        "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
+          "CryptoExchange.Net": "9.10.0"
         },
         "runtime": {
           "lib/net9.0/Kucoin.Net.dll": {
-            "assemblyVersion": "7.8.0.0",
-            "fileVersion": "7.8.0.0"
+            "assemblyVersion": "7.9.0.0",
+            "fileVersion": "7.9.0.0"
           }
         }
       },
@@ -279,6 +334,26 @@
           }
         }
       },
+      "Microsoft.IO.RecyclableMemoryStream/3.0.1": {
+        "runtime": {
+          "lib/net6.0/Microsoft.IO.RecyclableMemoryStream.dll": {
+            "assemblyVersion": "3.0.1.0",
+            "fileVersion": "3.0.1.0"
+          }
+        }
+      },
+      "Parquet.Net/5.2.0": {
+        "dependencies": {
+          "IronCompress": "1.6.3",
+          "Microsoft.IO.RecyclableMemoryStream": "3.0.1"
+        },
+        "runtime": {
+          "lib/net8.0/Parquet.dll": {
+            "assemblyVersion": "5.0.0.0",
+            "fileVersion": "5.2.0.0"
+          }
+        }
+      },
       "protobuf-net/3.2.56": {
         "dependencies": {
           "protobuf-net.Core": "3.2.56"
@@ -298,26 +373,20 @@
           }
         }
       },
-      "System.Text.Json/9.0.6": {},
-      "JK.BingX.Net/2.8.0": {
-        "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
-        },
+      "Snappier/1.1.6": {
         "runtime": {
-          "BingX.Net.dll": {
-            "assemblyVersion": "2.8.0.0",
-            "fileVersion": "2.8.0.0"
+          "lib/net8.0/Snappier.dll": {
+            "assemblyVersion": "1.1.6.0",
+            "fileVersion": "1.1.6.0"
           }
         }
       },
-      "JK.Bitget.Net/2.8.0": {
-        "dependencies": {
-          "CryptoExchange.Net": "9.9.0"
-        },
+      "System.Text.Json/9.0.6": {},
+      "ZstdSharp.Port/0.8.1": {
         "runtime": {
-          "Bitget.Net.dll": {
-            "assemblyVersion": "2.8.0.0",
-            "fileVersion": "2.8.0.0"
+          "lib/net8.0/ZstdSharp.dll": {
+            "assemblyVersion": "0.8.1.0",
+            "fileVersion": "0.8.1.0"
           }
         }
       },
@@ -341,22 +410,6 @@
             "fileVersion": "1.0.0.0"
           }
         }
-      },
-      "BingX.Net/2.8.0.0": {
-        "runtime": {
-          "BingX.Net.dll": {
-            "assemblyVersion": "2.8.0.0",
-            "fileVersion": "2.8.0.0"
-          }
-        }
-      },
-      "Bitget.Net/2.8.0.0": {
-        "runtime": {
-          "Bitget.Net.dll": {
-            "assemblyVersion": "2.8.0.0",
-            "fileVersion": "2.8.0.0"
-          }
-        }
       }
     }
   },
@@ -366,33 +419,33 @@
       "serviceable": false,
       "sha512": ""
     },
-    "Binance.Net/11.8.0": {
+    "Binance.Net/11.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-+JUs3jgah2ZrUAsg2ZxvTSoiqwR2m9RKjMvVGvZhG4MJZbaTT7zeFPbSApkxRgp5VT7FKEh9T78/J2bblMSf5Q==",
-      "path": "binance.net/11.8.0",
-      "hashPath": "binance.net.11.8.0.nupkg.sha512"
+      "sha512": "sha512-l2ee6w6wEWCJuHW9Qq1IE1p46o+BC4qYCfYMqNiGq346lZquJdU3zHq3/7iICfiMb2Z7rajhEGQ/lFazVnyWvw==",
+      "path": "binance.net/11.9.0",
+      "hashPath": "binance.net.11.9.0.nupkg.sha512"
     },
-    "Bybit.Net/5.9.0": {
+    "Bybit.Net/5.10.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Wm8qEl14nhOGhJvWiWQhTthUXQEE/eWEfefVXnDT9Fm3ClhABo/023S5hc51xxzfOBwagPEsH6fKfHAKYU2Sgg==",
-      "path": "bybit.net/5.9.0",
-      "hashPath": "bybit.net.5.9.0.nupkg.sha512"
+      "sha512": "sha512-dZy3R1Y6qQP3WlW8sT80R1ZPGDVU95cYNyfuCbxpKt225RudOTeu7VWJhutoOU/m8Jbinj9Gs90GI1nPGH5Nuw==",
+      "path": "bybit.net/5.10.1",
+      "hashPath": "bybit.net.5.10.1.nupkg.sha512"
     },
-    "CryptoExchange.Net/9.9.0": {
+    "CryptoExchange.Net/9.10.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-7Ivf2wQJTXHM90Ev7vM47qEInh4bjk2MZBlgUzwINNujwG9vNRa2tsq2P8jIxxq6GkqbLA/VR4ZN4FTjUpSb6g==",
-      "path": "cryptoexchange.net/9.9.0",
-      "hashPath": "cryptoexchange.net.9.9.0.nupkg.sha512"
+      "sha512": "sha512-grpV3clRM1R8eMp2KdhEoByFBAhpZF2V5CcgR/C0Kxzv9GsgVGTX6ZGsm2+Hww9XL1NRotAY9bQ9nudJHz/EAA==",
+      "path": "cryptoexchange.net/9.10.0",
+      "hashPath": "cryptoexchange.net.9.10.0.nupkg.sha512"
     },
-    "CryptoExchange.Net.Protobuf/9.8.0": {
+    "CryptoExchange.Net.Protobuf/9.10.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-AmA66o24/8VMClF1Ivd40JoCdGU1hbQXJ7h6P/KgrpWhTxqCcESLQ4zisHRzB1GExKMQ5+J224vOSGiGuDhJ9Q==",
-      "path": "cryptoexchange.net.protobuf/9.8.0",
-      "hashPath": "cryptoexchange.net.protobuf.9.8.0.nupkg.sha512"
+      "sha512": "sha512-Ndmqz6tz/cjUczxtIAn1usNw2vytTv9bYTM8k0rFUmFn3KPpWNEGzzay6uvjC/npqI9OJb+lIoMHXC2cKz1Kfw==",
+      "path": "cryptoexchange.net.protobuf/9.10.0",
+      "hashPath": "cryptoexchange.net.protobuf.9.10.0.nupkg.sha512"
     },
     "Fleck/1.2.0": {
       "type": "package",
@@ -401,33 +454,54 @@
       "path": "fleck/1.2.0",
       "hashPath": "fleck.1.2.0.nupkg.sha512"
     },
-    "GateIo.Net/2.10.0": {
+    "GateIo.Net/2.11.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-3D4LPSzf/ZtcOq0jxZGOwUiFHpkr5WV0Q5FJ60B2j10NiUUeomqUnZG7fPtzHccm5qUzTlly6H9pq1bkWFDOFQ==",
-      "path": "gateio.net/2.10.0",
-      "hashPath": "gateio.net.2.10.0.nupkg.sha512"
+      "sha512": "sha512-rA7IqwBzzPd2mrZlRoRKncAUgAkY+KE9y2msgfl6aEESo2IeJ0VR9CXHOZCb+fevOFV6SUxkHPCQCJH33MfiOw==",
+      "path": "gateio.net/2.11.0",
+      "hashPath": "gateio.net.2.11.0.nupkg.sha512"
     },
-    "JK.Mexc.Net/3.9.0": {
+    "IronCompress/1.6.3": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-VNwR0foNFgaZ/fNe8Y4K4JbecDJpEKfi8J6oO8IgM9XjUFjDzUy9Yx0HwwJTYWQ+j7JkAvZ6+frtbOv+rwfrFA==",
-      "path": "jk.mexc.net/3.9.0",
-      "hashPath": "jk.mexc.net.3.9.0.nupkg.sha512"
+      "sha512": "sha512-ygrMPrh20nVW8irdGZpMj9rXnz8WPDNN4fpq9JF1pGNL53Jg484OQOwaD4HaF6mxxIjhzKigRUFopjY/GdDfgg==",
+      "path": "ironcompress/1.6.3",
+      "hashPath": "ironcompress.1.6.3.nupkg.sha512"
     },
-    "JK.OKX.Net/3.8.0": {
+    "JK.BingX.Net/2.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-Nsm20w2IYZS7kn6CgNkjV1OvPriVwLPq8luoV8u2CLyarg2nV2Trp4Iyed6OhwWuW5jZJ5RhFxszR4wEXDbFGA==",
-      "path": "jk.okx.net/3.8.0",
-      "hashPath": "jk.okx.net.3.8.0.nupkg.sha512"
+      "sha512": "sha512-HshsSYMmaZZHyhdJSJ26TpViMLhSrG8A7yk3QPZa/nKnZ7/8huAdpGdVdxG2P4svI4xnLgQyva5HXHiHDfbl+w==",
+      "path": "jk.bingx.net/2.9.0",
+      "hashPath": "jk.bingx.net.2.9.0.nupkg.sha512"
     },
-    "Kucoin.Net/7.8.0": {
+    "JK.Bitget.Net/2.9.0": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-CSqI0Wjsus7FZrK4Gj1cR04tPo7XyczFoSYxXp392Ti3A+ZY9mPMLk3Dg/KQw1gPrHrerJitVVJWjQyxqvV5VQ==",
-      "path": "kucoin.net/7.8.0",
-      "hashPath": "kucoin.net.7.8.0.nupkg.sha512"
+      "sha512": "sha512-AlYDzBvI6P7/ToplOoZ1URuEW6e3bKGJIetPNCM/fmN7t/WgwVU5GsdsEF9ApJx4bqt1LS7Gu8cQKMm2PbzQ6Q==",
+      "path": "jk.bitget.net/2.9.0",
+      "hashPath": "jk.bitget.net.2.9.0.nupkg.sha512"
+    },
+    "JK.Mexc.Net/3.10.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AV/6D4aIf3oi3iUoygJQsGYKeUWo/pl2cJWfV/VQEqe0rsf7+EDs1nG+iUhi3JWc7HI9uqZ4gMfdPhWGGtNkDA==",
+      "path": "jk.mexc.net/3.10.0",
+      "hashPath": "jk.mexc.net.3.10.0.nupkg.sha512"
+    },
+    "JK.OKX.Net/3.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-g24CQS/CRwLfdm1xeOBOTsLoh5eExqVCrTXXSP99UG++VMVlCBn6yyWvoG3tMLp9iAj/oaYKTMmb8zKvLmCBtQ==",
+      "path": "jk.okx.net/3.9.0",
+      "hashPath": "jk.okx.net.3.9.0.nupkg.sha512"
+    },
+    "Kucoin.Net/7.9.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2XPrh7QNBy9HX+TFcGMkYWkQlLDLlQmlkcpfFqrgATGsmretH6SrsfHy88PWOCm9mT6F1XlwM+m+GcOxAsZ8Kg==",
+      "path": "kucoin.net/7.9.0",
+      "hashPath": "kucoin.net.7.9.0.nupkg.sha512"
     },
     "Microsoft.Extensions.Configuration/9.0.6": {
       "type": "package",
@@ -520,6 +594,20 @@
       "path": "microsoft.extensions.primitives/9.0.9",
       "hashPath": "microsoft.extensions.primitives.9.0.9.nupkg.sha512"
     },
+    "Microsoft.IO.RecyclableMemoryStream/3.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-s/s20YTVY9r9TPfTrN5g8zPF1YhwxyqO6PxUkrYTGI2B+OGPe9AdajWZrLhFqXIvqIW23fnUE4+ztrUWNU1+9g==",
+      "path": "microsoft.io.recyclablememorystream/3.0.1",
+      "hashPath": "microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512"
+    },
+    "Parquet.Net/5.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DILuB8zm90yUGBPqpmY2Bfd1kpU9eXPy5KaUOkSCc/52TUzlHx+nWJ9HEDMT3t4W1V5e/AB/iYH2bZsAJcHC8g==",
+      "path": "parquet.net/5.2.0",
+      "hashPath": "parquet.net.5.2.0.nupkg.sha512"
+    },
     "protobuf-net/3.2.56": {
       "type": "package",
       "serviceable": true,
@@ -534,6 +622,13 @@
       "path": "protobuf-net.core/3.2.56",
       "hashPath": "protobuf-net.core.3.2.56.nupkg.sha512"
     },
+    "Snappier/1.1.6": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-aLJu7Q0mVk0e9QwjJLEh70tXQ0Url8fHITrHXwqF+eq7N20jGMOhkmTXUUjpPim+rCm0I4fARcVBRzJPSipN+w==",
+      "path": "snappier/1.1.6",
+      "hashPath": "snappier.1.1.6.nupkg.sha512"
+    },
     "System.Text.Json/9.0.6": {
       "type": "package",
       "serviceable": true,
@@ -541,15 +636,12 @@
       "path": "system.text.json/9.0.6",
       "hashPath": "system.text.json.9.0.6.nupkg.sha512"
     },
-    "JK.BingX.Net/2.8.0": {
-      "type": "project",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "JK.Bitget.Net/2.8.0": {
-      "type": "project",
-      "serviceable": false,
-      "sha512": ""
+    "ZstdSharp.Port/0.8.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-19tNz33kn2EkyViFXuxfVn338UJaRmkwBphVqP2dVJIYQUQgFrgG5h061mxkRRg1Ax6r+6WOj1FxaFZ5qaWqqg==",
+      "path": "zstdsharp.port/0.8.1",
+      "hashPath": "zstdsharp.port.0.8.1.nupkg.sha512"
     },
     "SpreadAggregator.Application/1.0.0": {
       "type": "project",
@@ -558,16 +650,6 @@
     },
     "SpreadAggregator.Domain/1.0.0": {
       "type": "project",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "BingX.Net/2.8.0.0": {
-      "type": "reference",
-      "serviceable": false,
-      "sha512": ""
-    },
-    "Bitget.Net/2.8.0.0": {
-      "type": "reference",
       "serviceable": false,
       "sha512": ""
     }

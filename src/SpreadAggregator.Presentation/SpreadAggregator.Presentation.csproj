@@ -3,7 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SpreadAggregator.Application\SpreadAggregator.Application.csproj" />
     <ProjectReference Include="..\SpreadAggregator.Infrastructure\SpreadAggregator.Infrastructure.csproj" />
-    <ProjectReference Include="..\..\docs\jkorf\BingX.Net-main\BingX.Net\BingX.Net.csproj" />
+
   </ItemGroup>
 
   <ItemGroup>

@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyDescriptionAttribute(@"JK.BingX.Net is a client library for accessing the BingX REST and Websocket API. All data is mapped to readable models and enum values. Additional features include automatic websocket (re)connection management, client side rate limiting, an implementation for maintaining a client side order book, easy integration with other exchange client libraries and more.")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("2.8.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+751a25869e5c2110bc53e8b8887c81ff08495ea8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+10d06c79479d8d1ee5d0f55b75f7d1abd80100cd")]
 [assembly: System.Reflection.AssemblyProductAttribute("BingX.Net")]
 [assembly: System.Reflection.AssemblyTitleAttribute("BingX.Net")]
 [assembly: System.Reflection.AssemblyVersionAttribute("2.8.0")]

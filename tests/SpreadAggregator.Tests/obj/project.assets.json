@@ -1288,11 +1288,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
-              "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
+            "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
+              "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
             },
-            "C:\\visual projects\\arb1\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
-              "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj"
+            "c:\\visual projects\\arb1\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
+              "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj"
             }
           }
         }

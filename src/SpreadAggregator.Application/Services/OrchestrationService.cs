@@ -96,17 +96,25 @@ public class OrchestrationService
         {
             if (spreadData.BestAsk == 0) return;
 
-            spreadData.SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk);
-            spreadData.MinVolume = minVolume;
-            spreadData.MaxVolume = maxVolume;
+            var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
 
-            spreadData.Timestamp = DateTime.UtcNow;
+            var normalizedSpreadData = new SpreadData
+            {
+                Exchange = spreadData.Exchange,
+                Symbol = normalizedSymbol,
+                BestBid = spreadData.BestBid,
+                BestAsk = spreadData.BestAsk,
+                SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk),
+                MinVolume = minVolume,
+                MaxVolume = maxVolume,
+                Timestamp = DateTime.UtcNow
+            };
 
             // Публикуем данные в канал
-            await _rawDataChannel.Writer.WriteAsync(spreadData);
+            await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
 
             // Временная отправка сырых данных в существующий WebSocket для обратной совместимости с python-клиентом
-            var message = JsonSerializer.Serialize(spreadData);
+            var message = JsonSerializer.Serialize(normalizedSpreadData);
             _webSocketServer.BroadcastRealtimeAsync(message);
         });
     }

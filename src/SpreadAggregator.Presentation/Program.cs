@@ -70,6 +70,10 @@ class Program
                 services.AddSingleton<IExchangeClient, BybitExchangeClient>();
 
                 services.AddBybit();
+
+                // Регистрация IDataWriter
+                services.AddSingleton<IDataWriter, ParquetDataWriter>();
+                
                 services.AddSingleton<OrchestrationService>();
                 services.AddHostedService<OrchestrationServiceHost>();
             });

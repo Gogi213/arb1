@@ -136,14 +136,14 @@
         }
       }
     },
-    "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
+    "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
+        "projectUniqueName": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
         "projectName": "SpreadAggregator.Infrastructure",
-        "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
+        "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\obj\\",
+        "outputPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -270,8 +270,8 @@
               "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
                 "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
               },
-              "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
-                "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
+              "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
               }
             }
           }

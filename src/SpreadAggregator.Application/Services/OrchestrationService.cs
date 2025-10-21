@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Services;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,6 @@ using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using System.IO;
-using System.IO.Compression;
 
 namespace SpreadAggregator.Application.Services;
 
@@ -22,6 +22,7 @@ public class OrchestrationService
     private readonly IConfiguration _configuration;
     private readonly IEnumerable<IExchangeClient> _exchangeClients;
     private readonly Channel<SpreadData> _rawDataChannel;
+    private readonly IDataWriter _dataWriter;
 
     public ChannelReader<SpreadData> RawDataChannelReader => _rawDataChannel.Reader;
 
@@ -31,7 +32,8 @@ public class OrchestrationService
         IConfiguration configuration,
         VolumeFilter volumeFilter,
         IEnumerable<IExchangeClient> exchangeClients,
-        Channel<SpreadData> rawDataChannel)
+        Channel<SpreadData> rawDataChannel,
+        IDataWriter dataWriter = null)
     {
         _webSocketServer = webSocketServer;
         _spreadCalculator = spreadCalculator;
@@ -39,6 +41,7 @@ public class OrchestrationService
         _volumeFilter = volumeFilter;
         _exchangeClients = exchangeClients;
         _rawDataChannel = rawDataChannel;
+        _dataWriter = dataWriter;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -46,9 +49,9 @@ public class OrchestrationService
         _webSocketServer.Start();
 
         var recordingEnabled = _configuration.GetValue<bool>("Recording:Enabled");
-        if (recordingEnabled)
+        if (recordingEnabled && _dataWriter != null)
         {
-            _ = StartDataCollectorAsync(cancellationToken);
+            _ = _dataWriter.InitializeCollectorAsync(cancellationToken);
         }
 
         var exchangeNames = _configuration.GetSection("ExchangeSettings:Exchanges").GetChildren().Select(x => x.Key);
@@ -108,42 +111,4 @@ public class OrchestrationService
         });
     }
 
-    private async Task StartDataCollectorAsync(CancellationToken cancellationToken)
-    {
-        var sessionDirectory = Path.Combine("data", "market_data", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
-        Directory.CreateDirectory(sessionDirectory);
-
-        Console.WriteLine($"[DataCollector] Starting to record data into: {sessionDirectory}");
-        await foreach (var data in _rawDataChannel.Reader.ReadAllAsync(cancellationToken))
-        {
-            try
-            {
-                var exchangeDir = Path.Combine(sessionDirectory, data.Exchange);
-                var symbolDir = Path.Combine(exchangeDir, data.Symbol);
-                Directory.CreateDirectory(symbolDir);
-
-                var filePath = Path.Combine(symbolDir, "order_book_updates.csv.gz");
-                var fileExists = File.Exists(filePath);
-
-                // Используем GZipStream для сжатия "на лету"
-                await using var fileStream = new FileStream(filePath, FileMode.Append, FileAccess.Write, FileShare.None);
-                await using var gzipStream = new GZipStream(fileStream, CompressionMode.Compress);
-                await using var writer = new StreamWriter(gzipStream);
-
-                // Если файл новый, записать заголовки
-                if (!fileExists)
-                {
-                    await writer.WriteLineAsync("Timestamp,BestBid,BestAsk,SpreadPercentage,MinVolume,MaxVolume");
-                }
-
-                // Сформировать и записать строку CSV
-                var csvLine = $"{data.Timestamp:o},{data.BestBid},{data.BestAsk},{data.SpreadPercentage},{data.MinVolume},{data.MaxVolume}";
-                await writer.WriteLineAsync(csvLine);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[DataCollector] Error processing data: {ex.Message}");
-            }
-        }
-    }
 }

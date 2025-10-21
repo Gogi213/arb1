@@ -20,7 +20,7 @@ public class ParquetDataWriter : IDataWriter
         new DataField("Timestamp", typeof(DateTime)),
         new DecimalDataField("BestBid", 28, 10),
         new DecimalDataField("BestAsk", 28, 10),
-        new DataField("SpreadPercentage", typeof(double)),
+        new DecimalDataField("SpreadPercentage", 28, 10),
         new DecimalDataField("MinVolume", 28, 10),
         new DecimalDataField("MaxVolume", 28, 10),
         new DataField("Exchange", typeof(string)),

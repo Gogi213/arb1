@@ -5,8 +5,8 @@ Main entry point for running a backtest on a specific data session.
 """
 
 import argparse
+import logging
 from backtester.backtester import Backtester
-from backtester.logger import log
 
 def main():
     """
@@ -22,15 +22,17 @@ def main():
     )
     args = parser.parse_args()
 
-    log.info(f"Starting backtest for session: {args.session_path}")
-
+    backtester = None
     try:
+        # Initialize backtester and its dedicated loggers
         backtester = Backtester(session_path=args.session_path)
+        backtester.system_log.info(f"Starting backtest for session: {args.session_path}")
         backtester.run()
+        backtester.system_log.info("Backtest script finished.")
     except Exception as e:
-        log.error(f"A critical error occurred during the backtest: {e}", exc_info=True)
-    
-    log.info("Backtest script finished.")
+        # If backtester was initialized, use its logger. Otherwise, use a basic logger.
+        log = backtester.system_log if backtester else logging.getLogger(__name__)
+        log.error(f"A critical error occurred: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()

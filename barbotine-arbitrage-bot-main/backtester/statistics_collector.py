@@ -26,6 +26,7 @@ class StatisticsCollector:
     """
     def __init__(self):
         self.trades: List[ArbitrageTrade] = []
+        self.stationarity_metrics: Dict[str, Dict] = {}
 
     def record_trade(
         self,
@@ -48,6 +49,10 @@ class StatisticsCollector:
             profit_usdt=profit_usdt
         )
         self.trades.append(trade)
+
+    def record_stationarity_metrics(self, symbol: str, metrics: Dict):
+        """Records the calculated stationarity metrics for a symbol."""
+        self.stationarity_metrics[symbol] = metrics
 
     def get_results(self) -> Dict:
         """
@@ -84,10 +89,18 @@ class StatisticsCollector:
                 s: {
                     "total_profit": d["total_profit"],
                     "total_trades": d["total_trades"],
-                    "by_threshold": dict(sorted(d["by_threshold"].items()))
+                    "by_threshold": {
+                        t: {
+                            "profit": v["profit"],
+                            "trades": v["trades"],
+                            "pair_counts": dict(v.get("pair_counts", {}))
+                        }
+                        for t, v in sorted(d["by_threshold"].items())
+                    }
                 }
                 for s, d in sorted(results["by_symbol"].items())
-            }
+            },
+            "stationarity_metrics": self.stationarity_metrics
         }
         return final_results
 

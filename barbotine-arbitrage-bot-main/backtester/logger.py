@@ -7,46 +7,76 @@ Unified logging for console and file output.
 import logging
 import os
 from datetime import datetime
+from typing import Dict
 
-def setup_logger():
+class LoggerManager:
     """
-    Sets up a logger that outputs to both console and a file.
-    
-    Returns:
-        A configured logger instance.
+    Manages the setup of loggers for a single backtest session.
+    Ensures that each session has its own isolated log directory.
     """
-    # Create logs directory if it doesn't exist
-    logs_dir = 'logs'
-    if not os.path.exists(logs_dir):
-        os.makedirs(logs_dir)
+    def __init__(self, session_name: str = "backtest"):
+        """
+        Initializes the logger manager for a new session.
+        
+        Args:
+            session_name: A prefix for the log directory name.
+        """
+        self.loggers: Dict[str, logging.Logger] = {}
+        self.logs_dir: str = ""
+        self._setup_loggers(session_name)
 
-    # Generate a unique log file name with a timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_filename = os.path.join(logs_dir, f"backtest_{timestamp}.log")
+    def _setup_loggers(self, session_name: str):
+        """
+        Sets up loggers for different categories: system, indicator, final, and trade.
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.logs_dir = os.path.join('logs', f"{session_name}_{timestamp}")
+        if not os.path.exists(self.logs_dir):
+            os.makedirs(self.logs_dir)
 
-    # Create a logger
-    logger = logging.getLogger('ArbitrageBacktester')
-    logger.setLevel(logging.DEBUG)
+        log_configs = {
+            'system': 'system.log',
+            'indicator': 'indicators.log',
+            'summary': 'summary.log',
+            'trade': 'trades.log'
+        }
 
-    # Create a formatter
-    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        for name, filename in log_configs.items():
+            logger = logging.getLogger(f"{timestamp}_{name}")
+            logger.setLevel(logging.DEBUG)
+            logger.propagate = False # Prevent passing logs to the root logger
 
-    # Create a file handler
-    file_handler = logging.FileHandler(log_filename, encoding='utf-8')
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(formatter)
+            # Prevent duplicate handlers
+            if logger.hasHandlers():
+                logger.handlers.clear()
 
-    # Create a console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO) # Keep console clean
-    console_handler.setFormatter(formatter)
+            log_filename = os.path.join(self.logs_dir, filename)
+            
+            formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
-    # Add handlers to the logger, but only if they haven't been added before
-    if not logger.handlers:
-        logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
+            # File handler
+            file_handler = logging.FileHandler(log_filename, encoding='utf-8')
+            file_handler.setLevel(logging.INFO)
+            file_handler.setFormatter(formatter)
+            logger.addHandler(file_handler)
 
-    return logger
+            # Console handler for system logs
+            if name == 'system':
+                console_handler = logging.StreamHandler()
+                console_handler.setLevel(logging.INFO)
+                console_handler.setFormatter(formatter)
+                logger.addHandler(console_handler)
+            
+            self.loggers[name] = logger
 
-# Create a default logger instance to be imported by other modules
-log = setup_logger()
+    def get_logger(self, name: str) -> logging.Logger:
+        """
+        Retrieves a configured logger by name.
+        
+        Args:
+            name: The name of the logger (e.g., 'system', 'indicator').
+            
+        Returns:
+            A configured logger instance.
+        """
+        return self.loggers.get(name, logging.getLogger()) # Return default logger if not found

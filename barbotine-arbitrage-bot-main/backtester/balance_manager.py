@@ -4,14 +4,14 @@
 Manages isolated balances for live testing simulation.
 """
 
-from typing import Dict, List, Tuple
-from .logger import log
+from typing import Dict, List, Tuple, Optional
+import logging
 
 class BalanceManager:
     """
     Manages an isolated balance for a single coin on a pool of exchanges.
     """
-    def __init__(self, exchanges: List[str], symbol: str, initial_balance_usdt: float = 1000.0):
+    def __init__(self, exchanges: List[str], symbol: str, initial_balance_usdt: float = 1000.0, system_log: Optional[logging.Logger] = None, trade_log: Optional[logging.Logger] = None):
         """
         Initializes the balance manager for a specific coin.
 
@@ -25,6 +25,8 @@ class BalanceManager:
         self.base_currency = symbol[:-4]
         self.initial_balance = initial_balance_usdt
         self.balances: Dict[str, Dict[str, float]] = {}
+        self.system_log = system_log if system_log else logging.getLogger(__name__)
+        self.trade_log = trade_log if trade_log else logging.getLogger(__name__)
         self._initialize_wallets()
 
     def _initialize_wallets(self):
@@ -41,7 +43,7 @@ class BalanceManager:
         """
         Simulates the initial swap of USDT for the base asset on each exchange.
         """
-        log.info(f"  Setting up initial assets for {self.symbol}...")
+        self.system_log.info(f"  Setting up initial assets for {self.symbol}...")
         
         for exchange in self.exchanges:
             # Find the first valid price for the symbol on this specific exchange
@@ -54,11 +56,11 @@ class BalanceManager:
                 
                 self.balances[exchange]['USDT'] -= usdt_to_swap
                 self.balances[exchange][self.base_currency] += amount_to_buy
-                log.info(f"    Swapped {usdt_to_swap:.2f} USDT for {amount_to_buy:.6f} {self.base_currency} on {exchange} at price {price}")
+                self.trade_log.info(f"    Swapped {usdt_to_swap:.2f} USDT for {amount_to_buy:.6f} {self.base_currency} on {exchange} at price {price}")
             else:
-                log.warning(f"    Could not find any initial price for {self.symbol} on {exchange} to set up assets.")
+                self.system_log.warning(f"    Could not find any initial price for {self.symbol} on {exchange} to set up assets.")
 
-        log.info(f"  Initial asset setup for {self.symbol} complete.")
+        self.system_log.info(f"  Initial asset setup for {self.symbol} complete.")
 
     def get_balance(self, exchange: str) -> Dict[str, float]:
         """

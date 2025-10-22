@@ -2,103 +2,88 @@
 # -*- coding: utf-8 -*-
 """
 Loads and processes historical market data for backtesting using Polars.
+This version is adapted to read Parquet files with a new data structure.
 """
 
 import os
 import polars as pl
-from typing import List
-from .logger import log
+import logging
+from typing import Optional
 
-def load_market_data(session_path: str) -> pl.DataFrame:
+def load_market_data(session_path: str, logger: Optional[logging.Logger] = None) -> pl.DataFrame:
     """
     Loads all market data from a given session directory using Polars,
-    processes it, and returns a single sorted DataFrame.
+    processes it, and returns a single sorted DataFrame. This version
+    reads Parquet files and handles the new data structure.
 
     Args:
-        session_path: The path to the session directory.
+        session_path: The path to the session directory containing .parquet files.
+        logger: A configured logger instance.
 
     Returns:
         A Polars DataFrame containing all market data, sorted by timestamp.
     """
-    all_files = []
-    log.info(f"Scanning for data files in session: {session_path}")
+    if logger is None:
+        logger = logging.getLogger(__name__)
+
+    logger.info(f"Scanning for Parquet data files in session: {session_path}")
 
     if not os.path.isdir(session_path):
-        log.error(f"Session path does not exist or is not a directory: {session_path}")
+        logger.error(f"Session path does not exist or is not a directory: {session_path}")
         return pl.DataFrame()
 
-    allowed_exchanges = ['Binance', 'Bybit', 'GateIo', 'Kucoin']
-    log.info(f"Limiting data load to specified exchanges: {allowed_exchanges}")
-
-    for exchange_folder in os.listdir(session_path):
-        if exchange_folder not in allowed_exchanges:
-            continue
-            
-        exchange_path = os.path.join(session_path, exchange_folder)
-        if not os.path.isdir(exchange_path):
-            continue
-
-        for symbol_folder in os.listdir(exchange_path):
-            symbol_path = os.path.join(exchange_path, symbol_folder)
-            data_file = os.path.join(symbol_path, 'order_book_updates.csv.gz')
-
-            if os.path.exists(data_file):
-                all_files.append({
-                    "path": data_file,
-                    "exchange": exchange_folder,
-                    "symbol": symbol_folder
-                })
+    all_files = []
+    for root, _, files in os.walk(session_path):
+        for file in files:
+            if file.endswith('.parquet'):
+                all_files.append(os.path.join(root, file))
 
     if not all_files:
-        log.warning("No data files found in the session directory.")
+        logger.warning("No .parquet data files found recursively in the session directory.")
         return pl.DataFrame()
 
-    log.info(f"Found {len(all_files)} files. Starting parallel data load with Polars...")
-
-    # Use Polars' lazy evaluation for efficient processing
-    lazy_frames = []
-    lazy_frames = []
-    for file_info in all_files:
-        try:
-            schema_overrides = {
-                "BestAsk": pl.Float64,
-                "BestBid": pl.Float64,
-                "MinVolume": pl.Float64,
-                "MaxVolume": pl.Float64,
-            }
-            lf = pl.scan_csv(
-                file_info["path"],
-                infer_schema_length=1000,
-                truncate_ragged_lines=True,
-                schema_overrides=schema_overrides
-            )
-            lf = lf.with_columns([
-                pl.lit(file_info["exchange"]).alias("exchange"),
-                pl.lit(file_info["symbol"]).alias("symbol")
-            ])
-            lazy_frames.append(lf)
-        except Exception as e:
-            log.error(f"Polars failed to scan {file_info['path']}: {e}")
-
-    if not lazy_frames:
-        log.error("Failed to create any lazy frames. Check file integrity.")
+    # Filter out empty files that would cause a crash
+    valid_files = [f for f in all_files if os.path.getsize(f) > 8]
+    
+    if not valid_files:
+        logger.warning("All found .parquet files are empty or invalid.")
         return pl.DataFrame()
 
-    full_df = pl.concat(lazy_frames).collect()
+    skipped_count = len(all_files) - len(valid_files)
+    if skipped_count > 0:
+        logger.info(f"Skipping {skipped_count} empty or invalid .parquet files.")
 
-    # Normalize symbol names (e.g., 'ETH-USDT' -> 'ETHUSDT')
-    full_df = full_df.with_columns(
-        pl.col("symbol").str.replace_all("[-_]", "").alias("symbol")
-    )
+    logger.info(f"Found {len(valid_files)} valid files. Starting parallel data load with Polars...")
 
-    # Rename and convert timestamp column
-    if 'Timestamp' in full_df.columns:
-        full_df = full_df.rename({"Timestamp": "timestamp", "BestBid": "bestBid", "BestAsk": "bestAsk"})
-        full_df = full_df.with_columns(
-            pl.col("timestamp").str.to_datetime()
-        ).sort("timestamp")
-    else:
-        log.warning("No 'Timestamp' column found. Data will not be time-sorted.")
+    try:
+        lazy_df = pl.scan_parquet(valid_files)
+    except Exception as e:
+        logger.error(f"Polars failed to scan Parquet files: {e}")
+        return pl.DataFrame()
 
-    log.info(f"Data loading complete. Total records: {len(full_df)}")
+    numeric_cols = ["BestBid", "BestAsk", "MinVolume", "MaxVolume"]
+
+    processed_lf = lazy_df.with_columns(
+        *[pl.col(c).cast(pl.Float64, strict=False) for c in numeric_cols],
+        pl.from_epoch(pl.col("Timestamp"), time_unit="ms").alias("timestamp"),
+        pl.col("Symbol").str.replace_all("[-_]", "").alias("symbol")
+    ).rename({
+        "BestBid": "bestBid",
+        "BestAsk": "bestAsk",
+        "Exchange": "exchange"
+    })
+
+    allowed_exchanges = ['Binance', 'Bybit', 'GateIo', 'Kucoin', 'OKX']
+    logger.info(f"Filtering data for specified exchanges: {allowed_exchanges}")
+    
+    filtered_lf = processed_lf.filter(pl.col("exchange").is_in(allowed_exchanges))
+
+    logger.info("Collecting, sorting, and finalizing DataFrame...")
+    full_df = filtered_lf.collect().sort("timestamp")
+
+    if full_df.is_empty():
+        logger.warning("Data is empty after processing and filtering.")
+        return pl.DataFrame()
+
+    logger.info(f"Data loading complete. Total records: {len(full_df)}")
     return full_df

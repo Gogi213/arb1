@@ -968,11 +968,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\visual projects\\arb1\\trader\\src\\Host\\TraderBot.Host.csproj",
+      "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Host\\TraderBot.Host.csproj",
       "projectName": "TraderBot.Host",
-      "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Host\\TraderBot.Host.csproj",
+      "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Host\\TraderBot.Host.csproj",
       "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-      "outputPath": "c:\\visual projects\\arb1\\trader\\src\\Host\\obj\\",
+      "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Host\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -987,11 +987,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
             },
-            "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
+            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
             }
           }
         }

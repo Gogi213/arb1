@@ -15,6 +15,7 @@ namespace TraderBot.Core
         private bool _isModifyingOrder = false;
         private decimal _tickSize;
         private int _basePrecision;
+        private decimal _lastPlacedPrice;
 
         public TrailingTrader(IExchange exchange)
         {
@@ -41,6 +42,15 @@ namespace TraderBot.Core
             {
                 if (bestBidPrice == 0) return;
                 var newTargetPrice = Math.Round(bestBidPrice * 0.99m / _tickSize) * _tickSize;
+                
+                if (_lastPlacedPrice > 0)
+                    Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
+
+                if (Math.Abs(newTargetPrice - _lastPlacedPrice) < _tickSize)
+                {
+                    Console.WriteLine("[TT] skip modify – same level");
+                    return;
+                }
 
                 lock (_lock)
                 {
@@ -65,6 +75,7 @@ namespace TraderBot.Core
                     {
                         _orderId = placedOrderId;
                         _currentOrderPrice = newTargetPrice;
+                        _lastPlacedPrice = newTargetPrice;
                         Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
                     }
                     else
@@ -80,6 +91,7 @@ namespace TraderBot.Core
                     if (success)
                     {
                         _currentOrderPrice = newTargetPrice;
+                        _lastPlacedPrice = newTargetPrice;
                         Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
                     }
                     else

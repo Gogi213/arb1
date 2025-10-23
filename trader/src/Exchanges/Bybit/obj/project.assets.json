@@ -912,8 +912,8 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
+            "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
             }
           }
         }

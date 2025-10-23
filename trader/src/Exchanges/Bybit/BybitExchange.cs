@@ -15,7 +15,9 @@ namespace TraderBot.Exchanges.Bybit
     {
         private IBybitRestClient? _restClient;
         private IBybitSocketClient? _socketClient;
-        private BybitSymbolOrderBook? _orderBook;
+        private UpdateSubscription? _subscription;
+        private decimal _lastBidPrice;
+        private decimal _tickSize;
 
         public Task InitializeAsync(string apiKey, string apiSecret)
         {
@@ -51,6 +53,7 @@ namespace TraderBot.Exchanges.Bybit
             }
 
             var symbolData = symbolInfo.Data.List.First();
+            _tickSize = symbolData.PriceFilter.TickSize; // Присваиваем значение
             return (symbolData.PriceFilter.TickSize, symbolData.LotSizeFilter.BasePrecision);
         }
 
@@ -66,23 +69,26 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task SubscribeToPriceUpdatesAsync(string symbol, Action<decimal> onPriceUpdate)
         {
-            // Исправлена инициализация: _socketClient передается напрямую в конструктор.
-            _orderBook = new BybitSymbolOrderBook(symbol, Category.Spot, null, null, _socketClient);
-
-            _orderBook.OnOrderBookUpdate += (bookData) =>
+            var result = await _socketClient!.V5SpotApi.SubscribeToOrderbookUpdatesAsync(new[] { symbol }, 1, data =>
             {
-                // Исправлен доступ к данным: получаем цену из первого бида.
-                var bestBid = bookData.Bids.FirstOrDefault();
-                if (bestBid != null)
-                {
-                    onPriceUpdate(bestBid.Price);
-                }
-            };
+                var bestBid = data.Data.Bids.FirstOrDefault();
+                if (bestBid == null) return;
 
-            var startResult = await _orderBook.StartAsync();
-            if (!startResult.Success)
+                // Фильтр дребезга
+                if (Math.Abs(bestBid.Price - _lastBidPrice) < _tickSize)
+                    return;
+
+                _lastBidPrice = bestBid.Price;
+                onPriceUpdate(_lastBidPrice);
+            });
+
+            if (!result.Success)
             {
-                Console.WriteLine($"Error starting order book: {startResult.Error}");
+                Console.WriteLine($"Error subscribing to order book: {result.Error}");
+            }
+            else
+            {
+                _subscription = result.Data;
             }
         }
 
@@ -124,9 +130,9 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task UnsubscribeAsync()
         {
-            if (_orderBook != null)
+            if (_subscription != null)
             {
-                await _orderBook.StopAsync();
+                await _subscription.CloseAsync();
             }
         }
 

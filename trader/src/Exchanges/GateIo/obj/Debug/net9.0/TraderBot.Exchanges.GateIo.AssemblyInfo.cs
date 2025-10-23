@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TraderBot.Exchanges.GateIo")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cb7fd54c0ed35a874d598328e168b08f200e3ca8")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+9635c7acf123bebbd9012cc4ec98780243b300f0")]
 [assembly: System.Reflection.AssemblyProductAttribute("TraderBot.Exchanges.GateIo")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TraderBot.Exchanges.GateIo")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -929,23 +929,13 @@
           "lib/net8.0/ZstdSharp.dll": {}
         }
       },
-      "SpreadAggregator.Analyzer/1.0.0": {
-        "type": "project",
-        "framework": ".NETCoreApp,Version=v9.0",
-        "compile": {
-          "bin/placeholder/SpreadAggregator.Analyzer.dll": {}
-        },
-        "runtime": {
-          "bin/placeholder/SpreadAggregator.Analyzer.dll": {}
-        }
-      },
       "SpreadAggregator.Application/1.0.0": {
         "type": "project",
         "framework": ".NETCoreApp,Version=v9.0",
         "dependencies": {
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
-          "SpreadAggregator.Analyzer": "1.0.0",
+          "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
           "SpreadAggregator.Domain": "1.0.0"
         },
         "compile": {
@@ -2330,11 +2320,6 @@
         "zstdsharp.port.nuspec"
       ]
     },
-    "SpreadAggregator.Analyzer/1.0.0": {
-      "type": "project",
-      "path": "../SpreadAggregator.Analyzer/SpreadAggregator.Analyzer.csproj",
-      "msbuildProject": "../SpreadAggregator.Analyzer/SpreadAggregator.Analyzer.csproj"
-    },
     "SpreadAggregator.Application/1.0.0": {
       "type": "project",
       "path": "../SpreadAggregator.Application/SpreadAggregator.Application.csproj",
@@ -2365,11 +2350,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
+      "projectUniqueName": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
       "projectName": "SpreadAggregator.Presentation",
-      "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
+      "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
       "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-      "outputPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Presentation\\obj\\",
+      "outputPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -2384,11 +2369,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
+            "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
             },
-            "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
+            "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
             }
           }
         }

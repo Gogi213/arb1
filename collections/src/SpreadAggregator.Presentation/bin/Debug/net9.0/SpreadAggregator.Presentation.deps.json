@@ -630,6 +630,7 @@
         "dependencies": {
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
+          "Microsoft.Extensions.Hosting.Abstractions": "9.0.9",
           "SpreadAggregator.Domain": "1.0.0"
         },
         "runtime": {

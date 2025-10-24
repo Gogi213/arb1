@@ -10,3 +10,15 @@ c:\visual projects\arb1\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggre
 c:\visual projects\arb1\src\SpreadAggregator.Domain\obj\Debug\net9.0\refint\SpreadAggregator.Domain.dll
 c:\visual projects\arb1\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.pdb
 c:\visual projects\arb1\src\SpreadAggregator.Domain\obj\Debug\net9.0\ref\SpreadAggregator.Domain.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\bin\Debug\net9.0\SpreadAggregator.Domain.deps.json
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\bin\Debug\net9.0\SpreadAggregator.Domain.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\bin\Debug\net9.0\SpreadAggregator.Domain.pdb
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.GeneratedMSBuildEditorConfig.editorconfig
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.AssemblyInfoInputs.cache
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.AssemblyInfo.cs
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.csproj.CoreCompileInputs.cache
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.sourcelink.json
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\refint\SpreadAggregator.Domain.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\SpreadAggregator.Domain.pdb
+C:\visual projects\arb1\collections\src\SpreadAggregator.Domain\obj\Debug\net9.0\ref\SpreadAggregator.Domain.dll

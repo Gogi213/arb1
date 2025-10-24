@@ -1,0 +1,74 @@
+# === Общий .gitignore для Python + C# ===
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyw
+*.pdb
+*.egg
+*.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+venv/
+.env/
+env/
+ENV/
+.ipynb_checkpoints/
+.mypy_cache/
+.pytest_cache/
+.coverage
+*.spec
+
+# --- C# / .NET ---
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.pidb
+*.svclog
+*.pdb
+*.dbmdl
+*.dbproj.schemaview
+project.lock.json
+.nuget/
+packages/
+TestResults/
+*.vspscc
+.vs/
+_ReSharper*/
+*.ncrunch*
+*.ndoc
+*.orig
+*.cache
+*.ide/
+*.DotSettings.user
+*.launchSettings.json
+*.localhistory/
+
+# --- IDEs ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+*.bak
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Твои исключения ---
+*.parquet
+*.csv
+*.log
+logs/
+data/

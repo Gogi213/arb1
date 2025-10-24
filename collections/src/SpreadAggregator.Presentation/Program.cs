@@ -76,6 +76,9 @@ class Program
                 
                 services.AddSingleton<OrchestrationService>();
                 services.AddHostedService<OrchestrationServiceHost>();
+                
+                // Запускаем сборщик данных как отдельный, долгоживущий сервис
+                services.AddHostedService<DataCollectorService>();
             });
 }
 

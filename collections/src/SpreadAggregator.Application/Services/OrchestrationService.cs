@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
-using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Services;
 using System;
 using System.Collections.Generic;
@@ -33,7 +32,7 @@ public class OrchestrationService
         VolumeFilter volumeFilter,
         IEnumerable<IExchangeClient> exchangeClients,
         Channel<SpreadData> rawDataChannel,
-        IDataWriter dataWriter = null)
+        IDataWriter? dataWriter = null)
     {
         _webSocketServer = webSocketServer;
         _spreadCalculator = spreadCalculator;
@@ -48,11 +47,6 @@ public class OrchestrationService
     {
         _webSocketServer.Start();
 
-        var recordingEnabled = _configuration.GetValue<bool>("Recording:Enabled");
-        if (recordingEnabled && _dataWriter != null)
-        {
-            _ = _dataWriter.InitializeCollectorAsync(cancellationToken);
-        }
 
         var exchangeNames = _configuration.GetSection("ExchangeSettings:Exchanges").GetChildren().Select(x => x.Key);
         var tasks = new List<Task>();
@@ -74,8 +68,9 @@ public class OrchestrationService
 
     private async Task ProcessExchange(IExchangeClient exchangeClient, string exchangeName)
     {
-        var minVolume = 2000000m;
-        var maxVolume = 100000000000m;
+        var exchangeConfig = _configuration.GetSection($"ExchangeSettings:Exchanges:{exchangeName}:VolumeFilter");
+        var minVolume = exchangeConfig.GetValue<decimal?>("MinUsdVolume") ?? 0;
+        var maxVolume = exchangeConfig.GetValue<decimal?>("MaxUsdVolume") ?? decimal.MaxValue;
 
         var tickers = (await exchangeClient.GetTickersAsync()).ToList();
         Console.WriteLine($"[{exchangeName}] Received {tickers.Count} tickers.");

@@ -12,3 +12,5 @@ statsmodels
 arch
 pandas
 numba
+polars
+pyarrow

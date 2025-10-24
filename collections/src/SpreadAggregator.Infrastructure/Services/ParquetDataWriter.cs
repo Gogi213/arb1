@@ -41,27 +41,37 @@ public class ParquetDataWriter : IDataWriter
         if (data == null || !data.Any())
             return;
 
-        var timestampColumn = new DataColumn(_schema.DataFields[0], data.Select(d => d.Timestamp).ToArray());
-        var bestBidColumn = new DataColumn(_schema.DataFields[1], data.Select(d => d.BestBid).ToArray());
-        var bestAskColumn = new DataColumn(_schema.DataFields[2], data.Select(d => d.BestAsk).ToArray());
-        var spreadPercentageColumn = new DataColumn(_schema.DataFields[3], data.Select(d => d.SpreadPercentage).ToArray());
-        var minVolumeColumn = new DataColumn(_schema.DataFields[4], data.Select(d => d.MinVolume).ToArray());
-        var maxVolumeColumn = new DataColumn(_schema.DataFields[5], data.Select(d => d.MaxVolume).ToArray());
-        var exchangeColumn = new DataColumn(_schema.DataFields[6], data.Select(d => d.Exchange).ToArray());
-        var symbolColumn = new DataColumn(_schema.DataFields[7], data.Select(d => d.Symbol).ToArray());
+        var columns = CreateDataColumns(data);
 
         using var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write);
-        using var parquetWriter = await ParquetWriter.CreateAsync(_schema, fileStream);
+        await WriteData(columns, fileStream);
+    }
+
+
+    private DataColumn[] CreateDataColumns(IReadOnlyCollection<SpreadData> data)
+    {
+        return new[]
+        {
+            new DataColumn(_schema.DataFields[0], data.Select(d => d.Timestamp).ToArray()),
+            new DataColumn(_schema.DataFields[1], data.Select(d => d.BestBid).ToArray()),
+            new DataColumn(_schema.DataFields[2], data.Select(d => d.BestAsk).ToArray()),
+            new DataColumn(_schema.DataFields[3], data.Select(d => d.SpreadPercentage).ToArray()),
+            new DataColumn(_schema.DataFields[4], data.Select(d => d.MinVolume).ToArray()),
+            new DataColumn(_schema.DataFields[5], data.Select(d => d.MaxVolume).ToArray()),
+            new DataColumn(_schema.DataFields[6], data.Select(d => d.Exchange).ToArray()),
+            new DataColumn(_schema.DataFields[7], data.Select(d => d.Symbol).ToArray())
+        };
+    }
+
+    private async Task WriteData(DataColumn[] columns, Stream stream)
+    {
+        using var parquetWriter = await ParquetWriter.CreateAsync(_schema, stream);
         using var rowGroupWriter = parquetWriter.CreateRowGroup();
 
-        await rowGroupWriter.WriteColumnAsync(timestampColumn);
-        await rowGroupWriter.WriteColumnAsync(bestBidColumn);
-        await rowGroupWriter.WriteColumnAsync(bestAskColumn);
-        await rowGroupWriter.WriteColumnAsync(spreadPercentageColumn);
-        await rowGroupWriter.WriteColumnAsync(minVolumeColumn);
-        await rowGroupWriter.WriteColumnAsync(maxVolumeColumn);
-        await rowGroupWriter.WriteColumnAsync(exchangeColumn);
-        await rowGroupWriter.WriteColumnAsync(symbolColumn);
+        foreach (var column in columns)
+        {
+            await rowGroupWriter.WriteColumnAsync(column);
+        }
     }
 
     public async Task<List<SpreadData>> ReadAsync(string filePath)
@@ -109,12 +119,13 @@ public class ParquetDataWriter : IDataWriter
     
     public async Task InitializeCollectorAsync(CancellationToken cancellationToken)
     {
-        var sessionDirectory = Path.Combine("data", "market_data", DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss"));
-        Directory.CreateDirectory(sessionDirectory);
-        Console.WriteLine($"[DataCollector] Starting to record data into: {sessionDirectory} (Parquet)");
+        var dataRoot = Path.Combine("data", "market_data");
+        Directory.CreateDirectory(dataRoot);
+        Console.WriteLine($"[DataCollector] Starting to record data with hybrid partitioning into: {dataRoot}");
 
+        // The key for the buffer is the hourly directory path.
         var dataBuffers = new Dictionary<string, List<SpreadData>>();
-        var batchSize = _configuration.GetValue<int>("Recording:BatchSize", 100);
+        var batchSize = _configuration.GetValue<int>("Recording:BatchSize", 1000);
 
         try
         {
@@ -122,22 +133,27 @@ public class ParquetDataWriter : IDataWriter
             {
                 try
                 {
-                    var exchangeDir = Path.Combine(sessionDirectory, data.Exchange);
-                    var symbolDir = Path.Combine(exchangeDir, data.Symbol);
-                    Directory.CreateDirectory(symbolDir);
-                    var filePath = Path.Combine(symbolDir, "order_book_updates.parquet");
-
-                    var bufferKey = filePath;
-                    if (!dataBuffers.TryGetValue(bufferKey, out var buffer))
+                    // Hive-style partitioning including the hour.
+                    var hourlyPartitionDir = Path.Combine(dataRoot,
+                        $"exchange={data.Exchange}",
+                        $"symbol={data.Symbol}",
+                        $"date={data.Timestamp:yyyy-MM-dd}",
+                        $"hour={data.Timestamp.Hour:D2}");
+                    
+                    if (!dataBuffers.TryGetValue(hourlyPartitionDir, out var buffer))
                     {
                         buffer = new List<SpreadData>();
-                        dataBuffers[bufferKey] = buffer;
+                        dataBuffers[hourlyPartitionDir] = buffer;
                     }
 
                     buffer.Add(data);
 
                     if (buffer.Count >= batchSize)
                     {
+                        // The directory is created just before writing.
+                        Directory.CreateDirectory(hourlyPartitionDir);
+                        // The filename is unique to prevent overwrites within the same hour.
+                        var filePath = Path.Combine(hourlyPartitionDir, $"{data.Timestamp:mm-ss.fffffff}.parquet");
                         await FlushBufferAsync(filePath, buffer);
                     }
                 }
@@ -149,6 +165,7 @@ public class ParquetDataWriter : IDataWriter
         }
         finally
         {
+            // On shutdown, flush all remaining buffers to their respective unique files.
             await FlushAllBuffersAsync(dataBuffers);
         }
     }
@@ -157,19 +174,24 @@ public class ParquetDataWriter : IDataWriter
     {
         if (!buffer.Any()) return;
 
-        var existingData = await ReadAsync(filePath);
-        existingData.AddRange(buffer);
-        await WriteAsync(filePath, existingData);
+        // This is a simple, efficient write to a NEW file. No read or append needed.
+        await WriteAsync(filePath, buffer);
         
-        Console.WriteLine($"[DataCollector] Wrote {buffer.Count} records to {filePath}. Total records: {existingData.Count}");
+        Console.WriteLine($"[DataCollector] Wrote {buffer.Count} records to {filePath}.");
         buffer.Clear();
     }
 
     private async Task FlushAllBuffersAsync(Dictionary<string, List<SpreadData>> dataBuffers)
     {
-        foreach (var (filePath, buffer) in dataBuffers)
+        foreach (var (hourlyDir, buffer) in dataBuffers)
         {
-            await FlushBufferAsync(filePath, buffer);
+            if (buffer.Any())
+            {
+                Directory.CreateDirectory(hourlyDir);
+                // Ensure the final file has a unique name.
+                var filePath = Path.Combine(hourlyDir, $"{DateTime.Now:mm-ss.fffffff}.parquet");
+                await FlushBufferAsync(filePath, buffer);
+            }
         }
     }
 }

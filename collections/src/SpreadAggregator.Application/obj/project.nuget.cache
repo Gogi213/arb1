@@ -1,11 +1,17 @@
 {
   "version": 2,
-  "dgSpecHash": "xmbUc1H26N0=",
+  "dgSpecHash": "URNFtOHPEtM=",
   "success": true,
-  "projectFilePath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
+  "projectFilePath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.configuration.abstractions\\9.0.9\\microsoft.extensions.configuration.abstractions.9.0.9.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.configuration.binder\\9.0.9\\microsoft.extensions.configuration.binder.9.0.9.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\9.0.0\\microsoft.extensions.dependencyinjection.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.diagnostics.abstractions\\9.0.0\\microsoft.extensions.diagnostics.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.fileproviders.abstractions\\9.0.0\\microsoft.extensions.fileproviders.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.hosting.abstractions\\9.0.0\\microsoft.extensions.hosting.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\9.0.0\\microsoft.extensions.logging.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.options\\9.0.0\\microsoft.extensions.options.9.0.0.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.primitives\\9.0.9\\microsoft.extensions.primitives.9.0.9.nupkg.sha512"
   ],
   "logs": []

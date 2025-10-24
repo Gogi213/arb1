@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "AjlDbz/XT0Q=",
+  "dgSpecHash": "OUp9rSqi+nA=",
   "success": true,
-  "projectFilePath": "c:\\visual projects\\arb1\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
+  "projectFilePath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\Георгий\\.nuget\\packages\\binance.net\\11.9.0\\binance.net.11.9.0.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\bybit.net\\5.10.1\\bybit.net.5.10.1.nupkg.sha512",
@@ -23,6 +23,8 @@
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.dependencyinjection.abstractions\\9.0.6\\microsoft.extensions.dependencyinjection.abstractions.9.0.6.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.diagnostics\\9.0.6\\microsoft.extensions.diagnostics.9.0.6.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.diagnostics.abstractions\\9.0.6\\microsoft.extensions.diagnostics.abstractions.9.0.6.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.fileproviders.abstractions\\9.0.0\\microsoft.extensions.fileproviders.abstractions.9.0.0.nupkg.sha512",
+    "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.hosting.abstractions\\9.0.0\\microsoft.extensions.hosting.abstractions.9.0.0.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.http\\9.0.6\\microsoft.extensions.http.9.0.6.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.logging\\9.0.6\\microsoft.extensions.logging.9.0.6.nupkg.sha512",
     "C:\\Users\\Георгий\\.nuget\\packages\\microsoft.extensions.logging.abstractions\\9.0.6\\microsoft.extensions.logging.abstractions.9.0.6.nupkg.sha512",

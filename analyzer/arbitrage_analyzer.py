@@ -2,15 +2,18 @@
 # -*- coding: utf-8 -*-
 """
 Vectorized Multi-Exchange Arbitrage Engine using Polars.
+This version uses a robust pair-wise `asof_join` for analysis.
 """
 
 import polars as pl
-from typing import List, Dict, Optional
+from typing import Optional, List
 import logging
+from itertools import combinations
 
 class MultiExchangeArbitrageAnalyzer:
     """
-    Analyzes arbitrage opportunities across multiple exchanges using vectorized operations.
+    Analyzes arbitrage opportunities by performing pair-wise comparisons
+    across multiple exchanges.
     """
 
     def __init__(self, logger: Optional[logging.Logger] = None):
@@ -22,103 +25,82 @@ class MultiExchangeArbitrageAnalyzer:
         commission_pct: float
     ) -> pl.DataFrame:
         """
-        Finds Maker-Taker arbitrage opportunities using a vectorized approach.
-        This strategy involves placing a limit buy order (Maker) on the exchange
-        with the lower bid, and simultaneously placing a market sell order (Taker)
-        on the exchange with the higher bid.
-
-        Args:
-            spread_data: A Polars DataFrame with market data for a single symbol.
-            commission_pct: The commission percentage for the Taker side of the trade.
-                          The Maker side is assumed to have 0% commission.
-
-        Returns:
-            A Polars DataFrame containing all profitable opportunities.
+        Finds arbitrage opportunities by iterating through all unique pairs of
+        exchanges for a given symbol and performing a time-series join.
         """
-        if spread_data.is_empty() or spread_data.height < 2:
-            self.logger.debug("Spread data is empty or has less than 2 rows, cannot find opportunities.")
+        if spread_data.is_empty():
             return pl.DataFrame()
 
-        # Ensure required columns exist
-        required_cols = {'timestamp', 'bestBid', 'exchange', 'symbol'}
-        if not required_cols.issubset(spread_data.columns):
-            self.logger.warning(f"Spread data is missing required columns. Got: {spread_data.columns}")
+        unique_exchanges = spread_data['exchange'].unique().to_list()
+        if len(unique_exchanges) < 2:
+            self.logger.debug(f"Symbol {spread_data['symbol'][0]} is on less than 2 exchanges. Skipping.")
             return pl.DataFrame()
 
-        # Create all possible pairs of exchanges for each timestamp
-        df_a = spread_data.rename({col: col + "_a" for col in spread_data.columns if col != 'timestamp'})
-        df_b = spread_data.rename({col: col + "_b" for col in spread_data.columns if col != 'timestamp'})
+        all_opportunities = []
 
-        opportunities_df = df_a.join(
-            df_b,
-            on="timestamp",
-            how="inner"
-        ).filter(
-            pl.col("exchange_a") != pl.col("exchange_b")
-        )
+        # Iterate through all unique pairs of exchanges (e.g., (Binance, OKX), (Binance, GateIo), etc.)
+        for ex_a, ex_b in combinations(unique_exchanges, 2):
+            df_a = spread_data.filter(pl.col('exchange') == ex_a).sort('timestamp')
+            df_b = spread_data.filter(pl.col('exchange') == ex_b).sort('timestamp')
 
-        if opportunities_df.is_empty():
-            self.logger.debug("No overlapping timestamps found between different exchanges to create pairs.")
+            if df_a.is_empty() or df_b.is_empty():
+                continue
+
+            # --- Join A to B: For each tick on A, find the latest tick on B ---
+            opps_a = self._find_pair_opportunities(df_a, df_b, ex_a, ex_b, commission_pct)
+            if not opps_a.is_empty():
+                all_opportunities.append(opps_a)
+
+            # --- Join B to A: For each tick on B, find the latest tick on A ---
+            opps_b = self._find_pair_opportunities(df_b, df_a, ex_b, ex_a, commission_pct)
+            if not opps_b.is_empty():
+                all_opportunities.append(opps_b)
+
+        if not all_opportunities:
             return pl.DataFrame()
 
-        # Pre-filter to ensure prices are valid
-        opportunities_df = opportunities_df.filter(
-            (pl.col("bestBid_a").is_not_null()) & (pl.col("bestBid_a") > 0) &
-            (pl.col("bestBid_b").is_not_null()) & (pl.col("bestBid_b") > 0)
-        )
+        # Combine all found opportunities and return
+        return pl.concat(all_opportunities)
 
-        if opportunities_df.is_empty():
-            self.logger.debug("No valid price pairs found after filtering for nulls and zero prices.")
-            return pl.DataFrame()
+    def _find_pair_opportunities(
+        self,
+        df_left: pl.DataFrame,
+        df_right: pl.DataFrame,
+        exchange_left: str,
+        exchange_right: str,
+        commission_pct: float
+    ) -> pl.DataFrame:
+        """
+        Helper function to find opportunities between a single pair of exchanges.
+        """
+        # Rename columns to avoid conflicts after join, but keep the join key ('timestamp') the same
+        cols_to_rename = [c for c in df_right.columns if c != 'timestamp']
+        df_right_renamed = df_right.rename({col: f"{col}_right" for col in cols_to_rename})
 
-        # --- Scenario 1: Buy on A (Maker), Sell on B (Taker) ---
-        opps_a_to_b = opportunities_df.filter(
-            pl.col("bestBid_b") > pl.col("bestBid_a")
+        # For each row in left, find the latest row in right
+        joined_df = df_left.join_asof(df_right_renamed, on='timestamp')
+
+        # Filter for valid prices and calculate profit
+        # Scenario: Buy on Right, Sell on Left
+        opportunities = joined_df.filter(
+            (pl.col("bestBid") > 0) & (pl.col("bestAsk_right") > 0) &
+            (pl.col("bestBid") > pl.col("bestAsk_right"))
         ).with_columns(
             (
-                ((pl.col("bestBid_b") - pl.col("bestBid_a")) / pl.col("bestBid_a")) * 100 - commission_pct
+                ((pl.col("bestBid") - pl.col("bestAsk_right")) / pl.col("bestAsk_right")) * 100 - commission_pct
             ).alias("profit_pct"),
-            pl.col("exchange_a").alias("buy_exchange"),
-            pl.col("bestBid_a").alias("buy_price"),
-            pl.col("exchange_b").alias("sell_exchange"),
-            pl.col("bestBid_b").alias("sell_price"),
+            pl.lit(exchange_right).alias("buy_exchange"),
+            pl.col("bestAsk_right").alias("buy_price"),
+            pl.lit(exchange_left).alias("sell_exchange"),
+            pl.col("bestBid").alias("sell_price"),
         )
 
-        # --- Scenario 2: Buy on B (Maker), Sell on A (Taker) ---
-        opps_b_to_a = opportunities_df.filter(
-            pl.col("bestBid_a") > pl.col("bestBid_b")
-        ).with_columns(
-            (
-                ((pl.col("bestBid_a") - pl.col("bestBid_b")) / pl.col("bestBid_b")) * 100 - commission_pct
-            ).alias("profit_pct"),
-            pl.col("exchange_b").alias("buy_exchange"),
-            pl.col("bestBid_b").alias("buy_price"),
-            pl.col("exchange_a").alias("sell_exchange"),
-            pl.col("bestBid_a").alias("sell_price"),
-        )
+        profitable_opps = opportunities.filter(pl.col("profit_pct") > 0)
 
-        # Combine and filter for profitable opportunities
-        all_opps = pl.concat([opps_a_to_b, opps_b_to_a])
-
-        if all_opps.is_empty():
-            self.logger.debug("No potential opportunities were generated from price comparisons.")
+        if profitable_opps.is_empty():
             return pl.DataFrame()
 
-        profitable_opportunities = all_opps.filter(pl.col("profit_pct") > 0)
-
-        if profitable_opportunities.is_empty():
-            self.logger.debug("No opportunities were found to be profitable after accounting for commission.")
-            return pl.DataFrame()
-
-        # Select and standardize columns for the final output
-        final_df = profitable_opportunities.select([
-            pl.col("timestamp"),
-            pl.col("symbol_a").alias("symbol"),
-            pl.col("buy_exchange"),
-            pl.col("buy_price"),
-            pl.col("sell_exchange"),
-            pl.col("sell_price"),
-            pl.col("profit_pct")
+        return profitable_opps.select([
+            "timestamp", "symbol", "buy_exchange", "buy_price",
+            "sell_exchange", "sell_price", "profit_pct"
         ])
-
-        return final_df

@@ -9,8 +9,7 @@ import polars as pl
 from typing import List, Dict
 from datetime import datetime
 from .logger import LoggerManager
-from .data_loader import load_market_data
-from .balance_manager import BalanceManager
+from .data_loader import stream_market_data
 from arbitrage_analyzer import MultiExchangeArbitrageAnalyzer
 from .statistics_collector import StatisticsCollector
 from .report_generator import ReportGenerator
@@ -32,10 +31,13 @@ class Backtester:
         self.trade_log = self.log_manager.get_logger('trade')
 
         self.analyzer = MultiExchangeArbitrageAnalyzer(logger=self.system_log)
-        self.commission_pct = 0.02
-        self.profit_thresholds = [0.1, 0.25, 0.3, 0.35, 0.4, 0.5]
+        self.commission_pct = 0.2  # 0.1% buy + 0.1% sell = 0.2% total
+        self.profit_thresholds = [0.25, 0.3, 0.35, 0.4]
         self.stats_collector = StatisticsCollector()
-        self.balance_managers: Dict[str, Dict[float, BalanceManager]] = {}
+        
+        # --- Simulation State ---
+        self.initial_usdt_balance = 1000.0
+        self.initial_crypto_balance = 1.0
 
     def run(self):
         """
@@ -43,7 +45,7 @@ class Backtester:
         """
         self.system_log.info("--- Starting Backtest ---")
         
-        full_data = load_market_data(
+        data_stream = stream_market_data(
             data_path=self.data_path,
             start_date=self.start_date,
             end_date=self.end_date,
@@ -51,67 +53,106 @@ class Backtester:
             symbols=self.symbols,
             logger=self.system_log
         )
+
+        is_first_chunk = True
+        for daily_data in data_stream:
+            if daily_data.is_empty():
+                continue
+
+            if is_first_chunk:
+                if not self.symbols:
+                    self.symbols = daily_data.select('symbol').unique().to_series().to_list()
+                if not self.exchanges:
+                    self.exchanges = daily_data.select('exchange').unique().to_series().to_list()
+                is_first_chunk = False
+
+            self._processing_loop(daily_data)
         
-        if full_data.is_empty():
-            self.system_log.error("No data loaded for the specified criteria. Exiting.")
+        if is_first_chunk:
+            self.system_log.error("No data was loaded for the specified criteria. Exiting.")
             return
 
-        # If no symbols or exchanges were provided, use all unique ones from the loaded data.
-        if not self.symbols:
-            self.system_log.info("No symbols specified, using all unique symbols from the dataset.")
-            self.symbols = full_data.select('symbol').unique().to_series().to_list()
-            self.system_log.info(f"Found {len(self.symbols)} symbols.")
-        
-        if not self.exchanges:
-            self.system_log.info("No exchanges specified, using all unique exchanges from the dataset.")
-            self.exchanges = full_data.select('exchange').unique().to_series().to_list()
-            self.system_log.info(f"Found {len(self.exchanges)} exchanges.")
-
-        self.system_log.info("Initializing simulation instances for each coin and threshold...")
-
-        # Correctly find the first price for each symbol/exchange pair to set up initial assets.
-        # This is crucial for ensuring all managers are properly initialized.
-        self.system_log.info("Finding first price for each symbol/exchange pair...")
-        initial_prices_df = full_data.group_by(["symbol", "exchange"]).first()
-        initial_prices_list = initial_prices_df.to_dicts()
-        self.system_log.info(f"Found {len(initial_prices_list)} initial price points.")
-
-        for symbol in self.symbols:
-            self.balance_managers[symbol] = {}
-            
-            # Filter the initial prices for the current symbol to speed up setup
-            symbol_initial_prices = [p for p in initial_prices_list if p['symbol'] == symbol]
-
-            template_bm = BalanceManager(
-                exchanges=self.exchanges,
-                symbol=symbol,
-                system_log=self.system_log,
-                trade_log=self.trade_log
-            )
-            template_bm.setup_initial_assets(symbol_initial_prices)
-            
-            for threshold in self.profit_thresholds:
-                import copy
-                self.balance_managers[symbol][threshold] = copy.deepcopy(template_bm)
-        
-        self.system_log.info(f"Initialized {len(self.symbols) * len(self.profit_thresholds)} simulation instances.")
-
-        self._processing_loop(full_data)
-        
         self.system_log.info("Backtest finished. Generating report...")
         report_generator = ReportGenerator(self.stats_collector.get_results(), logger=self.summary_log)
         report_generator.generate()
         self.system_log.info("--- Backtest Completed ---")
 
+    def _run_vectorized_simulation(self, opportunities_df: pl.DataFrame, symbol: str, threshold: float):
+        """
+        Runs a simulation with balanced trades between exchange pairs (communicating vessels).
+
+        Strategy:
+        - Fixed budget: 1000 USDT split 50/50 per exchange pair
+        - Trades alternate direction: A→B, then B→A, then A→B, etc.
+        - This keeps balances balanced between pairs like communicating vessels
+        - Each trade uses 500 USDT
+        - Tests ALL exchange pairs for this symbol at this profit threshold
+        """
+        # Filter for valid opportunities above threshold
+        valid_opps = opportunities_df.filter(pl.col('profit_pct') >= threshold).sort('timestamp')
+        if valid_opps.is_empty():
+            return
+
+        # Create exchange pair identifier (sorted to treat A→B and B→A as same pair)
+        valid_opps = valid_opps.with_columns([
+            pl.min_horizontal(pl.col("buy_exchange"), pl.col("sell_exchange")).alias("exchange_min"),
+            pl.max_horizontal(pl.col("buy_exchange"), pl.col("sell_exchange")).alias("exchange_max")
+        ]).with_columns([
+            (pl.col("exchange_min") + "_" + pl.col("exchange_max")).alias("exchange_pair")
+        ])
+
+        # Track last direction for each pair to alternate
+        pair_last_direction = {}
+        executed_trades = []
+
+        trade_size_usdt = 500.0
+
+        # Process ALL opportunities chronologically (no filtering by timestamp)
+        # Each exchange pair is independent and tracks its own alternating direction
+        for row in valid_opps.to_dicts():
+            pair = row["exchange_pair"]
+            buy_ex = row["buy_exchange"]
+            sell_ex = row["sell_exchange"]
+
+            # Current direction: which exchange is buying
+            current_direction = f"{buy_ex}→{sell_ex}"
+
+            # Check if we can execute this trade
+            if pair not in pair_last_direction:
+                # First trade for this pair - allow it
+                pair_last_direction[pair] = current_direction
+                executed_trades.append(row)
+            else:
+                last_direction = pair_last_direction[pair]
+                # Allow trade only if direction changed (alternating)
+                if last_direction != current_direction:
+                    pair_last_direction[pair] = current_direction
+                    executed_trades.append(row)
+                # Otherwise skip this trade (would unbalance the pair)
+
+        if not executed_trades:
+            return
+
+        # Convert back to DataFrame
+        trades = pl.DataFrame(executed_trades).with_columns([
+            (pl.lit(trade_size_usdt) / pl.col('buy_price')).alias('trade_amount_crypto'),
+            pl.lit(trade_size_usdt).alias('trade_size_usdt')
+        ])
+
+        # Record trades in bulk
+        self.stats_collector.record_trades_bulk(
+            profit_threshold=threshold,
+            symbol=symbol,
+            trades_df=trades
+        )
+        self.system_log.info(f"Simulation found {len(trades)} balanced trades for {symbol} @ {threshold}%.")
+
     def _processing_loop(self, data: pl.DataFrame):
         """
-        Processes data by finding opportunities and simulating trades for each instance.
+        Processes data by finding opportunities and simulating trades.
         """
-        self.system_log.info("Starting vectorized processing loop...")
-
         for symbol in self.symbols:
             symbol_data = data.filter(pl.col('symbol') == symbol)
-            
             if symbol_data.is_empty():
                 continue
 
@@ -119,65 +160,11 @@ class Backtester:
                 spread_data=symbol_data,
                 commission_pct=self.commission_pct
             )
-            
             if opportunities_df.is_empty():
                 continue
 
             for threshold in self.profit_thresholds:
-                self.system_log.info(f"--- Running simulation for {symbol} @ {threshold}% ---")
-                balance_manager = self.balance_managers[symbol][threshold]
-                
-                valid_opportunities = opportunities_df.filter(pl.col('profit_pct') >= threshold).sort('timestamp')
-                
-                if valid_opportunities.is_empty():
-                    self.system_log.info("No valid opportunities found for this simulation.")
-                    continue
-
-                self.system_log.debug(f"Found {len(valid_opportunities)} opportunities. Simulating trades...")
-                
-                self._simulate_trades_for_instance(valid_opportunities.to_dicts(), balance_manager, symbol, threshold)
-
-    def _simulate_trades_for_instance(self, opportunities: List[Dict], balance_manager: BalanceManager, symbol: str, threshold: float):
-        """
-        Iterates through chronological opportunities, executing them if balances permit.
-        """
-        trade_count = 0
-        for opp in opportunities:
-            buy_wallet = balance_manager.get_balance(opp['buy_exchange'])
-            sell_wallet = balance_manager.get_balance(opp['sell_exchange'])
-            base_currency = symbol[:-4]
-
-            max_buy_crypto = buy_wallet.get('USDT', 0) / opp['buy_price'] if opp['buy_price'] > 0 else 0
-            max_sell_crypto = sell_wallet.get(base_currency, 0)
-            
-            trade_amount_crypto = min(max_buy_crypto, max_sell_crypto)
-            
-            if trade_amount_crypto < 1e-9:
-                continue
-
-            trade_value_usdt = trade_amount_crypto * opp['buy_price']
-            
-            success = balance_manager.simulate_trade(
-                buy_exchange=opp['buy_exchange'],
-                sell_exchange=opp['sell_exchange'],
-                symbol=symbol,
-                buy_price=opp['buy_price'],
-                sell_price=opp['sell_price'],
-                amount_crypto=trade_amount_crypto,
-                commission_pct=self.commission_pct
-            )
-
-            if success:
-                trade_count += 1
-                self.stats_collector.record_trade(
-                    profit_threshold=threshold,
-                    symbol=symbol,
-                    buy_exchange=opp['buy_exchange'],
-                    sell_exchange=opp['sell_exchange'],
-                    net_profit_pct=opp['profit_pct'],
-                    amount_usdt=trade_value_usdt
-                )
-        self.system_log.info(f"Simulated {trade_count} trades for {symbol} @ {threshold}%.")
+                self._run_vectorized_simulation(opportunities_df, symbol, threshold)
 
 def main():
     """

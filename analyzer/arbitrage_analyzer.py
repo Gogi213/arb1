@@ -72,6 +72,7 @@ class MultiExchangeArbitrageAnalyzer:
     ) -> pl.DataFrame:
         """
         Helper function to find opportunities between a single pair of exchanges.
+        Uses maker-taker strategy: buy with limit order (at bid price), sell with market order (at bid price).
         """
         # Rename columns to avoid conflicts after join, but keep the join key ('timestamp') the same
         cols_to_rename = [c for c in df_right.columns if c != 'timestamp']
@@ -81,16 +82,19 @@ class MultiExchangeArbitrageAnalyzer:
         joined_df = df_left.join_asof(df_right_renamed, on='timestamp')
 
         # Filter for valid prices and calculate profit
-        # Scenario: Buy on Right, Sell on Left
+        # Maker-Taker Strategy:
+        # - Buy on Right with LIMIT order at bid price (maker, lower commission)
+        # - Sell on Left with MARKET order at bid price (taker)
+        # Profitable when: bid_left > bid_right (after commission)
         opportunities = joined_df.filter(
-            (pl.col("bestBid") > 0) & (pl.col("bestAsk_right") > 0) &
-            (pl.col("bestBid") > pl.col("bestAsk_right"))
+            (pl.col("bestBid") > 0) & (pl.col("bestBid_right") > 0) &
+            (pl.col("bestBid") > pl.col("bestBid_right"))
         ).with_columns(
             (
-                ((pl.col("bestBid") - pl.col("bestAsk_right")) / pl.col("bestAsk_right")) * 100 - commission_pct
+                ((pl.col("bestBid") - pl.col("bestBid_right")) / pl.col("bestBid_right")) * 100 - commission_pct
             ).alias("profit_pct"),
             pl.lit(exchange_right).alias("buy_exchange"),
-            pl.col("bestAsk_right").alias("buy_price"),
+            pl.col("bestBid_right").alias("buy_price"),
             pl.lit(exchange_left).alias("sell_exchange"),
             pl.col("bestBid").alias("sell_price"),
         )

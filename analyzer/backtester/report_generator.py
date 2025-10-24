@@ -39,7 +39,6 @@ class ReportGenerator:
     def _print_results_by_symbol(self):
         """Prints the detailed results grouped by symbol."""
         by_symbol_results = self.results.get("by_symbol", {})
-        stationarity_metrics = self.results.get("stationarity_metrics", {})
 
         if not by_symbol_results:
             self.logger.info("No data to display.")
@@ -48,18 +47,6 @@ class ReportGenerator:
         for symbol, data in by_symbol_results.items():
             self.logger.info("-" * 70)
             self.logger.info(f"Symbol: {symbol}")
-
-            # Print stationarity metrics if available
-            if stationarity_metrics and symbol in stationarity_metrics and stationarity_metrics[symbol]:
-                metrics = stationarity_metrics[symbol]
-                self.logger.info("  --- Stationarity Metrics ---")
-                adf = metrics.get('adf_p_value')
-                kpss = metrics.get('kpss_p_value')
-                hurst = metrics.get('hurst_exponent')
-                self.logger.info(f"    - ADF p-value: {adf:.4f}" if adf is not None else "    - ADF p-value: N/A")
-                self.logger.info(f"    - KPSS p-value: {kpss:.4f}" if kpss is not None else "    - KPSS p-value: N/A")
-                self.logger.info(f"    - Hurst Exponent: {hurst:.4f}" if hurst is not None else "    - Hurst Exponent: N/A")
-
             self.logger.info("  --- Performance by Profit Threshold (Independent Simulations) ---")
             
             by_threshold = data.get("by_threshold", {})

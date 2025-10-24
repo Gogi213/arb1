@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cp:*)",
+      "Bash(rm:*)",
+      "Bash(time python:*)",
+      "Bash(tee:*)",
+      "Bash(awk:*)",
+      "Bash(timeout 180 python:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

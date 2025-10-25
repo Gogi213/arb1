@@ -1,8 +1,0 @@
-GET
-/api/v4/unified/estimate_rate
-true
-{
-  "BTC": "0.000002",
-  "GT": "0.000001",
-  "ETH": ""
-}

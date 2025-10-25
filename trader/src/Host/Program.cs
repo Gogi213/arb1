@@ -16,21 +16,12 @@ namespace TraderBot.Host
             {
                 new ExchangeConfig
                 {
-                    Exchange = new BybitExchange(),
-                    ApiKey = "UVSbRqLBEY30RnPaiH",
-                    ApiSecret = "Fg45sn0nH4FhqZaxctj54Nf9cO03Qf9s0zds",
-                    Symbol = "RECALLUSDT",
-                    Amount = 3.1m,
-                    DurationMinutes = 2
-                },
-                new ExchangeConfig
-                {
                     Exchange = new GateIoExchange(),
                     ApiKey = "db8399ac605fcb256463d7aa7e110748",
                     ApiSecret = "fd3e1bf1714fb2c8b1478169a829fcd9b275658c80cebc9a3b544e57e3fd3f25",
-                    Symbol = "COAI_USDT",
+                    Symbol = "ZKJ_USDT",
                     Amount = 3.1m,
-                    DurationMinutes = 2
+                    DurationMinutes = 60
                 }
             };
 

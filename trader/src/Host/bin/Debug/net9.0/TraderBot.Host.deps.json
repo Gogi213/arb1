@@ -8,6 +8,7 @@
     ".NETCoreApp,Version=v9.0": {
       "TraderBot.Host/1.0.0": {
         "dependencies": {
+          "TraderBot.Core": "1.0.0",
           "TraderBot.Exchanges.Bybit": "1.0.0",
           "TraderBot.Exchanges.GateIo": "1.0.0"
         },

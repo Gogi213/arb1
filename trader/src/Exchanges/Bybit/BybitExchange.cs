@@ -67,29 +67,9 @@ namespace TraderBot.Exchanges.Bybit
             }
         }
 
-        public async Task SubscribeToPriceUpdatesAsync(string symbol, Action<decimal> onPriceUpdate)
+        public Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
         {
-            var result = await _socketClient!.V5SpotApi.SubscribeToOrderbookUpdatesAsync(new[] { symbol }, 1, data =>
-            {
-                var bestBid = data.Data.Bids.FirstOrDefault();
-                if (bestBid == null) return;
-
-                // Фильтр дребезга
-                if (Math.Abs(bestBid.Price - _lastBidPrice) < _tickSize)
-                    return;
-
-                _lastBidPrice = bestBid.Price;
-                onPriceUpdate(_lastBidPrice);
-            });
-
-            if (!result.Success)
-            {
-                Console.WriteLine($"Error subscribing to order book: {result.Error}");
-            }
-            else
-            {
-                _subscription = result.Data;
-            }
+            throw new NotImplementedException();
         }
 
         public async Task<long?> PlaceOrderAsync(string symbol, decimal quantity, decimal price)
@@ -126,6 +106,16 @@ namespace TraderBot.Exchanges.Bybit
             }
 
             return result.Success;
+        }
+
+        public Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
+        {
+            throw new NotImplementedException();
         }
 
         public async Task UnsubscribeAsync()

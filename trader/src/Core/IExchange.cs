@@ -1,8 +1,38 @@
 using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace TraderBot.Core
 {
+    public interface IOrderBookEntry
+    {
+        decimal Price { get; }
+        decimal Quantity { get; }
+    }
+
+    public interface IOrderBook
+    {
+        string Symbol { get; }
+        IEnumerable<IOrderBookEntry> Bids { get; }
+        IEnumerable<IOrderBookEntry> Asks { get; }
+    }
+
+    public interface IOrder
+    {
+        string Symbol { get; }
+        long OrderId { get; }
+        decimal Price { get; }
+        decimal Quantity { get; }
+        string Status { get; }
+        string? FinishType { get; }
+    }
+
+    public interface IBalance
+    {
+        string Asset { get; }
+        decimal Available { get; }
+    }
+
     public interface IExchange
     {
         Task InitializeAsync(string apiKey, string apiSecret);
@@ -11,7 +41,9 @@ namespace TraderBot.Core
         Task CancelAllOrdersAsync(string symbol);
         Task<long?> PlaceOrderAsync(string symbol, decimal quantity, decimal price);
         Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity);
-        Task SubscribeToPriceUpdatesAsync(string symbol, Action<decimal> onPriceUpdate);
+        Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate);
+        Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate);
+        Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate);
         Task UnsubscribeAsync();
         Task CancelOrderAsync(string symbol, long? orderId);
     }

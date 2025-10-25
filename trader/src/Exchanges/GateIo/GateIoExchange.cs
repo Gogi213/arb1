@@ -12,9 +12,9 @@ namespace TraderBot.Exchanges.GateIo
 {
     public class GateIoExchange : IExchange
     {
-        private GateIoRestClient? _restClient;
-        private GateIoSocketClient? _socketClient;
-        private CryptoExchange.Net.Objects.Sockets.UpdateSubscription? _subscription;
+        private GateIoRestClient _restClient;
+        private GateIoSocketClient _socketClient;
+        private readonly List<CryptoExchange.Net.Objects.Sockets.UpdateSubscription> _subscriptions = new();
 
         public async Task InitializeAsync(string apiKey, string apiSecret)
         {
@@ -22,7 +22,10 @@ namespace TraderBot.Exchanges.GateIo
             {
                 options.ApiCredentials = new ApiCredentials(apiKey, apiSecret);
             });
-            _socketClient = new GateIoSocketClient();
+            _socketClient = new GateIoSocketClient(options =>
+            {
+                options.ApiCredentials = new ApiCredentials(apiKey, apiSecret);
+            });
             await Task.CompletedTask;
         }
 
@@ -34,10 +37,23 @@ namespace TraderBot.Exchanges.GateIo
             return balance?.Available ?? 0m;
         }
 
-        public Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol)
+        public async Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol)
         {
-            // Gate.io implementation is not needed for now.
-            return Task.FromResult((tickSize: 0.0001m, basePrecision: 4m));
+            var symbolDataResult = await _restClient.SpotApi.ExchangeData.GetSymbolAsync(symbol);
+            if (!symbolDataResult.Success)
+            {
+                throw new Exception($"Symbol {symbol} not found on Gate.io. Error: {symbolDataResult.Error}");
+            }
+
+            var pair = symbolDataResult.Data;
+
+            // precision - это количество знаков после запятой, поэтому tickSize = 10^(-precision)
+            decimal tickSize = (decimal)Math.Pow(10, -pair.PricePrecision);
+            
+            // amount_precision - это и есть basePrecision
+            decimal basePrecision = pair.QuantityPrecision;
+
+            return (tickSize, basePrecision);
         }
 
         public async Task CancelAllOrdersAsync(string symbol)
@@ -47,42 +63,71 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task<long?> PlaceOrderAsync(string symbol, decimal quantity, decimal price)
         {
-            var result = await _restClient.SpotApi.Trading.PlaceOrderAsync(
-                symbol, OrderSide.Buy, NewOrderType.Limit, quantity, price: price);
+            var result = await _socketClient.SpotApi.PlaceOrderAsync(
+                symbol,
+                OrderSide.Buy,
+                NewOrderType.Limit,
+                quantity,
+                price: price);
             return result.Success ? result.Data.Id : null;
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity)
         {
-            var editRequest = new GateIoBatchEditRequest
-            {
-                OrderId = orderId.ToString(),
-                Symbol = symbol,
-                Price = newPrice,
-                Quantity = quantity
-            };
-            var result = await _restClient.SpotApi.Trading.EditMultipleOrderAsync(new[] { editRequest });
-            return result.Success && result.Data.All(o => o.Succeeded);
+            var result = await _socketClient.SpotApi.EditOrderAsync(symbol, orderId, price: newPrice, quantity: quantity);
+            return result.Success;
         }
 
-        public async Task SubscribeToPriceUpdatesAsync(string symbol, Action<decimal> onPriceUpdate)
+        public async Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
         {
-            var subscriptionResult = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(symbol, data =>
+            var subscriptionResult = await _socketClient.SpotApi.SubscribeToPartialOrderBookUpdatesAsync(symbol, 20, 100, data =>
             {
-                onPriceUpdate(data.Data.BestBidPrice);
+                onOrderBookUpdate(new GateIoOrderBookAdapter(data.Data));
             });
 
             if (subscriptionResult.Success)
             {
-                _subscription = subscriptionResult.Data;
+                _subscriptions.Add(subscriptionResult.Data);
+            }
+        }
+
+        public async Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate)
+        {
+            var subscriptionResult = await _socketClient.SpotApi.SubscribeToOrderUpdatesAsync(data =>
+            {
+                foreach (var order in data.Data)
+                {
+                    onOrderUpdate(new GateIoOrderAdapter(order));
+                }
+            });
+
+            if (subscriptionResult.Success)
+            {
+                _subscriptions.Add(subscriptionResult.Data);
+            }
+        }
+
+        public async Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
+        {
+            var subscriptionResult = await _socketClient.SpotApi.SubscribeToBalanceUpdatesAsync(data =>
+            {
+                foreach (var balance in data.Data)
+                {
+                    onBalanceUpdate(new GateIoBalanceAdapter(balance));
+                }
+            });
+
+            if (subscriptionResult.Success)
+            {
+                _subscriptions.Add(subscriptionResult.Data);
             }
         }
 
         public async Task UnsubscribeAsync()
         {
-            if (_subscription != null)
+            foreach (var sub in _subscriptions)
             {
-                await _socketClient.UnsubscribeAsync(_subscription);
+                await _socketClient.UnsubscribeAsync(sub);
             }
         }
 

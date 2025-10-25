@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -10,9 +11,8 @@ namespace TraderBot.Core
         private long? _orderId;
         private decimal? _currentOrderPrice;
         private decimal _quantity;
-        private readonly object _lock = new object();
-        private bool _isPlacingOrder = false;
-        private bool _isModifyingOrder = false;
+        private readonly SemaphoreSlim _orderLock = new SemaphoreSlim(1, 1);
+        private bool _isInPosition = false;
         private decimal _tickSize;
         private int _basePrecision;
         private decimal _lastPlacedPrice;
@@ -38,67 +38,65 @@ namespace TraderBot.Core
             Console.WriteLine("All open orders cancelled.");
             Console.WriteLine("---------------------\n");
 
-            await _exchange.SubscribeToPriceUpdatesAsync(symbol, async bestBidPrice =>
+            await _exchange.SubscribeToOrderUpdatesAsync(HandleOrderUpdate);
+            await _exchange.SubscribeToBalanceUpdatesAsync(HandleBalanceUpdate);
+
+            await _exchange.SubscribeToOrderBookUpdatesAsync(symbol, async orderBook =>
             {
-                if (bestBidPrice == 0) return;
-                var newTargetPrice = Math.Round(bestBidPrice * 0.99m / _tickSize) * _tickSize;
-                
-                if (_lastPlacedPrice > 0)
-                    Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
-
-                if (Math.Abs(newTargetPrice - _lastPlacedPrice) < _tickSize)
+                await _orderLock.WaitAsync();
+                try
                 {
-                    Console.WriteLine("[TT] skip modify – same level");
-                    return;
-                }
+                    var bestBidPrice = orderBook.Bids.FirstOrDefault()?.Price ?? 0;
+                    if (bestBidPrice == 0) return;
 
-                lock (_lock)
-                {
-                    if (_orderId == null)
+                    var newTargetPrice = CalculateTargetPrice(orderBook, 100); // $100 offset
+
+                    if (_lastPlacedPrice > 0)
+                        Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
+
+                    if (Math.Abs(newTargetPrice - _lastPlacedPrice) < _tickSize)
                     {
-                        if (_isPlacingOrder) return;
-                        _isPlacingOrder = true;
+                        return;
+                    }
+
+                    if (_orderId == null && !_isInPosition)
+                    {
+                        Console.WriteLine($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
+                        _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
+                        var placedOrderId = await _exchange.PlaceOrderAsync(symbol, _quantity, newTargetPrice);
+                        if (placedOrderId.HasValue)
+                        {
+                            _orderId = placedOrderId;
+                            _currentOrderPrice = newTargetPrice;
+                            _lastPlacedPrice = newTargetPrice;
+                            Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
+                        }
+                        else
+                        {
+                            Console.WriteLine("  > Failed to place order.");
+                        }
                     }
                     else
                     {
-                        if (_isModifyingOrder || newTargetPrice == _currentOrderPrice) return;
-                        _isModifyingOrder = true;
-                    }
-                }
+                        if (newTargetPrice == _currentOrderPrice || _isInPosition) return;
 
-                if (_orderId == null)
-                {
-                    Console.WriteLine($"First price update. Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
-                    _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
-                    var placedOrderId = await _exchange.PlaceOrderAsync(symbol, _quantity, newTargetPrice);
-                    if (placedOrderId.HasValue)
-                    {
-                        _orderId = placedOrderId;
-                        _currentOrderPrice = newTargetPrice;
-                        _lastPlacedPrice = newTargetPrice;
-                        Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
-                    }
-                    else
-                    {
-                        Console.WriteLine("  > Failed to place order.");
-                        _isPlacingOrder = false;
+                        Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
+                        var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
+                        if (success)
+                        {
+                            _currentOrderPrice = newTargetPrice;
+                            _lastPlacedPrice = newTargetPrice;
+                            Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
+                        }
+                        else
+                        {
+                            Console.WriteLine("  > Failed to modify order.");
+                        }
                     }
                 }
-                else
+                finally
                 {
-                    Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
-                    var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
-                    if (success)
-                    {
-                        _currentOrderPrice = newTargetPrice;
-                        _lastPlacedPrice = newTargetPrice;
-                        Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
-                    }
-                    else
-                    {
-                        Console.WriteLine("  > Failed to modify order.");
-                    }
-                    _isModifyingOrder = false;
+                    _orderLock.Release();
                 }
             });
 
@@ -111,6 +109,57 @@ namespace TraderBot.Core
             await _exchange.CancelOrderAsync(symbol, _orderId);
             Console.WriteLine($"Final order {_orderId} cancelled.");
             Console.WriteLine("---------------------\n");
+        }
+
+        private async void HandleOrderUpdate(IOrder order)
+        {
+            await _orderLock.WaitAsync();
+            try
+            {
+                Console.WriteLine($"[Order Update] Symbol: {order.Symbol}, OrderId: {order.OrderId}, Status: {order.Status}, FinishType: {order.FinishType}");
+                if (order.OrderId == _orderId && order.Status == "Finish")
+                {
+                    if (order.FinishType == "Filled")
+                    {
+                        Console.WriteLine($"[!!!] Order {order.OrderId} was FILLED!");
+                        _isInPosition = true;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[!!!] Order {order.OrderId} was finished ({order.FinishType})!");
+                    }
+                    _orderId = null;
+                    _currentOrderPrice = null;
+                }
+            }
+            finally
+            {
+                _orderLock.Release();
+            }
+        }
+
+        private void HandleBalanceUpdate(IBalance balance)
+        {
+            Console.WriteLine($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
+        }
+        
+        private decimal CalculateTargetPrice(IOrderBook orderBook, decimal dollarOffset)
+        {
+            var bestBid = orderBook.Bids.First().Price;
+            decimal cumulativeVolume = 0;
+            decimal targetPrice = bestBid;
+
+            foreach (var bid in orderBook.Bids)
+            {
+                cumulativeVolume += bid.Price * bid.Quantity;
+                if (cumulativeVolume >= dollarOffset)
+                {
+                    targetPrice = bid.Price;
+                    break;
+                }
+            }
+
+            return Math.Round(targetPrice / _tickSize) * _tickSize;
         }
     }
 }

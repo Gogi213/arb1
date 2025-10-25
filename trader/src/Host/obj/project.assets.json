@@ -958,6 +958,7 @@
   },
   "projectFileDependencyGroups": {
     "net9.0": [
+      "TraderBot.Core >= 1.0.0",
       "TraderBot.Exchanges.Bybit >= 1.0.0",
       "TraderBot.Exchanges.GateIo >= 1.0.0"
     ]
@@ -987,11 +988,14 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
-              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+            "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
             },
-            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
-              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
+            "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+              "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+            },
+            "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+              "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
             }
           }
         }

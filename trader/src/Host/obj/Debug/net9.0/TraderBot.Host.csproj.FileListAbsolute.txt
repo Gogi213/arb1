@@ -3,6 +3,7 @@ c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Host.deps.jso
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Host.runtimeconfig.json
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Host.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Host.pdb
+c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Bybit.Net.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\CryptoExchange.Net.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\GateIo.Net.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Configuration.dll
@@ -19,9 +20,11 @@ c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Op
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Options.ConfigurationExtensions.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Primitives.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Core.dll
+c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.dll
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.GateIo.dll
-c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.GateIo.pdb
 c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Core.pdb
+c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.GateIo.pdb
+c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.pdb
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.csproj.AssemblyReference.cache
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.GeneratedMSBuildEditorConfig.editorconfig
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.AssemblyInfoInputs.cache
@@ -34,6 +37,3 @@ c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\refint\TraderBot.Host.d
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.pdb
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.genruntimeconfig.cache
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\ref\TraderBot.Host.dll
-c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Bybit.Net.dll
-c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.dll
-c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.pdb

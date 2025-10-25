@@ -1,7 +1,0 @@
-GET
-/api/v4/unified/leverage/user_currency_setting
-true
-[{
-  "currency": "BTC",
-  "leverage": "3"
-}]

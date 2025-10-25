@@ -1,6 +1,0 @@
-POST
-/api/v4/futures/usdt/price_orders
-true
-{
-  "id": 1432329
-}

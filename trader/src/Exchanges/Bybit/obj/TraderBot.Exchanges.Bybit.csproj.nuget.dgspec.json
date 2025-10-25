@@ -1,7 +1,7 @@
 {
   "format": 1,
   "restore": {
-    "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {}
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {}
   },
   "projects": {
     "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
@@ -63,14 +63,14 @@
         }
       }
     },
-    "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
         "projectName": "TraderBot.Exchanges.Bybit",
-        "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\obj\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"

@@ -12,8 +12,8 @@ namespace TraderBot.Exchanges.GateIo
 {
     public class GateIoExchange : IExchange
     {
-        private GateIoRestClient _restClient;
-        private GateIoSocketClient _socketClient;
+        private GateIoRestClient? _restClient;
+        private GateIoSocketClient? _socketClient;
         private readonly List<CryptoExchange.Net.Objects.Sockets.UpdateSubscription> _subscriptions = new();
 
         public async Task InitializeAsync(string apiKey, string apiSecret)
@@ -31,6 +31,7 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task<decimal> GetBalanceAsync(string asset)
         {
+            if (_restClient == null) throw new InvalidOperationException("Client not initialized");
             var balances = await _restClient.SpotApi.Account.GetBalancesAsync();
             if (!balances.Success) return 0m;
             var balance = balances.Data.FirstOrDefault(b => b.Asset == asset);
@@ -39,6 +40,7 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol)
         {
+            if (_restClient == null) throw new InvalidOperationException("Client not initialized");
             var symbolDataResult = await _restClient.SpotApi.ExchangeData.GetSymbolAsync(symbol);
             if (!symbolDataResult.Success)
             {
@@ -58,28 +60,42 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task CancelAllOrdersAsync(string symbol)
         {
+            if (_restClient == null) throw new InvalidOperationException("Client not initialized");
             await _restClient.SpotApi.Trading.CancelAllOrdersAsync(symbol);
         }
 
-        public async Task<long?> PlaceOrderAsync(string symbol, decimal quantity, decimal price)
+        public async Task<long?> PlaceOrderAsync(string symbol, Core.OrderSide side, Core.NewOrderType type, decimal? quantity = null, decimal? price = null, decimal? quoteQuantity = null)
         {
+            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
+
+            // Gate.io market buy order uses quantity in quote asset
+            var orderQuantity = type == Core.NewOrderType.Market && side == Core.OrderSide.Buy ? quoteQuantity : quantity;
+
+            if (orderQuantity == null)
+            {
+                throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
+            }
+
             var result = await _socketClient.SpotApi.PlaceOrderAsync(
                 symbol,
-                OrderSide.Buy,
-                NewOrderType.Limit,
-                quantity,
-                price: price);
+                (global::GateIo.Net.Enums.OrderSide)side,
+                (global::GateIo.Net.Enums.NewOrderType)type,
+                orderQuantity.Value,
+                price: price,
+                timeInForce: type == Core.NewOrderType.Market ? TimeInForce.ImmediateOrCancel : (TimeInForce?)null);
             return result.Success ? result.Data.Id : null;
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity)
         {
+            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var result = await _socketClient.SpotApi.EditOrderAsync(symbol, orderId, price: newPrice, quantity: quantity);
             return result.Success;
         }
 
         public async Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
         {
+            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var subscriptionResult = await _socketClient.SpotApi.SubscribeToPartialOrderBookUpdatesAsync(symbol, 20, 100, data =>
             {
                 onOrderBookUpdate(new GateIoOrderBookAdapter(data.Data));
@@ -93,6 +109,7 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate)
         {
+            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var subscriptionResult = await _socketClient.SpotApi.SubscribeToOrderUpdatesAsync(data =>
             {
                 foreach (var order in data.Data)
@@ -109,6 +126,7 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
         {
+            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var subscriptionResult = await _socketClient.SpotApi.SubscribeToBalanceUpdatesAsync(data =>
             {
                 foreach (var balance in data.Data)
@@ -125,16 +143,19 @@ namespace TraderBot.Exchanges.GateIo
 
         public async Task UnsubscribeAsync()
         {
+            if (_socketClient == null) return;
             foreach (var sub in _subscriptions)
             {
                 await _socketClient.UnsubscribeAsync(sub);
             }
+            _subscriptions.Clear();
         }
 
         public async Task CancelOrderAsync(string symbol, long? orderId)
         {
             if (orderId.HasValue)
             {
+                if (_restClient == null) throw new InvalidOperationException("Client not initialized");
                 await _restClient.SpotApi.Trading.CancelOrderAsync(symbol, orderId.Value);
             }
         }

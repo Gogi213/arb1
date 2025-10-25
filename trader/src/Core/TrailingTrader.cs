@@ -12,10 +12,14 @@ namespace TraderBot.Core
         private decimal? _currentOrderPrice;
         private decimal _quantity;
         private readonly SemaphoreSlim _orderLock = new SemaphoreSlim(1, 1);
-        private bool _isInPosition = false;
         private decimal _tickSize;
         private int _basePrecision;
         private decimal _lastPlacedPrice;
+        private CancellationTokenSource? _cts;
+        private bool _isStopped;
+        private bool _isFilled;
+
+        public event Action<IOrder>? OnOrderFilled;
 
         public TrailingTrader(IExchange exchange)
         {
@@ -24,6 +28,8 @@ namespace TraderBot.Core
 
         public async Task StartAsync(string symbol, decimal amount, int durationMinutes)
         {
+            _cts = new CancellationTokenSource();
+
             Console.WriteLine("--- Initial Setup ---");
             var balance = await _exchange.GetBalanceAsync("USDT");
             Console.WriteLine($"USDT Balance: {balance}");
@@ -43,13 +49,17 @@ namespace TraderBot.Core
 
             await _exchange.SubscribeToOrderBookUpdatesAsync(symbol, async orderBook =>
             {
+                if (_isStopped || _isFilled) return;
+
                 await _orderLock.WaitAsync();
                 try
                 {
+                    if (_isStopped || _isFilled) return;
+
                     var bestBidPrice = orderBook.Bids.FirstOrDefault()?.Price ?? 0;
                     if (bestBidPrice == 0) return;
 
-                    var newTargetPrice = CalculateTargetPrice(orderBook, 100); // $100 offset
+                    var newTargetPrice = CalculateTargetPrice(orderBook, 25); // $25 offset for faster fills in testing
 
                     if (_lastPlacedPrice > 0)
                         Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
@@ -59,11 +69,11 @@ namespace TraderBot.Core
                         return;
                     }
 
-                    if (_orderId == null && !_isInPosition)
+                    if (_orderId == null)
                     {
                         Console.WriteLine($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
                         _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
-                        var placedOrderId = await _exchange.PlaceOrderAsync(symbol, _quantity, newTargetPrice);
+                        var placedOrderId = await _exchange.PlaceOrderAsync(symbol, OrderSide.Buy, NewOrderType.Limit, quantity: _quantity, price: newTargetPrice);
                         if (placedOrderId.HasValue)
                         {
                             _orderId = placedOrderId;
@@ -78,7 +88,7 @@ namespace TraderBot.Core
                     }
                     else
                     {
-                        if (newTargetPrice == _currentOrderPrice || _isInPosition) return;
+                        if (newTargetPrice == _currentOrderPrice) return;
 
                         Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
                         var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
@@ -100,10 +110,14 @@ namespace TraderBot.Core
                 }
             });
 
-            Console.WriteLine($"Listening for price changes for {durationMinutes} minutes...");
-            await Task.Delay(TimeSpan.FromMinutes(durationMinutes));
+            Console.WriteLine($"Listening for price changes...");
+        }
 
-            Console.WriteLine("\n--- Test Finished ---");
+        public async Task StopAsync(string symbol)
+        {
+            _isStopped = true;
+            _cts?.Cancel();
+            Console.WriteLine("\n--- TrailingTrader Stopped ---");
             Console.WriteLine("Unsubscribing and cancelling final order...");
             await _exchange.UnsubscribeAsync();
             await _exchange.CancelOrderAsync(symbol, _orderId);
@@ -122,9 +136,11 @@ namespace TraderBot.Core
                     if (order.FinishType == "Filled")
                     {
                         Console.WriteLine($"[!!!] Order {order.OrderId} was FILLED!");
-                        _isInPosition = true;
-                    }
-                    else
+                        _isFilled = true;
+                        OnOrderFilled?.Invoke(order);
+                        // Stop(); // Stop is now handled by ArbitrageTrader
+                     }
+                     else
                     {
                         Console.WriteLine($"[!!!] Order {order.OrderId} was finished ({order.FinishType})!");
                     }

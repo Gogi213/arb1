@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using TraderBot.Core;
 using TraderBot.Exchanges.Bybit;
 using TraderBot.Exchanges.GateIo;
@@ -12,34 +14,34 @@ namespace TraderBot.Host
     {
         static async Task Main(string[] args)
         {
-            var configs = new List<ExchangeConfig>
-            {
-                new ExchangeConfig
-                {
-                    Exchange = new GateIoExchange(),
-                    ApiKey = "db8399ac605fcb256463d7aa7e110748",
-                    ApiSecret = "fd3e1bf1714fb2c8b1478169a829fcd9b275658c80cebc9a3b544e57e3fd3f25",
-                    Symbol = "ZKJ_USDT",
-                    Amount = 3.1m,
-                    DurationMinutes = 60
-                }
-            };
+            var configuration = new ConfigurationBuilder()
+                .SetBasePath(AppContext.BaseDirectory)
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                .Build();
 
-            var tasks = new List<Task>();
-            foreach (var config in configs)
+            var configs = configuration.GetSection("ExchangeConfigs").Get<List<ExchangeConfig>>();
+            if (configs == null || configs.Count < 2)
             {
-                tasks.Add(RunTraderAsync(config));
+                Console.WriteLine("Please provide at least two exchange configurations in appsettings.json");
+                return;
             }
 
-            await Task.WhenAll(tasks);
-        }
+            var gateIoConfig = configs.First(c => c.ExchangeName == "GateIo");
+            var bybitConfig = configs.First(c => c.ExchangeName == "Bybit");
 
-        static async Task RunTraderAsync(ExchangeConfig config)
-        {
-            Console.WriteLine($"--- Starting Trader for {config.Exchange.GetType().Name} on {config.Symbol} ---");
-            await config.Exchange.InitializeAsync(config.ApiKey, config.ApiSecret);
-            ITrader trader = new TrailingTrader(config.Exchange);
-            await trader.StartAsync(config.Symbol, config.Amount, config.DurationMinutes);
+            var gateIoExchange = new GateIoExchange();
+            await gateIoExchange.InitializeAsync(gateIoConfig.ApiKey, gateIoConfig.ApiSecret);
+
+            var bybitExchange = new BybitExchange();
+            await bybitExchange.InitializeAsync(bybitConfig.ApiKey, bybitConfig.ApiSecret);
+
+            // Gate.io for buying, Bybit for selling
+            var arbitrageTrader = new ArbitrageTrader(gateIoExchange, bybitExchange);
+
+            // We use the symbol and amount from the buying exchange config
+            await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes);
+            
+            Console.WriteLine("\n--- Arbitrage cycle finished. Program exiting. ---");
         }
     }
 }

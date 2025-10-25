@@ -6,7 +6,10 @@
       "Bash(time python:*)",
       "Bash(tee:*)",
       "Bash(awk:*)",
-      "Bash(timeout 180 python:*)"
+      "Bash(timeout 180 python:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet run:*)",
+      "Bash(set:*)"
     ],
     "deny": [],
     "ask": []

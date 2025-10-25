@@ -39,7 +39,7 @@ namespace TraderBot.Core
         Task<decimal> GetBalanceAsync(string asset);
         Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol);
         Task CancelAllOrdersAsync(string symbol);
-        Task<long?> PlaceOrderAsync(string symbol, decimal quantity, decimal price);
+        Task<long?> PlaceOrderAsync(string symbol, OrderSide side, NewOrderType type, decimal? quantity = null, decimal? price = null, decimal? quoteQuantity = null);
         Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity);
         Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate);
         Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate);

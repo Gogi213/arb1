@@ -63,14 +63,14 @@
         }
       }
     },
-    "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
         "projectName": "TraderBot.Exchanges.Bybit",
-        "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\obj\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -132,14 +132,14 @@
         }
       }
     },
-    "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
         "projectName": "TraderBot.Exchanges.GateIo",
-        "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\obj\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -226,11 +226,11 @@
               "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
                 "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
               },
-              "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
-                "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+              "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
               },
-              "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
-                "projectPath": "c:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
+              "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
               }
             }
           }
@@ -250,6 +250,20 @@
       "frameworks": {
         "net9.0": {
           "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.Extensions.Configuration": {
+              "target": "Package",
+              "version": "[9.0.10, )"
+            },
+            "Microsoft.Extensions.Configuration.Binder": {
+              "target": "Package",
+              "version": "[9.0.10, )"
+            },
+            "Microsoft.Extensions.Configuration.Json": {
+              "target": "Package",
+              "version": "[9.0.10, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",

@@ -37,3 +37,9 @@ c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\refint\TraderBot.Host.d
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.pdb
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\TraderBot.Host.genruntimeconfig.cache
 c:\visual projects\arb1\trader\src\Host\obj\Debug\net9.0\ref\TraderBot.Host.dll
+C:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Configuration.FileExtensions.dll
+C:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.Configuration.Json.dll
+C:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.FileProviders.Abstractions.dll
+C:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.FileProviders.Physical.dll
+C:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\Microsoft.Extensions.FileSystemGlobbing.dll
+c:\visual projects\arb1\trader\src\Host\bin\Debug\net9.0\appsettings.json

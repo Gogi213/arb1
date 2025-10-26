@@ -103,31 +103,62 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task<long?> PlaceOrderAsync(string symbol, Core.OrderSide side, Core.NewOrderType type, decimal? quantity = null, decimal? price = null, decimal? quoteQuantity = null)
         {
-            if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var orderQuantity = type == Core.NewOrderType.Market ? quoteQuantity : quantity;
             if (orderQuantity == null)
             {
                 throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
             }
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            var result = await _socketClient.V5PrivateApi.PlaceOrderAsync(
-                Category.Spot,
-                symbol,
-                (global::Bybit.Net.Enums.OrderSide)side,
-                (global::Bybit.Net.Enums.NewOrderType)type,
-                quantity: orderQuantity.Value,
-                price: price,
-                marketUnit: type == Core.NewOrderType.Market ? global::Bybit.Net.Enums.MarketUnit.QuoteAsset : null,
-                ct: cts.Token);
-
-            if (!result.Success)
+            // Use REST API for market orders (faster - single round trip)
+            // Use WebSocket for limit orders (allows tracking modifications)
+            if (type == Core.NewOrderType.Market)
             {
-                Console.WriteLine($"Error placing order: {result.Error}");
-                return null;
-            }
+                if (_restClient == null) throw new InvalidOperationException("REST client not initialized");
 
-            return long.Parse(result.Data.OrderId);
+                var t0 = DateTime.UtcNow;
+                var result = await _restClient.V5Api.Trading.PlaceOrderAsync(
+                    Category.Spot,
+                    symbol,
+                    (global::Bybit.Net.Enums.OrderSide)side,
+                    (global::Bybit.Net.Enums.NewOrderType)type,
+                    orderQuantity.Value,
+                    price: price,
+                    marketUnit: global::Bybit.Net.Enums.MarketUnit.QuoteAsset);
+                var t1 = DateTime.UtcNow;
+
+                var apiLatency = (t1 - t0).TotalMilliseconds;
+                Console.WriteLine($"[Bybit] REST API call latency: {apiLatency:F0}ms");
+
+                if (!result.Success)
+                {
+                    Console.WriteLine($"Error placing market order via REST: {result.Error}");
+                    return null;
+                }
+
+                Console.WriteLine($"[Bybit] Market order placed: OrderId={result.Data.OrderId}");
+                return long.Parse(result.Data.OrderId);
+            }
+            else
+            {
+                if (_socketClient == null) throw new InvalidOperationException("WebSocket client not initialized");
+
+                var result = await _socketClient.V5PrivateApi.PlaceOrderAsync(
+                    Category.Spot,
+                    symbol,
+                    (global::Bybit.Net.Enums.OrderSide)side,
+                    (global::Bybit.Net.Enums.NewOrderType)type,
+                    quantity: orderQuantity.Value,
+                    price: price,
+                    marketUnit: null);
+
+                if (!result.Success)
+                {
+                    Console.WriteLine($"Error placing limit order via WS: {result.Error}");
+                    return null;
+                }
+
+                return long.Parse(result.Data.OrderId);
+            }
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal newQuantity)

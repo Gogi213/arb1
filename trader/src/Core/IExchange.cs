@@ -25,6 +25,8 @@ namespace TraderBot.Core
         decimal Quantity { get; }
         string Status { get; }
         string? FinishType { get; }
+        DateTime? CreateTime { get; }
+        DateTime? UpdateTime { get; }
     }
 
     public interface IBalance

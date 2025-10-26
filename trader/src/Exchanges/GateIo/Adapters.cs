@@ -20,6 +20,8 @@ namespace TraderBot.Exchanges.GateIo
         public decimal Quantity => _order.Quantity;
         public string Status => _order.Event.ToString();
         public string? FinishType => _order.FinishType?.ToString();
+        public DateTime? CreateTime => _order.CreateTime;
+        public DateTime? UpdateTime => _order.UpdateTime;
     }
 
     public class GateIoBalanceAdapter : IBalance

@@ -22,6 +22,8 @@ namespace TraderBot.Exchanges.Bybit
         public string Status => _order.Status.ToString();
         public string? FinishType => _order.Status == OrderStatus.Filled ? "Filled" :
                                       _order.Status == OrderStatus.Cancelled ? "Cancelled" : null;
+        public DateTime? CreateTime => _order.CreateTime;
+        public DateTime? UpdateTime => _order.UpdateTime;
     }
 
     public class BybitBalanceAdapter : IBalance

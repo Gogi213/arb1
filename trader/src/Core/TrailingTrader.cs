@@ -91,16 +91,21 @@ namespace TraderBot.Core
                         if (newTargetPrice == _currentOrderPrice) return;
 
                         Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
+                        var modifyStart = DateTime.UtcNow;
                         var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
+                        var modifyEnd = DateTime.UtcNow;
+                        var modifyLatency = (modifyEnd - modifyStart).TotalMilliseconds;
+
                         if (success)
                         {
                             _currentOrderPrice = newTargetPrice;
                             _lastPlacedPrice = newTargetPrice;
                             Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
+                            Console.WriteLine($"[Latency] ModifyOrderAsync execution time: {modifyLatency:F0}ms");
                         }
                         else
                         {
-                            Console.WriteLine("  > Failed to modify order.");
+                            Console.WriteLine($"  > Failed to modify order. Time spent: {modifyLatency:F0}ms");
                         }
                     }
                 }
@@ -130,7 +135,20 @@ namespace TraderBot.Core
             await _orderLock.WaitAsync();
             try
             {
+                var now = DateTime.UtcNow;
+                var createTimeStr = order.CreateTime?.ToString("HH:mm:ss.fff") ?? "N/A";
+                var updateTimeStr = order.UpdateTime?.ToString("HH:mm:ss.fff") ?? "N/A";
+                var nowStr = now.ToString("HH:mm:ss.fff");
+
                 Console.WriteLine($"[Order Update] Symbol: {order.Symbol}, OrderId: {order.OrderId}, Status: {order.Status}, FinishType: {order.FinishType}");
+                Console.WriteLine($"[Timestamps] Created: {createTimeStr}, Updated: {updateTimeStr}, LocalReceived: {nowStr}");
+
+                if (order.UpdateTime.HasValue && order.CreateTime.HasValue)
+                {
+                    var fillLatency = (order.UpdateTime.Value - order.CreateTime.Value).TotalMilliseconds;
+                    Console.WriteLine($"[Latency] Order fill time: {fillLatency:F0}ms");
+                }
+
                 if (order.OrderId == _orderId && order.Status == "Finish")
                 {
                     if (order.FinishType == "Filled")

@@ -76,6 +76,7 @@ namespace TraderBot.Exchanges.GateIo
                 throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
             }
 
+            var t0 = DateTime.UtcNow;
             var result = await _socketClient.SpotApi.PlaceOrderAsync(
                 symbol,
                 (global::GateIo.Net.Enums.OrderSide)side,
@@ -83,13 +84,28 @@ namespace TraderBot.Exchanges.GateIo
                 orderQuantity.Value,
                 price: price,
                 timeInForce: type == Core.NewOrderType.Market ? TimeInForce.ImmediateOrCancel : (TimeInForce?)null);
+            var t1 = DateTime.UtcNow;
+
+            var latency = (t1 - t0).TotalMilliseconds;
+            Console.WriteLine($"[Gate API] PlaceOrderAsync WS execution time: {latency:F0}ms");
+
             return result.Success ? result.Data.Id : null;
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity)
         {
             if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
+
+            var t0 = DateTime.UtcNow;
             var result = await _socketClient.SpotApi.EditOrderAsync(symbol, orderId, price: newPrice, quantity: quantity);
+            var t1 = DateTime.UtcNow;
+
+            var latency = (t1 - t0).TotalMilliseconds;
+            if (latency > 100)
+            {
+                Console.WriteLine($"[Gate API] ModifyOrderAsync WS took: {latency:F0}ms (orderId: {orderId})");
+            }
+
             return result.Success;
         }
 
@@ -112,9 +128,30 @@ namespace TraderBot.Exchanges.GateIo
             if (_socketClient == null) throw new InvalidOperationException("Client not initialized");
             var subscriptionResult = await _socketClient.SpotApi.SubscribeToOrderUpdatesAsync(data =>
             {
+                var wsReceiveTime = DateTime.UtcNow;
+                Console.WriteLine($"[Gate WS] Raw message received at: {wsReceiveTime:HH:mm:ss.fff}, Orders count: {data.Data.Count()}");
+
                 foreach (var order in data.Data)
                 {
-                    onOrderUpdate(new GateIoOrderAdapter(order));
+                    var beforeAdapterTime = DateTime.UtcNow;
+                    var adapter = new GateIoOrderAdapter(order);
+                    var afterAdapterTime = DateTime.UtcNow;
+
+                    var adapterDelay = (afterAdapterTime - beforeAdapterTime).TotalMilliseconds;
+                    if (adapterDelay > 1)
+                    {
+                        Console.WriteLine($"[Gate WS] Adapter creation took: {adapterDelay:F0}ms");
+                    }
+
+                    var beforeCallbackTime = DateTime.UtcNow;
+                    onOrderUpdate(adapter);
+                    var afterCallbackTime = DateTime.UtcNow;
+
+                    var callbackDelay = (afterCallbackTime - beforeCallbackTime).TotalMilliseconds;
+                    Console.WriteLine($"[Gate WS] Callback execution took: {callbackDelay:F0}ms");
+
+                    var totalDelay = (afterCallbackTime - wsReceiveTime).TotalMilliseconds;
+                    Console.WriteLine($"[Gate WS] Total processing time (receive -> callback done): {totalDelay:F0}ms");
                 }
             });
 

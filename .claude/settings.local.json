@@ -9,7 +9,8 @@
       "Bash(timeout 180 python:*)",
       "Bash(dotnet build:*)",
       "Bash(dotnet run:*)",
-      "Bash(set:*)"
+      "Bash(set:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

@@ -17,8 +17,9 @@ namespace TraderBot.Exchanges.Bybit
         private IBybitSocketClient? _socketClient;
         private readonly List<UpdateSubscription> _subscriptions = new();
         private decimal _tickSize;
+        private BybitLowLatencyWs? _lowLatencyWs;
 
-        public Task InitializeAsync(string apiKey, string apiSecret)
+        public async Task InitializeAsync(string apiKey, string apiSecret)
         {
             _restClient = new BybitRestClient();
             _socketClient = new BybitSocketClient();
@@ -26,7 +27,9 @@ namespace TraderBot.Exchanges.Bybit
             _restClient.SetApiCredentials(new ApiCredentials(apiKey, apiSecret));
             _socketClient.SetApiCredentials(new ApiCredentials(apiKey, apiSecret));
 
-            return Task.CompletedTask;
+            // Initialize low-latency WebSocket for market orders
+            _lowLatencyWs = new BybitLowLatencyWs(apiKey, apiSecret);
+            await _lowLatencyWs.ConnectAsync();
         }
 
         public async Task<decimal> GetBalanceAsync(string asset)
@@ -109,39 +112,29 @@ namespace TraderBot.Exchanges.Bybit
                 throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
             }
 
-            // Use REST API for market orders (faster - single round trip)
-            // Use WebSocket for limit orders (allows tracking modifications)
+            // Use low-latency WS for market orders, JKorf WS for limit orders
             if (type == Core.NewOrderType.Market)
             {
-                if (_restClient == null) throw new InvalidOperationException("REST client not initialized");
+                if (_lowLatencyWs == null) throw new InvalidOperationException("Low-latency WS not initialized");
 
                 var t0 = DateTime.UtcNow;
-                var result = await _restClient.V5Api.Trading.PlaceOrderAsync(
-                    Category.Spot,
-                    symbol,
-                    (global::Bybit.Net.Enums.OrderSide)side,
-                    (global::Bybit.Net.Enums.NewOrderType)type,
-                    orderQuantity.Value,
-                    price: price,
-                    marketUnit: global::Bybit.Net.Enums.MarketUnit.QuoteAsset);
+                var sideStr = side == Core.OrderSide.Buy ? "Buy" : "Sell";
+                var reqId = await _lowLatencyWs.PlaceMarketOrderAsync(symbol, sideStr, orderQuantity.Value);
                 var t1 = DateTime.UtcNow;
 
                 var apiLatency = (t1 - t0).TotalMilliseconds;
-                Console.WriteLine($"[Bybit] REST API call latency: {apiLatency:F0}ms");
+                Console.WriteLine($"[Bybit] Low-latency WS PlaceOrder: {apiLatency:F0}ms");
 
-                if (!result.Success)
-                {
-                    Console.WriteLine($"Error placing market order via REST: {result.Error}");
-                    return null;
-                }
-
-                Console.WriteLine($"[Bybit] Market order placed: OrderId={result.Data.OrderId}");
-                return long.Parse(result.Data.OrderId);
+                // Return a temporary ID (we'll get real ID from WS callback)
+                // For now, just return a hash of reqId
+                return (long)reqId.GetHashCode();
             }
             else
             {
+                // Use JKorf WebSocket for limit orders
                 if (_socketClient == null) throw new InvalidOperationException("WebSocket client not initialized");
 
+                var t0 = DateTime.UtcNow;
                 var result = await _socketClient.V5PrivateApi.PlaceOrderAsync(
                     Category.Spot,
                     symbol,
@@ -150,6 +143,10 @@ namespace TraderBot.Exchanges.Bybit
                     quantity: orderQuantity.Value,
                     price: price,
                     marketUnit: null);
+                var t1 = DateTime.UtcNow;
+
+                var apiLatency = (t1 - t0).TotalMilliseconds;
+                Console.WriteLine($"[Bybit] JKorf WS API call latency: {apiLatency:F0}ms");
 
                 if (!result.Success)
                 {
@@ -157,6 +154,7 @@ namespace TraderBot.Exchanges.Bybit
                     return null;
                 }
 
+                Console.WriteLine($"[Bybit] Limit order placed via WS: OrderId={result.Data.OrderId}");
                 return long.Parse(result.Data.OrderId);
             }
         }

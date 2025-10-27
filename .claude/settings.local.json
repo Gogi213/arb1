@@ -11,7 +11,15 @@
       "Bash(dotnet run:*)",
       "Bash(set:*)",
       "Bash(find:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(dir \"c:\\visual projects\\arb1\\collections\\docs\")",
+      "Bash(dir \"c:\\visual projects\\arb1\\collections\\docs\\jkorf\")",
+      "Bash(dir:*)",
+      "Bash(del /F Program.cs)",
+      "Bash(timeout 30 dotnet run:*)",
+      "Bash(/dev/null)",
+      "Bash(timeout 15 dotnet run:*)",
+      "Bash(timeout 20 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

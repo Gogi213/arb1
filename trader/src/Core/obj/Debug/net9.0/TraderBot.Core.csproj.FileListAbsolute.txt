@@ -1,12 +1,36 @@
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.GeneratedMSBuildEditorConfig.editorconfig
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.AssemblyInfoInputs.cache
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.AssemblyInfo.cs
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.csproj.CoreCompileInputs.cache
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.sourcelink.json
-c:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.deps.json
-c:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.dll
-c:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.pdb
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.dll
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\refint\TraderBot.Core.dll
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.pdb
-c:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\ref\TraderBot.Core.dll
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.GeneratedMSBuildEditorConfig.editorconfig
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfoInputs.cache
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfo.cs
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.csproj.CoreCompileInputs.cache
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.sourcelink.json
+c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.deps.json
+c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.dll
+c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.pdb
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.dll
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/refint/TraderBot.Core.dll
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.pdb
+c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/ref/TraderBot.Core.dll
+/home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.deps.json
+/home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.dll
+/home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.pdb
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.GeneratedMSBuildEditorConfig.editorconfig
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfoInputs.cache
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfo.cs
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.csproj.CoreCompileInputs.cache
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.sourcelink.json
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.dll
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/refint/TraderBot.Core.dll
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.pdb
+/home/giorgioisitalii/arb1/trader/src/Core/obj/Debug/net9.0/ref/TraderBot.Core.dll
+C:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.deps.json
+C:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.dll
+C:\visual projects\arb1\trader\src\Core\bin\Debug\net9.0\TraderBot.Core.pdb
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.AssemblyInfoInputs.cache
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.AssemblyInfo.cs
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.csproj.CoreCompileInputs.cache
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.sourcelink.json
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.dll
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\refint\TraderBot.Core.dll
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.pdb
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\ref\TraderBot.Core.dll

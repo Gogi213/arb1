@@ -10,7 +10,8 @@
       "Bash(dotnet build:*)",
       "Bash(dotnet run:*)",
       "Bash(set:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

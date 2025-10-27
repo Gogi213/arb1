@@ -51,15 +51,20 @@ namespace TraderBot.Core
             {
                 if (_isStopped || _isFilled) return;
 
+                // --- Part 1: Decide what to do (inside a lock) ---
+                decimal newTargetPrice;
+                bool shouldPlace = false;
+                bool shouldModify = false;
+                long? orderIdToModify = null;
+                decimal quantityToUse = 0;
+                var bestBidPrice = orderBook.Bids.FirstOrDefault()?.Price ?? 0;
+
                 await _orderLock.WaitAsync();
                 try
                 {
-                    if (_isStopped || _isFilled) return;
+                    if (_isStopped || _isFilled || bestBidPrice == 0) return;
 
-                    var bestBidPrice = orderBook.Bids.FirstOrDefault()?.Price ?? 0;
-                    if (bestBidPrice == 0) return;
-
-                    var newTargetPrice = CalculateTargetPrice(orderBook, 25); // $25 offset for faster fills in testing
+                    newTargetPrice = CalculateTargetPrice(orderBook, 25); // $25 offset for faster fills in testing
 
                     if (_lastPlacedPrice > 0)
                         Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
@@ -71,35 +76,75 @@ namespace TraderBot.Core
 
                     if (_orderId == null)
                     {
-                        Console.WriteLine($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
-                        _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
-                        var placedOrderId = await _exchange.PlaceOrderAsync(symbol, OrderSide.Buy, NewOrderType.Limit, quantity: _quantity, price: newTargetPrice);
-                        if (placedOrderId.HasValue)
-                        {
-                            _orderId = placedOrderId;
-                            _currentOrderPrice = newTargetPrice;
-                            _lastPlacedPrice = newTargetPrice;
-                            Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
-                        }
-                        else
-                        {
-                            Console.WriteLine("  > Failed to place order.");
-                        }
+                        shouldPlace = true;
+                        _orderId = -1; // Sentinel value to indicate placement is in progress
+                        quantityToUse = Math.Round(amount / newTargetPrice, _basePrecision);
                     }
                     else
                     {
                         if (newTargetPrice == _currentOrderPrice) return;
+                        shouldModify = true;
+                        orderIdToModify = _orderId.Value;
+                        quantityToUse = _quantity;
+                    }
+                    
+                    _lastPlacedPrice = newTargetPrice;
+                }
+                finally
+                {
+                    _orderLock.Release();
+                }
 
-                        Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
-                        var modifyStart = DateTime.UtcNow;
-                        var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
-                        var modifyEnd = DateTime.UtcNow;
+                // --- Part 2: Execute network call (outside the lock) ---
+                if (shouldPlace)
+                {
+                    Console.WriteLine($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
+                    _quantity = quantityToUse;
+                    var placedOrderId = await _exchange.PlaceOrderAsync(symbol, OrderSide.Buy, NewOrderType.Limit, quantity: _quantity, price: newTargetPrice);
+                    
+                    await _orderLock.WaitAsync();
+                    try
+                    {
+                        if (placedOrderId.HasValue)
+                        {
+                            // If we successfully placed, update the ID from sentinel to the real one
+                            _orderId = placedOrderId;
+                            _currentOrderPrice = newTargetPrice;
+                            Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
+                        }
+                        else
+                        {
+                            // If placement failed, reset _orderId to null to allow another attempt
+                            _orderId = null;
+                            Console.WriteLine("  > Failed to place order.");
+                        }
+                    }
+                    finally
+                    {
+                        _orderLock.Release();
+                    }
+                }
+                else if (shouldModify && orderIdToModify.HasValue)
+                {
+                    Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
+                    var modifyStart = DateTime.UtcNow;
+                    var success = await _exchange.ModifyOrderAsync(symbol, orderIdToModify.Value, newTargetPrice, quantityToUse);
+                    var modifyEnd = DateTime.UtcNow;
+                    
+                    await _orderLock.WaitAsync();
+                    try
+                    {
+                        // Check if the order is still the one we intended to modify
+                        if (_orderId != orderIdToModify)
+                        {
+                            Console.WriteLine($"  > Modify ignored, order {orderIdToModify.Value} was filled or cancelled in the meantime.");
+                            return;
+                        }
+
                         var modifyLatency = (modifyEnd - modifyStart).TotalMilliseconds;
-
                         if (success)
                         {
                             _currentOrderPrice = newTargetPrice;
-                            _lastPlacedPrice = newTargetPrice;
                             Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
                             Console.WriteLine($"[Latency] ModifyOrderAsync execution time: {modifyLatency:F0}ms");
                         }
@@ -108,10 +153,10 @@ namespace TraderBot.Core
                             Console.WriteLine($"  > Failed to modify order. Time spent: {modifyLatency:F0}ms");
                         }
                     }
-                }
-                finally
-                {
-                    _orderLock.Release();
+                    finally
+                    {
+                        _orderLock.Release();
+                    }
                 }
             });
 

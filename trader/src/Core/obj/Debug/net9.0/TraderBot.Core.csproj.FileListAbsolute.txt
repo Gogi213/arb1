@@ -1,15 +1,3 @@
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.GeneratedMSBuildEditorConfig.editorconfig
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfoInputs.cache
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.AssemblyInfo.cs
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.csproj.CoreCompileInputs.cache
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.sourcelink.json
-c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.deps.json
-c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.dll
-c:/visual projects/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.pdb
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.dll
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/refint/TraderBot.Core.dll
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/TraderBot.Core.pdb
-c:/visual projects/arb1/trader/src/Core/obj/Debug/net9.0/ref/TraderBot.Core.dll
 /home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.deps.json
 /home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.dll
 /home/giorgioisitalii/arb1/trader/src/Core/bin/Debug/net9.0/TraderBot.Core.pdb

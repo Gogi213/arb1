@@ -35,13 +35,21 @@ namespace TraderBot.Host
             var bybitExchange = new BybitExchange();
             await bybitExchange.InitializeAsync(bybitConfig.ApiKey, bybitConfig.ApiSecret);
 
-            // Gate.io for buying, Bybit for selling
+            // LEG 1: Gate.io (BUY limit trailing) -> Bybit (SELL market)
             var arbitrageTrader = new ArbitrageTrader(gateIoExchange, bybitExchange);
-
-            // We use the symbol and amount from the buying exchange config
             await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes);
-            
-            Console.WriteLine("\n--- Arbitrage cycle finished. Program exiting. ---");
+
+            Console.WriteLine("\n[X7] --- LEG 1 (X1-X7) cycle finished ---");
+
+            // LEG 2 (Y1-Y7): Bybit (BUY limit trailing) -> Gate.io (SELL market)
+            Console.WriteLine("\n[Y1] --- Starting LEG 2 (Y1-Y7) ---");
+            var bybitLowLatencyWs = new BybitLowLatencyWs(bybitConfig.ApiKey, bybitConfig.ApiSecret);
+            await bybitLowLatencyWs.ConnectAsync();
+
+            var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, gateIoExchange);
+            await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, bybitConfig.Amount, bybitConfig.DurationMinutes);
+
+            Console.WriteLine("\n--- Full process (X1-X7 + Y1-Y7) finished. Program exiting. ---");
         }
     }
 }

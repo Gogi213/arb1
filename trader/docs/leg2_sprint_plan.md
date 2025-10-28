@@ -1,31 +1,34 @@
 # План спринтов для реализации "Leg 2" (Bybit -> Gate.io)
 
-### Спринт 1: Базовая инфраструктура и подключения
+## Общий статус: В РАБОТЕ
 
-*   `[x]` **Host (`Program.cs`)**: Создание экземпляров `BybitExchange`, `GateIoExchange`, `ReverseArbitrageTrader` реализовано.
-*   `[x]` **BybitExchange & BybitLowLatencyWs**: Архитектура с 3-мя сокетами, `ConnectAsync` и `AuthenticateAsync` реализованы.
-*   `[x]` **GateIoExchange**: `InitializeAsync` реализован.
-*   `[x]` **ReverseArbitrageTrader**: Базовый класс и конструктор созданы.
+---
 
-### Спринт 2: Реализация трейлинг-покупки на Bybit
+### Спринт 1: Инфраструктура и отладка подписки
 
-*   `[x]` **ReverseArbitrageTrader**: Создание `BybitTrailingTrader` реализовано.
-*   `[x]` **BybitTrailingTrader**: `StartAsync` и подписки реализованы.
-*   `[x]` **BybitTrailingTrader**: `CalculateTargetPriceForBuy` реализована.
-*   `[x]` **BybitTrailingTrader**: Основной цикл трейлинга реализован, и проблема с подпиской на стакан решена (реализована логика snapshot/delta).
-*   `[x]` **BybitExchange & BybitLowLatencyWs**: Все необходимые методы (`Subscribe...`, `Place...`, `Modify...`) существуют.
+*   `[x]` **ReverseArbitrageTrader**: Реализован базовый класс, конструктор и логика подписок.
+*   `[x]` **BybitTrailingTrader**: Реализована логика трейлинг-покупки на Bybit.
+*   `[x]` **BybitLowLatencyWs**: Реализована и отлажена подписка на стакан (`orderbook`). Данные успешно поступают.
+*   `[x]` **Host (`Program.cs`)**: Исправлена критическая ошибка с жизненным циклом. Приложение корректно ожидает завершения `Leg 2`.
 
-### Спринт 3: Реализация продажи на Gate.io и обработка событий
+**Итог спринта:** Вся базовая инфраструктура для `Leg 2` готова. Критические блокировщики устранены.
 
-*   `[x]` **BybitExchange & BybitLowLatencyWs**: `SubscribeToOrderUpdatesAsync` реализована.
-*   `[x]` **BybitTrailingTrader**: `HandleOrderUpdate` и событие `OnOrderFilled` реализованы.
-*   `[x]` **ReverseArbitrageTrader**: `HandleBuyOrderFilled` и вызов продажи на Gate.io реализованы.
-*   `[x]` **GateIoExchange**: `PlaceOrderAsync` (Market Sell) реализован.
+---
 
-### Спринт 4: Завершение цикла и очистка
+### Спринт 2: Тестирование полного цикла и исправления
 
-*   `[x]` **GateIoExchange**: `SubscribeToOrderUpdatesAsync` для `ReverseArbitrageTrader` реализована.
-*   `[x]` **ReverseArbitrageTrader**: `HandleSellOrderUpdate` для подтверждения продажи реализован.
-*   `[x]` **ReverseArbitrageTrader**: Расчет End-to-End Latency реализован.
-*   `[-]` **ReverseArbitrageTrader**: `CleanupAndSignalCompletionAsync` реализован, но `BybitTrailingTrader.StopAsync` и `CancelAllOrdersAsync` являются заглушками.
-*   `[x]` **Host (`Program.cs`)**: Механизм ожидания (`TaskCompletionSource`) реализован.
+*   `[-]` **Текущая задача:** Провести успешное размещение лимитного ордера на Bybit.
+    *   **Статус:** **Готово к тестированию**. Проблема с минимальным размером ордера решена увеличением суммы в `appsettings.json`.
+*   `[ ]` **HandleBuyOrderFilled**: Реализовать полную обработку исполненного ордера на покупку.
+*   `[ ]` **GateIoExchange**: Убедиться, что `PlaceOrderAsync` (Market Sell) вызывается корректно.
+*   `[ ]` **HandleSellOrderUpdate**: Реализовать обработку подтверждения о продаже с Gate.io.
+
+**Цель спринта:** Добиться выполнения одного полного арбитражного цикла "покупка на Bybit -> продажа на Gate.io".
+
+---
+
+### Спринт 3: Завершение и рефакторинг
+
+*   `[ ]` **Latency**: Реализовать расчет End-to-End Latency для `Leg 2`.
+*   `[ ]` **Cleanup**: Реализовать и протестировать логику `CleanupAndSignalCompletionAsync`.
+*   `[ ]` **Рефакторинг**: Вынести "магические числа" и хардкод (размер ордера, тикеры, фильтры) в конфигурацию (задачи `TD-002`, `TD-005` из бэклога).

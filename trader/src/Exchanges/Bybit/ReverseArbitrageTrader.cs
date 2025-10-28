@@ -30,14 +30,14 @@ namespace TraderBot.Exchanges.Bybit
             _bybitTrailingTrader = new BybitTrailingTrader(_bybitWs);
         }
 
-        public async Task StartAsync(string symbol, decimal amount, int durationMinutes)
+        public Task StartAsync(string symbol, decimal amount, int durationMinutes)
         {
             _symbol = symbol;
             Console.WriteLine($"[Y1] --- Starting ReverseArbitrageTrader for {symbol} ---");
             Console.WriteLine($"[Y1] Buy on: Bybit (low-latency WS), Sell on: {_gateIoExchange.GetType().Name}");
 
             // Subscribe to Gate.io order updates for sell confirmation
-            await _gateIoExchange.SubscribeToOrderUpdatesAsync(HandleSellOrderUpdate);
+            _gateIoExchange.SubscribeToOrderUpdatesAsync(HandleSellOrderUpdate);
 
             // Subscribe to fill events from BybitTrailingTrader
             _bybitTrailingTrader.OnOrderFilled += HandleBuyOrderFilled;
@@ -61,7 +61,7 @@ namespace TraderBot.Exchanges.Bybit
 
             // Cancel all open orders
             Console.WriteLine($"[Y2] Cancelling all open orders for {bybitSymbol}...");
-            await _bybitWs.CancelAllOrdersAsync(bybitSymbol);
+            _bybitWs.CancelAllOrdersAsync(bybitSymbol);
             Console.WriteLine("[Y2] All open orders cancelled.");
             Console.WriteLine("[Y2] SETUP complete.\n");
 
@@ -70,16 +70,12 @@ namespace TraderBot.Exchanges.Bybit
             Console.WriteLine($"[Y3] Starting Bybit trailing for {bybitSymbol}...");
 
             var dollarDepth = 25m; // $25 depth like Gate.io for faster fills in testing
-            await _bybitTrailingTrader.StartAsync(bybitSymbol, amount, dollarDepth, _tickSize, _basePrecision);
+            _bybitTrailingTrader.StartAsync(bybitSymbol, amount, dollarDepth, _tickSize, _basePrecision);
 
             Console.WriteLine("[Y3] Bybit trailing started. Waiting for fill event...");
-            Console.WriteLine("[Y3] TRAIL complete.\n");
-
-            // TODO Y4-Y7: Handle fill event, market sell, confirmation, cleanup
-            Console.WriteLine("[Y3] Y4-Y7 not yet implemented. Will wait for fill event indefinitely for now.");
 
             // Don't complete immediately - wait for TaskCompletionSource to be set by fill event
-            await _arbitrageCycleTcs.Task;
+            return _arbitrageCycleTcs.Task;
         }
 
         private async Task CleanupAndSignalCompletionAsync()

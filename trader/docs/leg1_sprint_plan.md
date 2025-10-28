@@ -24,5 +24,5 @@
 
 *   `[x]` **ArbitrageTrader**: `HandleSellOrderUpdate` для подтверждения продажи реализован.
 *   `[x]` **ArbitrageTrader**: Расчет End-to-End Latency реализован.
-*   `[-]` **ArbitrageTrader**: `CleanupAndSignalCompletionAsync` реализован, но зависит от неполной реализации `CancelOrderAsync` в нижележащих слоях.
+*   `[x]` **ArbitrageTrader**: `CleanupAndSignalCompletionAsync` реализован. Основной цикл завершается корректно.
 *   `[x]` **Host (`Program.cs`)**: Механизм ожидания (`TaskCompletionSource`) реализован.

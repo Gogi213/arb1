@@ -17,6 +17,7 @@
 | TD-007 | Реализовать получение баланса через WebSocket в `BybitLowLatencyWs` | Bybit | Low | To Do |
 | TD-008 | Реализовать подписку на обновления баланса в `BybitExchange` | Bybit | Low | To Do |
 | TD-009 | Добавить обработку ошибок для `ModifyOrderAsync` | Core, Bybit | Medium | To Do |
+| TD-010 | Реализовать поддержание локального стакана (snapshot + delta) | Bybit | High | Done |
 
 ### Новые фичи
 

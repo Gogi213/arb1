@@ -29,6 +29,11 @@ namespace TraderBot.Exchanges.Bybit
         private readonly SemaphoreSlim _tradeSendLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _publicSendLock = new SemaphoreSlim(1, 1);
 
+        // Local order book state
+        private readonly SortedDictionary<decimal, decimal> _bids = new(Comparer<decimal>.Create((a, b) => b.CompareTo(a))); // Bids are descending
+        private readonly SortedDictionary<decimal, decimal> _asks = new(); // Asks are ascending
+        private readonly object _bookLock = new object();
+
         // Callbacks for subscriptions
         private Action<IOrderBook>? _orderBookCallback;
         private Action<IOrder>? _orderUpdateCallback;
@@ -103,7 +108,13 @@ namespace TraderBot.Exchanges.Bybit
             var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
             return BitConverter.ToString(hash).Replace("-", "").ToLower();
         }
-
+    
+        private async Task PingAsync(ClientWebSocket ws, SemaphoreSlim sendLock, string name)
+        {
+            var pingMessage = $@"{{""op"":""ping"",""req_id"":""{Guid.NewGuid():N}""}}";
+            await SendMessageAsync(ws, sendLock, pingMessage, name);
+        }
+    
         public async Task<string?> PlaceMarketOrderAsync(string symbol, string side, decimal quoteQuantity)
         {
             if (!_isTradeAuthenticated)
@@ -258,6 +269,19 @@ namespace TraderBot.Exchanges.Bybit
             var subscribeMessage = $@"{{""op"":""subscribe"",""args"":[""orderbook.50.{symbol}""]}}";
             await SendMessageAsync(_publicWs, _publicSendLock, subscribeMessage, "PUBLIC");
             Console.WriteLine($"[WS-PUBLIC] Sent subscription request for 'orderbook.50.{symbol}' topic.");
+    
+            // Start a background task to send pings every 20 seconds to keep the connection alive
+            _ = Task.Run(async () =>
+            {
+                while (_publicWs.State == WebSocketState.Open)
+                {
+                    await Task.Delay(20000);
+                    if (_publicWs.State == WebSocketState.Open)
+                    {
+                        await PingAsync(_publicWs, _publicSendLock, "PUBLIC");
+                    }
+                }
+            });
         }
 
         public async Task CancelAllOrdersAsync(string symbol)
@@ -470,15 +494,51 @@ namespace TraderBot.Exchanges.Bybit
 
             try
             {
-                if (root.TryGetProperty("data", out var data))
+                var type = root.GetProperty("type").GetString();
+                var data = root.GetProperty("data");
+                var symbol = data.GetProperty("s").GetString() ?? "";
+
+                lock (_bookLock)
                 {
-                    var orderBook = new BybitOrderBookUpdate(data);
-                    _orderBookCallback(orderBook);
+                    if (type == "snapshot")
+                    {
+                        _bids.Clear();
+                        _asks.Clear();
+                        ApplyChanges(_bids, data.GetProperty("b"));
+                        ApplyChanges(_asks, data.GetProperty("a"));
+                    }
+                    else if (type == "delta")
+                    {
+                        ApplyChanges(_bids, data.GetProperty("b"));
+                        ApplyChanges(_asks, data.GetProperty("a"));
+                    }
+
+                    // Pass a copy of the current state to the callback
+                    var currentBook = new MaintainedOrderBook(symbol, _bids, _asks);
+                    _orderBookCallback(currentBook);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[WS-PUBLIC-ERROR] Error in HandleOrderBookUpdate: {ex.Message}");
+                Console.WriteLine($"[WS-PUBLIC-ERROR] Error in HandleOrderBookUpdate: {ex.Message}. Payload: {root.ToString()}");
+            }
+        }
+
+        private void ApplyChanges(SortedDictionary<decimal, decimal> bookSide, JsonElement changes)
+        {
+            foreach (var change in changes.EnumerateArray())
+            {
+                var price = decimal.Parse(change[0].GetString()!, CultureInfo.InvariantCulture);
+                var qty = decimal.Parse(change[1].GetString()!, CultureInfo.InvariantCulture);
+
+                if (qty == 0)
+                {
+                    bookSide.Remove(price);
+                }
+                else
+                {
+                    bookSide[price] = qty;
+                }
             }
         }
 
@@ -577,6 +637,24 @@ namespace TraderBot.Exchanges.Bybit
             _privateWs?.Dispose();
             _tradeWs?.Dispose();
             _publicWs?.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// A concrete IOrderBook implementation representing the maintained local order book state.
+    /// </summary>
+    internal class MaintainedOrderBook : IOrderBook
+    {
+        public string Symbol { get; }
+        public IEnumerable<IOrderBookEntry> Bids { get; }
+        public IEnumerable<IOrderBookEntry> Asks { get; }
+
+        public MaintainedOrderBook(string symbol, SortedDictionary<decimal, decimal> bids, SortedDictionary<decimal, decimal> asks)
+        {
+            Symbol = symbol;
+            // Create a copy to ensure thread safety for the consumer
+            Bids = bids.Select(kvp => (IOrderBookEntry)new OrderBookEntry { Price = kvp.Key, Quantity = kvp.Value }).ToList();
+            Asks = asks.Select(kvp => (IOrderBookEntry)new OrderBookEntry { Price = kvp.Key, Quantity = kvp.Value }).ToList();
         }
     }
 

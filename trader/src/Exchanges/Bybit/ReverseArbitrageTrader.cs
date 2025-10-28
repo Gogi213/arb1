@@ -79,7 +79,7 @@ namespace TraderBot.Exchanges.Bybit
             Console.WriteLine("[Y3] Y4-Y7 not yet implemented. Will wait for fill event indefinitely for now.");
 
             // Don't complete immediately - wait for TaskCompletionSource to be set by fill event
-            return;
+            await _arbitrageCycleTcs.Task;
         }
 
         private async Task CleanupAndSignalCompletionAsync()

@@ -12,7 +12,7 @@
 *   `[x]` **ReverseArbitrageTrader**: Создание `BybitTrailingTrader` реализовано.
 *   `[x]` **BybitTrailingTrader**: `StartAsync` и подписки реализованы.
 *   `[x]` **BybitTrailingTrader**: `CalculateTargetPriceForBuy` реализована.
-*   `[-]` **BybitTrailingTrader**: Основной цикл трейлинга реализован, но, судя по логам, не получает данные стакана из-за проблемы с подпиской.
+*   `[x]` **BybitTrailingTrader**: Основной цикл трейлинга реализован, и проблема с подпиской на стакан решена (реализована логика snapshot/delta).
 *   `[x]` **BybitExchange & BybitLowLatencyWs**: Все необходимые методы (`Subscribe...`, `Place...`, `Modify...`) существуют.
 
 ### Спринт 3: Реализация продажи на Gate.io и обработка событий

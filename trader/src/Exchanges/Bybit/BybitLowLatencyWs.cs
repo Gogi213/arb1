@@ -17,14 +17,17 @@ namespace TraderBot.Exchanges.Bybit
     /// </summary>
     public class BybitLowLatencyWs : IDisposable
     {
-        private readonly ClientWebSocket _ws; // Trade WebSocket (authenticated)
-        private readonly ClientWebSocket _wsPublic; // Public WebSocket (for orderbook)
+        private readonly ClientWebSocket _privateWs; // For subscriptions (order, position)
+        private readonly ClientWebSocket _tradeWs;   // For trade operations (create, amend)
+        private readonly ClientWebSocket _publicWs;  // For public data (orderbook)
         private readonly string _apiKey;
         private readonly string _apiSecret;
         private readonly ArrayPool<byte> _bufferPool;
-        private bool _isAuthenticated;
-        private readonly SemaphoreSlim _sendLock = new SemaphoreSlim(1, 1);
-        private readonly SemaphoreSlim _sendLockPublic = new SemaphoreSlim(1, 1);
+        private bool _isPrivateAuthenticated;
+        private bool _isTradeAuthenticated;
+        private readonly SemaphoreSlim _privateSendLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _tradeSendLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _publicSendLock = new SemaphoreSlim(1, 1);
 
         // Callbacks for subscriptions
         private Action<IOrderBook>? _orderBookCallback;
@@ -36,8 +39,9 @@ namespace TraderBot.Exchanges.Bybit
 
         public BybitLowLatencyWs(string apiKey, string apiSecret)
         {
-            _ws = new ClientWebSocket();
-            _wsPublic = new ClientWebSocket();
+            _privateWs = new ClientWebSocket();
+            _tradeWs = new ClientWebSocket();
+            _publicWs = new ClientWebSocket();
             _apiKey = apiKey;
             _apiSecret = apiSecret;
             _bufferPool = ArrayPool<byte>.Shared;
@@ -45,37 +49,51 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task ConnectAsync()
         {
-            // Connect trade WebSocket (authenticated)
-            var uriTrade = new Uri("wss://stream.bybit.com/v5/trade");
-            await _ws.ConnectAsync(uriTrade, CancellationToken.None);
-            Console.WriteLine("[Bybit LowLatency WS] Connected to wss://stream.bybit.com/v5/trade");
+            // Connect to /v5/private for subscriptions
+            var privateUri = new Uri("wss://stream.bybit.com/v5/private");
+            Console.WriteLine($"[WS-PRIVATE] Connecting to {privateUri}...");
+            await _privateWs.ConnectAsync(privateUri, CancellationToken.None);
+            Console.WriteLine($"[WS-PRIVATE] Connection successful. State: {_privateWs.State}");
 
-            // Connect public WebSocket (for orderbook)
-            var uriPublic = new Uri("wss://stream.bybit.com/v5/public/spot");
-            await _wsPublic.ConnectAsync(uriPublic, CancellationToken.None);
-            Console.WriteLine("[Bybit LowLatency WS] Connected to wss://stream.bybit.com/v5/public/spot");
+            // Connect to /v5/trade for trading
+            var tradeUri = new Uri("wss://stream.bybit.com/v5/trade");
+            Console.WriteLine($"[WS-TRADE] Connecting to {tradeUri}...");
+            await _tradeWs.ConnectAsync(tradeUri, CancellationToken.None);
+            Console.WriteLine($"[WS-TRADE] Connection successful. State: {_tradeWs.State}");
 
-            // Start receive loops in background
-            _ = Task.Run(ReceiveLoop);
-            _ = Task.Run(ReceiveLoopPublic);
+            // Connect to /v5/public/spot for order book
+            var publicUri = new Uri("wss://stream.bybit.com/v5/public/spot");
+            Console.WriteLine($"[WS-PUBLIC] Connecting to {publicUri}...");
+            await _publicWs.ConnectAsync(publicUri, CancellationToken.None);
+            Console.WriteLine($"[WS-PUBLIC] Connection successful. State: {_publicWs.State}");
 
-            // Authenticate trade WebSocket
-            await AuthenticateAsync();
+            // Start receive loops
+            _ = Task.Run(() => ReceiveLoop(_privateWs, "PRIVATE"));
+            _ = Task.Run(() => ReceiveLoop(_tradeWs, "TRADE"));
+            _ = Task.Run(() => ReceiveLoop(_publicWs, "PUBLIC"));
+
+            // Authenticate both private and trade sockets
+            await AuthenticateAsync(_privateWs, "PRIVATE");
+            await AuthenticateAsync(_tradeWs, "TRADE");
         }
 
-        private async Task AuthenticateAsync()
+        private async Task AuthenticateAsync(ClientWebSocket ws, string name)
         {
+            Console.WriteLine($"[WS-{name}] Attempting authentication...");
             var expires = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + 10000;
             var signature = GenerateAuthSignature(expires);
 
             var authMessage = $@"{{""op"":""auth"",""args"":[""{_apiKey}"",""{expires}"",""{signature}""]}}";
 
-            await SendMessageAsync(authMessage);
-
-            // Wait for auth confirmation (simple wait, can be improved)
-            await Task.Delay(500);
-            _isAuthenticated = true;
-            Console.WriteLine("[Bybit LowLatency WS] Authenticated");
+            if (name == "PRIVATE")
+                await SendMessageAsync(ws, _privateSendLock, authMessage, "PRIVATE");
+            else if (name == "TRADE")
+                await SendMessageAsync(ws, _tradeSendLock, authMessage, "TRADE");
+            
+            Console.WriteLine($"[WS-{name}] Authentication request sent.");
+            
+            // In a real scenario, we'd wait for the auth response in ReceiveLoop
+            await Task.Delay(1000);
         }
 
         private string GenerateAuthSignature(long expires)
@@ -88,8 +106,8 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task<string?> PlaceMarketOrderAsync(string symbol, string side, decimal quoteQuantity)
         {
-            if (!_isAuthenticated)
-                throw new InvalidOperationException("Not authenticated");
+            if (!_isTradeAuthenticated)
+                throw new InvalidOperationException("Trade WebSocket is not authenticated");
 
             var reqId = Guid.NewGuid().ToString("N");
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
@@ -100,6 +118,7 @@ namespace TraderBot.Exchanges.Bybit
             try
             {
                 _orderIdMapping[reqId] = tcs;
+                Console.WriteLine($"[WS-PRIVATE] OrderId mapping created for reqId: {reqId}");
             }
             finally
             {
@@ -113,27 +132,38 @@ namespace TraderBot.Exchanges.Bybit
             var orderMessage = $@"{{""reqId"":""{reqId}"",""header"":{{""X-BAPI-TIMESTAMP"":""{timestamp}"",""X-BAPI-RECV-WINDOW"":""5000""}},""op"":""order.create"",""args"":[{{""category"":""spot"",""symbol"":""{symbol}"",""side"":""{side}"",""orderType"":""Market"",""qty"":""{qtyStr}"",""marketUnit"":""quoteCoin""}}]}}";
 
             var t0 = DateTime.UtcNow;
-            await SendMessageAsync(orderMessage);
+            await SendMessageAsync(_tradeWs, _tradeSendLock, orderMessage, "TRADE");
             var t1 = DateTime.UtcNow;
 
             var sendLatency = (t1 - t0).TotalMilliseconds;
-            Console.WriteLine($"[Bybit LowLatency WS] Market order sent in {sendLatency:F2}ms");
+            Console.WriteLine($"[WS-PRIVATE] Market order sent in {sendLatency:F2}ms. ReqId: {reqId}");
 
             // Wait for real OrderId from WS response (timeout 5 seconds)
             var realOrderIdTask = tcs.Task;
             if (await Task.WhenAny(realOrderIdTask, Task.Delay(5000)) == realOrderIdTask)
             {
-                return await realOrderIdTask;
+                var realId = await realOrderIdTask;
+                Console.WriteLine($"[WS-PRIVATE] Received real OrderId '{realId}' for reqId '{reqId}'.");
+                return realId;
             }
 
-            Console.WriteLine($"[Bybit LowLatency WS] Timeout waiting for OrderId, returning reqId");
+            Console.WriteLine($"[WS-PRIVATE-ERROR] Timeout waiting for OrderId for reqId '{reqId}'. Returning reqId as fallback.");
+            await _mappingLock.WaitAsync();
+            try
+            {
+                _orderIdMapping.Remove(reqId);
+            }
+            finally
+            {
+                _mappingLock.Release();
+            }
             return reqId; // Fallback to reqId if timeout
         }
 
         public async Task<string?> PlaceLimitOrderAsync(string symbol, string side, decimal quantity, decimal price)
         {
-            if (!_isAuthenticated)
-                throw new InvalidOperationException("Not authenticated");
+            if (!_isTradeAuthenticated)
+                throw new InvalidOperationException("Trade WebSocket is not authenticated");
 
             var reqId = Guid.NewGuid().ToString("N");
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
@@ -144,6 +174,7 @@ namespace TraderBot.Exchanges.Bybit
             try
             {
                 _orderIdMapping[reqId] = tcs;
+                Console.WriteLine($"[WS-PRIVATE] OrderId mapping created for reqId: {reqId}");
             }
             finally
             {
@@ -157,27 +188,38 @@ namespace TraderBot.Exchanges.Bybit
             var orderMessage = $@"{{""reqId"":""{reqId}"",""header"":{{""X-BAPI-TIMESTAMP"":""{timestamp}"",""X-BAPI-RECV-WINDOW"":""5000""}},""op"":""order.create"",""args"":[{{""category"":""spot"",""symbol"":""{symbol}"",""side"":""{side}"",""orderType"":""Limit"",""qty"":""{qtyStr}"",""price"":""{priceStr}"",""timeInForce"":""GTC""}}]}}";
 
             var t0 = DateTime.UtcNow;
-            await SendMessageAsync(orderMessage);
+            await SendMessageAsync(_tradeWs, _tradeSendLock, orderMessage, "TRADE");
             var t1 = DateTime.UtcNow;
 
             var sendLatency = (t1 - t0).TotalMilliseconds;
-            Console.WriteLine($"[Bybit LowLatency WS] Limit order sent in {sendLatency:F2}ms");
+            Console.WriteLine($"[WS-PRIVATE] Limit order sent in {sendLatency:F2}ms. ReqId: {reqId}");
 
             // Wait for real OrderId from WS response (timeout 5 seconds)
             var realOrderIdTask = tcs.Task;
             if (await Task.WhenAny(realOrderIdTask, Task.Delay(5000)) == realOrderIdTask)
             {
-                return await realOrderIdTask;
+                var realId = await realOrderIdTask;
+                Console.WriteLine($"[WS-PRIVATE] Received real OrderId '{realId}' for reqId '{reqId}'.");
+                return realId;
             }
 
-            Console.WriteLine($"[Bybit LowLatency WS] Timeout waiting for OrderId, returning reqId");
+            Console.WriteLine($"[WS-PRIVATE-ERROR] Timeout waiting for OrderId for reqId '{reqId}'. Returning reqId as fallback.");
+            await _mappingLock.WaitAsync();
+            try
+            {
+                _orderIdMapping.Remove(reqId);
+            }
+            finally
+            {
+                _mappingLock.Release();
+            }
             return reqId; // Fallback to reqId if timeout
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, string orderId, decimal newPrice, decimal newQuantity)
         {
-            if (!_isAuthenticated)
-                throw new InvalidOperationException("Not authenticated");
+            if (!_isTradeAuthenticated)
+                throw new InvalidOperationException("Trade WebSocket is not authenticated");
 
             var reqId = Guid.NewGuid().ToString("N");
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
@@ -188,12 +230,14 @@ namespace TraderBot.Exchanges.Bybit
             var amendMessage = $@"{{""reqId"":""{reqId}"",""header"":{{""X-BAPI-TIMESTAMP"":""{timestamp}"",""X-BAPI-RECV-WINDOW"":""5000""}},""op"":""order.amend"",""args"":[{{""category"":""spot"",""symbol"":""{symbol}"",""orderId"":""{orderId}"",""qty"":""{qtyStr}"",""price"":""{priceStr}""}}]}}";
 
             var t0 = DateTime.UtcNow;
-            await SendMessageAsync(amendMessage);
+            await SendMessageAsync(_tradeWs, _tradeSendLock, amendMessage, "TRADE");
             var t1 = DateTime.UtcNow;
 
             var sendLatency = (t1 - t0).TotalMilliseconds;
-            Console.WriteLine($"[Bybit LowLatency WS] Order amend sent in {sendLatency:F2}ms");
+            Console.WriteLine($"[WS-PRIVATE] Order amend sent in {sendLatency:F2}ms. ReqId: {reqId}");
 
+            // Assuming amend is successful if no error is thrown.
+            // A more robust implementation would wait for the amend confirmation message.
             return true;
         }
 
@@ -202,8 +246,8 @@ namespace TraderBot.Exchanges.Bybit
             _orderUpdateCallback = onOrderUpdate;
 
             var subscribeMessage = @"{""op"":""subscribe"",""args"":[""order""]}";
-            await SendMessageAsync(subscribeMessage);
-            Console.WriteLine("[Bybit LowLatency WS] Subscribed to order updates");
+            await SendMessageAsync(_privateWs, _privateSendLock, subscribeMessage, "PRIVATE");
+            Console.WriteLine("[WS-PRIVATE] Sent subscription request for 'order' topic.");
         }
 
         public async Task SubscribeToOrderBookAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
@@ -212,8 +256,8 @@ namespace TraderBot.Exchanges.Bybit
 
             // Subscribe to 50-level orderbook on public WebSocket
             var subscribeMessage = $@"{{""op"":""subscribe"",""args"":[""orderbook.50.{symbol}""]}}";
-            await SendMessagePublicAsync(subscribeMessage);
-            Console.WriteLine($"[Bybit LowLatency WS] Subscribed to order book for {symbol}");
+            await SendMessageAsync(_publicWs, _publicSendLock, subscribeMessage, "PUBLIC");
+            Console.WriteLine($"[WS-PUBLIC] Sent subscription request for 'orderbook.50.{symbol}' topic.");
         }
 
         public async Task CancelAllOrdersAsync(string symbol)
@@ -237,18 +281,24 @@ namespace TraderBot.Exchanges.Bybit
             await Task.CompletedTask;
         }
 
-        private async Task SendMessageAsync(string message)
+        private async Task SendMessageAsync(ClientWebSocket ws, SemaphoreSlim sendLock, string message, string name)
         {
-            await _sendLock.WaitAsync();
+            await sendLock.WaitAsync();
             try
             {
+                if (ws.State != WebSocketState.Open)
+                {
+                    Console.WriteLine($"[WS-{name}-ERROR] Cannot send message, socket is not open. State: {ws.State}");
+                    return;
+                }
+                Console.WriteLine($"[WS-{name}-SEND] {message}");
                 var buffer = _bufferPool.Rent(4096);
                 try
                 {
                     var bytesWritten = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
                     var segment = new ArraySegment<byte>(buffer, 0, bytesWritten);
 
-                    await _ws.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    await ws.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
                 }
                 finally
                 {
@@ -257,51 +307,30 @@ namespace TraderBot.Exchanges.Bybit
             }
             finally
             {
-                _sendLock.Release();
+                sendLock.Release();
             }
         }
 
-        private async Task SendMessagePublicAsync(string message)
-        {
-            await _sendLockPublic.WaitAsync();
-            try
-            {
-                var buffer = _bufferPool.Rent(4096);
-                try
-                {
-                    var bytesWritten = Encoding.UTF8.GetBytes(message, 0, message.Length, buffer, 0);
-                    var segment = new ArraySegment<byte>(buffer, 0, bytesWritten);
-
-                    await _wsPublic.SendAsync(segment, WebSocketMessageType.Text, true, CancellationToken.None);
-                }
-                finally
-                {
-                    _bufferPool.Return(buffer);
-                }
-            }
-            finally
-            {
-                _sendLockPublic.Release();
-            }
-        }
-
-        private async Task ReceiveLoop()
+        private async Task ReceiveLoop(ClientWebSocket ws, string name)
         {
             var buffer = _bufferPool.Rent(16384); // Increased buffer for order book data
             try
             {
-                while (_ws.State == WebSocketState.Open)
+                while (ws.State == WebSocketState.Open)
                 {
-                    var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    var result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
+                    var receiveTime = DateTime.UtcNow;
 
                     if (result.MessageType == WebSocketMessageType.Close)
                     {
-                        await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
+                        Console.WriteLine($"[WS-{name}-EVENT] Close message received. Status: {result.CloseStatus}, Description: {result.CloseStatusDescription}");
+                        await ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Client acknowledging close", CancellationToken.None);
+                        Console.WriteLine($"[WS-{name}-EVENT] WebSocket closed.");
                         break;
                     }
 
                     var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Console.WriteLine($"[Bybit LowLatency WS] Received: {message}");
+                    Console.WriteLine($"[WS-{name}-RECV] @ {receiveTime:HH:mm:ss.fff}: {message}");
 
                     // Parse and route message
                     try
@@ -309,153 +338,109 @@ namespace TraderBot.Exchanges.Bybit
                         using var doc = JsonDocument.Parse(message);
                         var root = doc.RootElement;
 
-                        // Check for subscription confirmation
-                        if (root.TryGetProperty("op", out var op))
+                        // Handle auth response
+                        if (root.TryGetProperty("op", out var op) && op.GetString() == "auth")
                         {
-                            var opValue = op.GetString();
-                            if (opValue == "subscribe")
+                            var success = (root.TryGetProperty("success", out var s) && s.GetBoolean()) ||
+                                          (root.TryGetProperty("retCode", out var rc) && rc.TryGetInt32(out int rcValue) && rcValue == 0);
+
+                            if (success)
                             {
-                                Console.WriteLine("[Bybit LowLatency WS] Subscription confirmed");
-                                continue;
+                                if (name == "PRIVATE") _isPrivateAuthenticated = true;
+                                if (name == "TRADE") _isTradeAuthenticated = true;
+                                Console.WriteLine($"[WS-{name}-EVENT] Authentication successful.");
                             }
+                            else
+                            {
+                                if (name == "PRIVATE") _isPrivateAuthenticated = false;
+                                if (name == "TRADE") _isTradeAuthenticated = false;
+                                string errorDetail = "Unknown error";
+                                if (root.TryGetProperty("retMsg", out var msg) && msg.ValueKind == JsonValueKind.String)
+                                {
+                                    errorDetail = msg.GetString() ?? "Unknown error";
+                                }
+                                Console.WriteLine($"[WS-{name}-ERROR] Authentication failed: {errorDetail}");
+                            }
+                            continue;
+                        }
+                        
+                        // Handle subscription confirmation
+                        if (root.TryGetProperty("op", out op) && op.GetString() == "subscribe")
+                        {
+                            var success = root.TryGetProperty("success", out var s) && s.GetBoolean();
+                            var retMsg = root.TryGetProperty("ret_msg", out var m) ? m.GetString() : "N/A";
+                            var args = root.TryGetProperty("args", out var a) ? a.ToString() : "N/A";
+                            Console.WriteLine($"[WS-{name}-EVENT] Subscription response. Success: {success}, Msg: '{retMsg}', Args: {args}");
+                            continue;
                         }
 
-                        // Check for order.create/order.amend response
-                        if (root.TryGetProperty("reqId", out var reqIdProp))
+                        // Check for operation responses (order.create, order.amend)
+                        if (root.TryGetProperty("reqId", out var reqIdProp) && reqIdProp.ValueKind == JsonValueKind.String)
                         {
                             var reqId = reqIdProp.GetString();
-                            if (root.TryGetProperty("retMsg", out var retMsg))
-                            {
-                                Console.WriteLine($"[Bybit LowLatency WS] Operation response: {retMsg.GetString()}");
-                            }
+                            var retCode = root.TryGetProperty("retCode", out var rc) ? rc.GetInt32() : -1;
+                            var retMsg = root.TryGetProperty("retMsg", out var rm) ? rm.GetString() : "N/A";
+                            Console.WriteLine($"[WS-{name}-EVENT] Operation response for reqId '{reqId}'. Code: {retCode}, Msg: '{retMsg}'");
 
                             // Extract real OrderId from successful order.create response
                             if (root.TryGetProperty("op", out var opType) && opType.GetString() == "order.create")
                             {
-                                if (root.TryGetProperty("retCode", out var retCode) && retCode.GetInt32() == 0)
+                                if (retCode == 0)
                                 {
-                                    // Success - extract orderId from data
-                                    if (root.TryGetProperty("data", out var data) &&
-                                        data.TryGetProperty("orderId", out var orderIdProp))
+                                    if (root.TryGetProperty("data", out var data) && data.TryGetProperty("orderId", out var orderIdProp))
                                     {
                                         var realOrderId = orderIdProp.GetString();
                                         if (reqId != null && realOrderId != null)
                                         {
                                             await CompleteOrderIdMapping(reqId, realOrderId);
-                                            Console.WriteLine($"[Bybit LowLatency WS] Order created: reqId={reqId}, OrderId={realOrderId}");
                                         }
                                     }
                                 }
                                 else
                                 {
-                                    // Failure - complete with error
-                                    if (reqId != null)
-                                    {
-                                        await FailOrderIdMapping(reqId);
-                                    }
+                                    Console.WriteLine($"[WS-{name}-ERROR] Order creation failed for reqId '{reqId}'. Full response: {message}");
+                                    if (reqId != null) await FailOrderIdMapping(reqId);
                                 }
                             }
                             continue;
                         }
 
-                        // Check for topic-based messages (order updates, orderbook)
+                        // Check for topic-based messages (order updates)
                         if (root.TryGetProperty("topic", out var topic))
                         {
                             var topicValue = topic.GetString();
-
+                            Console.WriteLine($"[WS-{name}-EVENT] '{topicValue}' topic message received. Routing to handler.");
                             if (topicValue == "order")
                             {
-                                // Order update
                                 HandleOrderUpdate(root);
                             }
-                            else if (topicValue != null && topicValue.StartsWith("orderbook"))
+                            else if (topicValue?.StartsWith("orderbook") == true)
                             {
-                                // Order book update
                                 HandleOrderBookUpdate(root);
                             }
                         }
                     }
                     catch (JsonException ex)
                     {
-                        Console.WriteLine($"[Bybit LowLatency WS] JSON parse error: {ex.Message}");
+                        Console.WriteLine($"[WS-{name}-ERROR] JSON parse error: {ex.Message}. Raw message: {message}");
                     }
                 }
             }
+            catch (WebSocketException ex)
+            {
+                Console.WriteLine($"[WS-{name}-ERROR] WebSocket exception: {ex.Message} (ErrorCode: {ex.WebSocketErrorCode})");
+            }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Bybit LowLatency WS] Receive error: {ex.Message}");
+                Console.WriteLine($"[WS-{name}-ERROR] Receive loop unexpected error: {ex.Message}");
             }
             finally
             {
+                Console.WriteLine($"[WS-{name}-EVENT] Receive loop finished.");
                 _bufferPool.Return(buffer);
             }
         }
 
-        private async Task ReceiveLoopPublic()
-        {
-            var buffer = _bufferPool.Rent(16384);
-            try
-            {
-                while (_wsPublic.State == WebSocketState.Open)
-                {
-                    var result = await _wsPublic.ReceiveAsync(new ArraySegment<byte>(buffer), CancellationToken.None);
-
-                    if (result.MessageType == WebSocketMessageType.Close)
-                    {
-                        await _wsPublic.CloseAsync(WebSocketCloseStatus.NormalClosure, "", CancellationToken.None);
-                        break;
-                    }
-
-                    var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                    Console.WriteLine($"[Bybit Public WS] Received: {message}");
-
-                    try
-                    {
-                        using var doc = JsonDocument.Parse(message);
-                        var root = doc.RootElement;
-
-                        // Handle subscription confirmation
-                        if (root.TryGetProperty("op", out var op) && op.GetString() == "subscribe")
-                        {
-                            if (root.TryGetProperty("success", out var success) && success.GetBoolean())
-                            {
-                                Console.WriteLine("[Bybit Public WS] Subscription confirmed");
-                            }
-                            continue;
-                        }
-
-                        // Handle orderbook messages (snapshot or delta)
-                        if (root.TryGetProperty("topic", out var topic))
-                        {
-                            var topicValue = topic.GetString();
-                            if (topicValue != null && topicValue.StartsWith("orderbook"))
-                            {
-                                HandleOrderBookUpdate(root);
-                            }
-                        }
-
-                        // Handle ping-pong
-                        if (root.TryGetProperty("op", out var opPing) && opPing.GetString() == "ping")
-                        {
-                            var pong = @"{""op"":""pong""}";
-                            await SendMessagePublicAsync(pong);
-                        }
-                    }
-                    catch (JsonException ex)
-                    {
-                        Console.WriteLine($"[Bybit Public WS] JSON parse error: {ex.Message}");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Bybit Public WS] Receive error: {ex.Message}");
-            }
-            finally
-            {
-                _bufferPool.Return(buffer);
-            }
-        }
 
         private void HandleOrderUpdate(JsonElement root)
         {
@@ -467,6 +452,7 @@ namespace TraderBot.Exchanges.Bybit
                 {
                     foreach (var orderData in dataArray.EnumerateArray())
                     {
+                        Console.WriteLine($"[WS-PRIVATE-EVENT] Handling order update: {orderData.ToString()}");
                         var order = new BybitOrderUpdate(orderData);
                         _orderUpdateCallback(order);
                     }
@@ -474,7 +460,7 @@ namespace TraderBot.Exchanges.Bybit
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Bybit LowLatency WS] Error handling order update: {ex.Message}");
+                Console.WriteLine($"[WS-PRIVATE-ERROR] Error in HandleOrderUpdate: {ex.Message}");
             }
         }
 
@@ -492,7 +478,7 @@ namespace TraderBot.Exchanges.Bybit
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[Bybit LowLatency WS] Error handling order book update: {ex.Message}");
+                Console.WriteLine($"[WS-PUBLIC-ERROR] Error in HandleOrderBookUpdate: {ex.Message}");
             }
         }
 
@@ -503,8 +489,13 @@ namespace TraderBot.Exchanges.Bybit
             {
                 if (_orderIdMapping.TryGetValue(reqId, out var tcs))
                 {
+                    Console.WriteLine($"[WS-TRADE-EVENT] Completing mapping for reqId '{reqId}' with real OrderId '{realOrderId}'.");
                     tcs.TrySetResult(realOrderId);
                     _orderIdMapping.Remove(reqId);
+                }
+                else
+                {
+                    Console.WriteLine($"[WS-TRADE-WARN] Received OrderId '{realOrderId}' for reqId '{reqId}', but no pending mapping was found.");
                 }
             }
             finally
@@ -520,6 +511,7 @@ namespace TraderBot.Exchanges.Bybit
             {
                 if (_orderIdMapping.TryGetValue(reqId, out var tcs))
                 {
+                    Console.WriteLine($"[WS-TRADE-WARN] Failing mapping for reqId '{reqId}'. Completing with reqId as fallback.");
                     tcs.TrySetResult(reqId); // Return reqId as fallback
                     _orderIdMapping.Remove(reqId);
                 }
@@ -578,11 +570,13 @@ namespace TraderBot.Exchanges.Bybit
 
         public void Dispose()
         {
-            _sendLock?.Dispose();
-            _sendLockPublic?.Dispose();
+            _privateSendLock?.Dispose();
+            _tradeSendLock?.Dispose();
+            _publicSendLock?.Dispose();
             _mappingLock?.Dispose();
-            _ws?.Dispose();
-            _wsPublic?.Dispose();
+            _privateWs?.Dispose();
+            _tradeWs?.Dispose();
+            _publicWs?.Dispose();
         }
     }
 

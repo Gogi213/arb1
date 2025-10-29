@@ -18,6 +18,7 @@ namespace TraderBot.Core
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
         private decimal _lastExecutedSellQuantity = 0;
+        private ArbitrageCycleState _state;
 
         public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange)
         {
@@ -26,9 +27,10 @@ namespace TraderBot.Core
             _trailingTrader = new TrailingTrader(_buyExchange);
         }
 
-        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes)
+        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)
         {
             _symbol = symbol;
+            _state = state;
             FileLogger.LogOther($"--- Starting ArbitrageTrader for {symbol} ---");
             FileLogger.LogOther($"Buy on: {_buyExchange.GetType().Name}, Sell on: {_sellExchange.GetType().Name}");
 
@@ -76,6 +78,7 @@ namespace TraderBot.Core
                 _buyFilledLocalTime = t0;
 
                 FileLogger.LogOther($"[Arbitrage] Buy order {filledOrder.OrderId} filled on {_buyExchange.GetType().Name}!");
+                _state.GateIoLeg1BuyQuantity = filledOrder.Quantity;
                 FileLogger.LogOther($"[Arbitrage] Buy fill server time: {buyFillServerTimeStr}, Handler entered: {t0:HH:mm:ss.fff}");
 
                 if (buyFillServerTime.HasValue)

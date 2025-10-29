@@ -100,6 +100,12 @@ namespace TraderBot.Exchanges.GateIo
             }
         }
 
+        public decimal RoundQuantity(string symbol, decimal quantity)
+        {
+            // TODO: This should use fetched precision for the specific symbol
+            return Math.Round(quantity, 2);
+        }
+
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity)
         {
             if (_socketClient == null) throw new InvalidOperationException("Client not initialized");

@@ -52,6 +52,8 @@
 | [PROPOSAL-2025-0015](proposals/PROPOSAL-2025-0015.md) | Финальное исправление: парсинг и использование `cumExecQty` | Done |
 | [PROPOSAL-2025-0016](proposals/PROPOSAL-2025-0016.md) | Исправление уровня доступа для `BybitOrderUpdate` | Done |
 | [PROPOSAL-2025-0017](proposals/PROPOSAL-2025-0017.md) | Увеличение суммы ордера для Leg 2 | Done |
+| [PROPOSAL-2025-0028](proposals/PROPOSAL-2025-0028.md) | Спринт 1: Декаплинг Leg 1 и Leg 2 | Done |
+| [PROPOSAL-2025-0029](proposals/PROPOSAL-2025-0029.md) | Спринт 2: Реализация "идеального свопа" Gate.io | Done |
 
 
 ---

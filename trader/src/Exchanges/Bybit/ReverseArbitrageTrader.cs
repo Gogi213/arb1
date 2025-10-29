@@ -22,6 +22,8 @@ namespace TraderBot.Exchanges.Bybit
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
         private decimal _lastExecutedSellQuantity = 0;
+        private decimal _amount;
+        private ArbitrageCycleState _state;
 
         public ReverseArbitrageTrader(BybitLowLatencyWs bybitWs, IExchange gateIoExchange)
         {
@@ -30,9 +32,11 @@ namespace TraderBot.Exchanges.Bybit
             _bybitTrailingTrader = new BybitTrailingTrader(_bybitWs);
         }
 
-        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes)
+        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)
         {
             _symbol = symbol;
+            _amount = amount;
+            _state = state;
             FileLogger.LogOther($"[Y1] --- Starting ReverseArbitrageTrader for {symbol} ---");
             FileLogger.LogOther($"[Y1] Buy on: Bybit (low-latency WS), Sell on: {_gateIoExchange.GetType().Name}");
 
@@ -142,8 +146,10 @@ namespace TraderBot.Exchanges.Bybit
                     : filledOrder.Symbol;
 
                 // Use the actual filled quantity from the Bybit order
-                var sellQuantity = Math.Round(filledOrder.Quantity, _sellBasePrecision);
-                FileLogger.LogOther($"[Y5] Original buy quantity: {filledOrder.Quantity}, rounded sell quantity: {sellQuantity}");
+                // var sellQuantity = Math.Round(filledOrder.Quantity, _sellBasePrecision);
+                // Используем количество, сохраненное из Leg 1
+                var sellQuantity = _gateIoExchange.RoundQuantity(filledOrder.Symbol, _state.GateIoLeg1BuyQuantity);
+                FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (original from Gate.io Leg 1: {_state.GateIoLeg1BuyQuantity}).");
 
                 var t2 = DateTime.UtcNow;
                 var sellOrderId = await _gateIoExchange.PlaceOrderAsync(

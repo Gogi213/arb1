@@ -85,6 +85,12 @@ namespace TraderBot.Exchanges.Bybit
             return orderIdStr != null && long.TryParse(orderIdStr, out var orderId) ? orderId : null;
         }
 
+        public decimal RoundQuantity(string symbol, decimal quantity)
+        {
+            // Bybit seems to handle rounding correctly, returning as is for now.
+            return quantity;
+        }
+
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal newQuantity)
         {
             if (_lowLatencyWs == null) throw new InvalidOperationException("Client not initialized");

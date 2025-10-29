@@ -43,6 +43,7 @@ namespace TraderBot.Core
         Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol);
         Task CancelAllOrdersAsync(string symbol);
         Task<long?> PlaceOrderAsync(string symbol, OrderSide side, NewOrderType type, decimal? quantity = null, decimal? price = null, decimal? quoteQuantity = null);
+        decimal RoundQuantity(string symbol, decimal quantity);
         Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity);
         Task SubscribeToOrderBookUpdatesAsync(string symbol, Action<IOrderBook> onOrderBookUpdate);
         Task SubscribeToOrderUpdatesAsync(Action<IOrder> onOrderUpdate);

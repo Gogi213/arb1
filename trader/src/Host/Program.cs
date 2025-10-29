@@ -35,9 +35,11 @@ namespace TraderBot.Host
             var bybitExchange = new BybitExchange();
             await bybitExchange.InitializeAsync(bybitConfig.ApiKey, bybitConfig.ApiSecret);
 
+            var cycleState = new ArbitrageCycleState();
+
             // LEG 1: Gate.io (BUY limit trailing) -> Bybit (SELL market)
             var arbitrageTrader = new ArbitrageTrader(gateIoExchange, bybitExchange);
-            var leg1SellQuantity = await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes);
+            var leg1SellQuantity = await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes, cycleState);
 
             FileLogger.LogOther("\n[X7] --- LEG 1 (X1-X7) cycle finished ---");
 
@@ -49,8 +51,8 @@ namespace TraderBot.Host
                 var bybitLowLatencyWs = new BybitLowLatencyWs(bybitConfig.ApiKey, bybitConfig.ApiSecret);
                 await bybitLowLatencyWs.ConnectAsync();
 
-                var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, gateIoExchange);
-                await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, leg1SellQuantity, bybitConfig.DurationMinutes);
+                var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, (GateIoExchange)gateIoExchange);
+                await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, leg1SellQuantity, bybitConfig.DurationMinutes, cycleState);
             }
             else
             {

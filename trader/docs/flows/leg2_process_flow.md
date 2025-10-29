@@ -45,7 +45,9 @@ sequenceDiagram
     BTT->>RAT: OnOrderFilled(filledOrder)
 
     RAT->>RAT: HandleBuyOrderFilled(filledOrder)
-    RAT->>Gate: PlaceOrderAsync(MARKET SELL)
+    RAT->>RAT: Получить точное кол-во из ArbitrageCycleState
+    note over RAT: Усечь (truncate) кол-во до 2 знаков для Gate.io
+    RAT->>Gate: PlaceOrderAsync(MARKET SELL, усеченное кол-во)
     Gate-->>RAT: Sell OrderId
 
     Gate-->>RAT: Order Update: FILLED

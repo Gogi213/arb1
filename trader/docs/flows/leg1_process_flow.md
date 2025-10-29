@@ -41,7 +41,12 @@ sequenceDiagram
     TT->>AT: OnOrderFilled(filledOrder)
 
     AT->>AT: HandleBuyOrderFilled(filledOrder)
-    AT->>Bybit: PlaceOrderAsync(MARKET SELL)
+    note over AT: Запускается таймер "debouncing" (150ms)
+    Gate-->>AT: Balance Update (зачисление)
+    Gate-->>AT: Balance Update (списание комиссии)
+    note over AT: Таймер срабатывает, получен стабильный баланс
+    AT->>AT: Сохранить точное кол-во в ArbitrageCycleState
+    AT->>Bybit: PlaceOrderAsync(MARKET SELL, точное кол-во)
     Bybit->>BybitTrade: order.create(...)
     BybitTrade-->>Bybit: OrderId
 

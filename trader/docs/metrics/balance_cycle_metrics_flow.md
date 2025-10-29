@@ -12,7 +12,11 @@ sequenceDiagram
     Note right of Bot: T0 = UtcNow
 
     ExA-->>Bot: 2. Уведомление о ПОЛНОМ ИСПОЛНЕНИИ ордера
-    Note right of Bot: T1 = UtcNow <br/> Metric: `Leg1_Latency` = T1 - T0 <br/> Metric: `Buy_Price` (средняя цена покупки) <br/> Metric: `Buy_Quantity` (исполненный объем)
+    Note right of Bot: T1 = UtcNow <br/> Metric: `Leg1_Fill_Latency` = T1 - T0 <br/> Metric: `Buy_Price` (средняя цена покупки)
+    
+    ExA-->>Bot: 2a. Уведомления о балансе (зачисление, списание комиссии)
+    Bot->>Bot: 2b. Ожидание стабилизации баланса (debouncing)
+    Note right of Bot: T_stable = UtcNow <br/> Metric: `Balance_Stabilization_Latency` = T_stable - T1 <br/> Metric: `Buy_Quantity` (финальный объем после комиссии)
 
     Bot->>ExB: 3. Отправка ордера на ПРОДАЖУ
     Note right of Bot: T2 = UtcNow <br/> Metric: `Inter_Exchange_Latency` = T2 - T1

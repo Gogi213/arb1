@@ -2,12 +2,12 @@
 
 ## Текущий Статус Проекта (Октябрь 2025)
 
-**Состояние:** Фаза активной разработки завершена. Обе арбитражные "ноги" (`Leg 1` и `Leg 2`) полностью реализованы и функциональны.
+**Состояние:** Фаза активной разработки и отладки завершена. Обе арбитражные "ноги" (`Leg 1` и `Leg 2`) полностью реализованы, функциональны и стабильны.
 
 *   **Leg 1 (Gate.io -> Bybit):** Полностью завершен и протестирован.
-*   **Leg 2 (Bybit -> Gate.io):** Механика полностью завершена. Ключевые проблемы, включая подписку на стакан Bybit и корректную обработку ордеров на продажу в Gate.io, были успешно решены.
+*   **Leg 2 (Bybit -> Gate.io):** Полностью завершен. Критическая проблема `BALANCE_NOT_ENOUGH` на Gate.io решена.
 
-**Текущая работа:** Проект находится на стадии оптимизации. Основное внимание уделяется настройке и корректировке торговых объемов для максимизации эффективности.
+**Текущая работа:** Проект стабилен. Следующие шаги — рефакторинг и добавление нового функционала согласно планам спринтов 3 и 4.
 
 ---
 
@@ -54,6 +54,9 @@
 | [PROPOSAL-2025-0017](proposals/PROPOSAL-2025-0017.md) | Увеличение суммы ордера для Leg 2 | Done |
 | [PROPOSAL-2025-0028](proposals/PROPOSAL-2025-0028.md) | Спринт 1: Декаплинг Leg 1 и Leg 2 | Done |
 | [PROPOSAL-2025-0029](proposals/PROPOSAL-2025-0029.md) | Спринт 2: Реализация "идеального свопа" Gate.io | Done |
+| [PROPOSAL-2025-0030](proposals/PROPOSAL-2025-0030.md) | Исправление `BALANCE_NOT_ENOUGH` (ожидание баланса) | Done |
+| [PROPOSAL-2025-0031](proposals/PROPOSAL-2025-0031.md) | Исправление округления в `ReverseArbitrageTrader` | Done |
+| [PROPOSAL-2025-0032](proposals/PROPOSAL-2025-0032.md) | Внедрение "debouncing" для стабилизации баланса | Done |
 
 
 ---
@@ -76,9 +79,3 @@
 **Goal:** Implement a "supervisor" component that dynamically decides which arbitrage leg to execute based on real-time market conditions.
 
 **Details:** See [Sprint 4 Plan](sprint4_dynamic_leg_switching.md).
-
-- [x] **PROPOSAL-2025-0030:** Fix `BALANCE_NOT_ENOUGH` error by using post-commission balance.
-
-- [x] **PROPOSAL-2025-0031:** Fix incorrect rounding in ReverseArbitrageTrader by truncating quantity.
-
-- [x] **PROPOSAL-2025-0032:** Implement debounce mechanism for balance stabilization.

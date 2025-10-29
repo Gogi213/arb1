@@ -26,23 +26,23 @@ namespace TraderBot.Core
             _exchange = exchange;
         }
 
-        public async Task StartAsync(string symbol, decimal amount, int durationMinutes)
+        public async Task<bool> StartAsync(string symbol, decimal amount, int durationMinutes)
         {
             _cts = new CancellationTokenSource();
 
-            Console.WriteLine("--- Initial Setup ---");
+            FileLogger.LogOther("--- Initial Setup ---");
             var balance = await _exchange.GetBalanceAsync("USDT");
-            Console.WriteLine($"USDT Balance: {balance}");
+            FileLogger.LogOther($"USDT Balance: {balance}");
 
             var filters = await _exchange.GetSymbolFiltersAsync(symbol);
             _tickSize = filters.tickSize;
             _basePrecision = (int)filters.basePrecision;
-            Console.WriteLine($"Filters for {symbol}: TickSize={_tickSize}, BasePrecision={_basePrecision}");
+            FileLogger.LogOther($"Filters for {symbol}: TickSize={_tickSize}, BasePrecision={_basePrecision}");
 
-            Console.WriteLine($"Cancelling all open orders for {symbol}...");
+            FileLogger.LogOther($"Cancelling all open orders for {symbol}...");
             await _exchange.CancelAllOrdersAsync(symbol);
-            Console.WriteLine("All open orders cancelled.");
-            Console.WriteLine("---------------------\n");
+            FileLogger.LogOther("All open orders cancelled.");
+            FileLogger.LogOther("---------------------\n");
 
             await _exchange.SubscribeToOrderUpdatesAsync(HandleOrderUpdate);
             await _exchange.SubscribeToBalanceUpdatesAsync(HandleBalanceUpdate);
@@ -67,7 +67,7 @@ namespace TraderBot.Core
                     newTargetPrice = CalculateTargetPrice(orderBook, 25); // $25 offset for faster fills in testing
 
                     if (_lastPlacedPrice > 0)
-                        Console.WriteLine($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
+                        FileLogger.LogOther($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");
 
                     if (Math.Abs(newTargetPrice - _lastPlacedPrice) < _tickSize)
                     {
@@ -98,7 +98,7 @@ namespace TraderBot.Core
                 // --- Part 2: Execute network call (outside the lock) ---
                 if (shouldPlace)
                 {
-                    Console.WriteLine($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
+                    FileLogger.LogOther($"Best Bid: {bestBidPrice}. Placing order at {newTargetPrice}");
                     _quantity = quantityToUse;
                     var placedOrderId = await _exchange.PlaceOrderAsync(symbol, OrderSide.Buy, NewOrderType.Limit, quantity: _quantity, price: newTargetPrice);
                     
@@ -110,13 +110,13 @@ namespace TraderBot.Core
                             // If we successfully placed, update the ID from sentinel to the real one
                             _orderId = placedOrderId;
                             _currentOrderPrice = newTargetPrice;
-                            Console.WriteLine($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
+                            FileLogger.LogOther($"  > Successfully placed order {_orderId} at price {_currentOrderPrice}");
                         }
                         else
                         {
                             // If placement failed, reset _orderId to null to allow another attempt
                             _orderId = null;
-                            Console.WriteLine("  > Failed to place order.");
+                            FileLogger.LogOther("  > Failed to place order.");
                         }
                     }
                     finally
@@ -126,7 +126,7 @@ namespace TraderBot.Core
                 }
                 else if (shouldModify && orderIdToModify.HasValue)
                 {
-                    Console.WriteLine($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
+                    FileLogger.LogOther($"Price changed. Best Bid: {bestBidPrice}. Moving order to {newTargetPrice}");
                     var modifyStart = DateTime.UtcNow;
                     var success = await _exchange.ModifyOrderAsync(symbol, orderIdToModify.Value, newTargetPrice, quantityToUse);
                     var modifyEnd = DateTime.UtcNow;
@@ -137,7 +137,7 @@ namespace TraderBot.Core
                         // Check if the order is still the one we intended to modify
                         if (_orderId != orderIdToModify)
                         {
-                            Console.WriteLine($"  > Modify ignored, order {orderIdToModify.Value} was filled or cancelled in the meantime.");
+                            FileLogger.LogOther($"  > Modify ignored, order {orderIdToModify.Value} was filled or cancelled in the meantime.");
                             return;
                         }
 
@@ -145,12 +145,12 @@ namespace TraderBot.Core
                         if (success)
                         {
                             _currentOrderPrice = newTargetPrice;
-                            Console.WriteLine($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
-                            Console.WriteLine($"[Latency] ModifyOrderAsync execution time: {modifyLatency:F0}ms");
+                            FileLogger.LogOther($"  > Successfully modified order {_orderId} to price {newTargetPrice}");
+                            FileLogger.LogOther($"[Latency] ModifyOrderAsync execution time: {modifyLatency:F0}ms");
                         }
                         else
                         {
-                            Console.WriteLine($"  > Failed to modify order. Time spent: {modifyLatency:F0}ms");
+                            FileLogger.LogOther($"  > Failed to modify order. Time spent: {modifyLatency:F0}ms");
                         }
                     }
                     finally
@@ -160,19 +160,20 @@ namespace TraderBot.Core
                 }
             });
 
-            Console.WriteLine($"Listening for price changes...");
+            FileLogger.LogOther($"Listening for price changes...");
+            return true;
         }
 
         public async Task StopAsync(string symbol)
         {
             _isStopped = true;
             _cts?.Cancel();
-            Console.WriteLine("\n--- TrailingTrader Stopped ---");
-            Console.WriteLine("Unsubscribing and cancelling final order...");
+            FileLogger.LogOther("\n--- TrailingTrader Stopped ---");
+            FileLogger.LogOther("Unsubscribing and cancelling final order...");
             await _exchange.UnsubscribeAsync();
             await _exchange.CancelOrderAsync(symbol, _orderId);
-            Console.WriteLine($"Final order {_orderId} cancelled.");
-            Console.WriteLine("---------------------\n");
+            FileLogger.LogOther($"Final order {_orderId} cancelled.");
+            FileLogger.LogOther("---------------------\n");
         }
 
         private async void HandleOrderUpdate(IOrder order)
@@ -185,27 +186,27 @@ namespace TraderBot.Core
                 var updateTimeStr = order.UpdateTime?.ToString("HH:mm:ss.fff") ?? "N/A";
                 var nowStr = now.ToString("HH:mm:ss.fff");
 
-                Console.WriteLine($"[Order Update] Symbol: {order.Symbol}, OrderId: {order.OrderId}, Status: {order.Status}, FinishType: {order.FinishType}");
-                Console.WriteLine($"[Timestamps] Created: {createTimeStr}, Updated: {updateTimeStr}, LocalReceived: {nowStr}");
+                FileLogger.LogOther($"[Order Update] Symbol: {order.Symbol}, OrderId: {order.OrderId}, Status: {order.Status}, FinishType: {order.FinishType}");
+                FileLogger.LogOther($"[Timestamps] Created: {createTimeStr}, Updated: {updateTimeStr}, LocalReceived: {nowStr}");
 
                 if (order.UpdateTime.HasValue && order.CreateTime.HasValue)
                 {
                     var fillLatency = (order.UpdateTime.Value - order.CreateTime.Value).TotalMilliseconds;
-                    Console.WriteLine($"[Latency] Order fill time: {fillLatency:F0}ms");
+                    FileLogger.LogOther($"[Latency] Order fill time: {fillLatency:F0}ms");
                 }
 
                 if (order.OrderId == _orderId && order.Status == "Finish")
                 {
                     if (order.FinishType == "Filled")
                     {
-                        Console.WriteLine($"[!!!] Order {order.OrderId} was FILLED!");
+                        FileLogger.LogOther($"[!!!] Order {order.OrderId} was FILLED!");
                         _isFilled = true;
                         OnOrderFilled?.Invoke(order);
                         // Stop(); // Stop is now handled by ArbitrageTrader
                      }
                      else
                     {
-                        Console.WriteLine($"[!!!] Order {order.OrderId} was finished ({order.FinishType})!");
+                        FileLogger.LogOther($"[!!!] Order {order.OrderId} was finished ({order.FinishType})!");
                     }
                     _orderId = null;
                     _currentOrderPrice = null;
@@ -219,7 +220,7 @@ namespace TraderBot.Core
 
         private void HandleBalanceUpdate(IBalance balance)
         {
-            Console.WriteLine($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
+            FileLogger.LogOther($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
         }
         
         private decimal CalculateTargetPrice(IOrderBook orderBook, decimal dollarOffset)

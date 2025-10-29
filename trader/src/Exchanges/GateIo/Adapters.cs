@@ -16,8 +16,9 @@ namespace TraderBot.Exchanges.GateIo
 
         public string Symbol => _order.Symbol;
         public long OrderId => long.Parse(_order.Id);
-        public decimal Price => _order.Price ?? 0m;
-        public decimal Quantity => _order.Quantity;
+        public decimal Price => _order.AveragePrice ?? _order.Price ?? 0m;
+        public decimal Quantity => _order.QuantityFilled;
+        public decimal QuoteQuantity => _order.QuoteQuantityFilled;
         public string Status => _order.Event.ToString();
         public string? FinishType => _order.FinishType?.ToString();
         public DateTime? CreateTime => _order.CreateTime;

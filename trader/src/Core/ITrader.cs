@@ -4,6 +4,6 @@ namespace TraderBot.Core
 {
     public interface ITrader
     {
-        Task StartAsync(string symbol, decimal amount, int durationMinutes);
+        Task<bool> StartAsync(string symbol, decimal amount, int durationMinutes);
     }
 }

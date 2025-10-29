@@ -31,9 +31,9 @@ namespace TraderBot.Exchanges.Bybit
             // Hardcoded for now - will be fetched via WS later
             // Bybit spot typical values
             _tickSize = 0.0001m;
-            _basePrecision = 2;
+            _basePrecision = 0; // H/USDT requires integer quantity
 
-            Console.WriteLine($"[Bybit] Using hardcoded filters: tickSize={_tickSize}, basePrecision={_basePrecision}");
+            FileLogger.LogOther($"[Bybit] Using hardcoded filters: tickSize={_tickSize}, basePrecision={_basePrecision}");
             return (_tickSize, _basePrecision);
         }
 
@@ -53,7 +53,8 @@ namespace TraderBot.Exchanges.Bybit
         {
             if (_lowLatencyWs == null) throw new InvalidOperationException("Client not initialized");
 
-            var orderQuantity = type == Core.NewOrderType.Market ? quoteQuantity : quantity;
+            // Standardize to always use base quantity. Quote quantity is no longer supported for market orders.
+            var orderQuantity = quantity;
             if (orderQuantity == null)
             {
                 throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
@@ -78,7 +79,7 @@ namespace TraderBot.Exchanges.Bybit
 
             var t1 = DateTime.UtcNow;
             var apiLatency = (t1 - t0).TotalMilliseconds;
-            Console.WriteLine($"[Bybit] Low-latency WS PlaceOrder: {apiLatency:F0}ms (OrderId={orderIdStr})");
+            FileLogger.LogWebsocket($"[Bybit] Low-latency WS PlaceOrder: {apiLatency:F0}ms (OrderId={orderIdStr})");
 
             // Parse real OrderId from Bybit
             return orderIdStr != null && long.TryParse(orderIdStr, out var orderId) ? orderId : null;
@@ -101,7 +102,7 @@ namespace TraderBot.Exchanges.Bybit
             if (_lowLatencyWs == null) throw new InvalidOperationException("Client not initialized");
             // TODO: Implement balance updates subscription
             await Task.CompletedTask;
-            Console.WriteLine("[Bybit] Balance updates subscription not yet implemented");
+            FileLogger.LogOther("[Bybit] Balance updates subscription not yet implemented");
         }
 
         public async Task UnsubscribeAsync()

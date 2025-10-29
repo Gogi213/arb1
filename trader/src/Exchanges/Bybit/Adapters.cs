@@ -8,20 +8,23 @@ namespace TraderBot.Exchanges.Bybit
 {
     public class BybitOrderAdapter : IOrder
     {
-        private readonly BybitOrder _order;
+        // Используем наш внутренний класс, а не библиотечный
+        private readonly BybitOrderUpdate _order;
 
-        public BybitOrderAdapter(BybitOrder order)
+        public BybitOrderAdapter(BybitOrderUpdate order)
         {
             _order = order;
         }
 
         public string Symbol => _order.Symbol;
-        public long OrderId => long.Parse(_order.OrderId);
-        public decimal Price => _order.Price ?? 0m;
-        public decimal Quantity => _order.Quantity;
+        public long OrderId => _order.OrderId;
+        public decimal Price => _order.Price;
+        // Теперь используем правильное поле для исполненного количества
+        public decimal Quantity => _order.CumulativeQuantityFilled > 0 ? _order.CumulativeQuantityFilled : _order.Quantity;
+        public decimal QuoteQuantity => _order.QuoteQuantity;
         public string Status => _order.Status.ToString();
-        public string? FinishType => _order.Status == OrderStatus.Filled ? "Filled" :
-                                      _order.Status == OrderStatus.Cancelled ? "Cancelled" : null;
+        public string? FinishType => _order.Status == "Filled" ? "Filled" :
+                                      _order.Status == "Cancelled" ? "Cancelled" : null;
         public DateTime? CreateTime => _order.CreateTime;
         public DateTime? UpdateTime => _order.UpdateTime;
     }

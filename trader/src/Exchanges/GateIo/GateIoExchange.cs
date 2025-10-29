@@ -87,9 +87,17 @@ namespace TraderBot.Exchanges.GateIo
             var t1 = DateTime.UtcNow;
 
             var latency = (t1 - t0).TotalMilliseconds;
-            Console.WriteLine($"[Gate API] PlaceOrderAsync WS execution time: {latency:F0}ms");
+            FileLogger.LogWebsocket($"[Gate API] PlaceOrderAsync WS execution time: {latency:F0}ms");
 
-            return result.Success ? result.Data.Id : null;
+            if (result.Success)
+            {
+                return result.Data.Id;
+            }
+            else
+            {
+                FileLogger.LogWebsocket($"[Gate API ERROR] Failed to place order. Error: {result.Error}");
+                return null;
+            }
         }
 
         public async Task<bool> ModifyOrderAsync(string symbol, long orderId, decimal newPrice, decimal quantity)
@@ -103,7 +111,7 @@ namespace TraderBot.Exchanges.GateIo
             var latency = (t1 - t0).TotalMilliseconds;
             if (latency > 100)
             {
-                Console.WriteLine($"[Gate API] ModifyOrderAsync WS took: {latency:F0}ms (orderId: {orderId})");
+                FileLogger.LogWebsocket($"[Gate API] ModifyOrderAsync WS took: {latency:F0}ms (orderId: {orderId})");
             }
 
             return result.Success;
@@ -129,7 +137,7 @@ namespace TraderBot.Exchanges.GateIo
             var subscriptionResult = await _socketClient.SpotApi.SubscribeToOrderUpdatesAsync(data =>
             {
                 var wsReceiveTime = DateTime.UtcNow;
-                Console.WriteLine($"[Gate WS] Raw message received at: {wsReceiveTime:HH:mm:ss.fff}, Orders count: {data.Data.Count()}");
+                FileLogger.LogWebsocket($"[Gate WS] Raw message received at: {wsReceiveTime:HH:mm:ss.fff}, Orders count: {data.Data.Count()}");
 
                 foreach (var order in data.Data)
                 {
@@ -140,7 +148,7 @@ namespace TraderBot.Exchanges.GateIo
                     var adapterDelay = (afterAdapterTime - beforeAdapterTime).TotalMilliseconds;
                     if (adapterDelay > 1)
                     {
-                        Console.WriteLine($"[Gate WS] Adapter creation took: {adapterDelay:F0}ms");
+                        FileLogger.LogWebsocket($"[Gate WS] Adapter creation took: {adapterDelay:F0}ms");
                     }
 
                     var beforeCallbackTime = DateTime.UtcNow;
@@ -148,10 +156,10 @@ namespace TraderBot.Exchanges.GateIo
                     var afterCallbackTime = DateTime.UtcNow;
 
                     var callbackDelay = (afterCallbackTime - beforeCallbackTime).TotalMilliseconds;
-                    Console.WriteLine($"[Gate WS] Callback execution took: {callbackDelay:F0}ms");
+                    FileLogger.LogWebsocket($"[Gate WS] Callback execution took: {callbackDelay:F0}ms");
 
                     var totalDelay = (afterCallbackTime - wsReceiveTime).TotalMilliseconds;
-                    Console.WriteLine($"[Gate WS] Total processing time (receive -> callback done): {totalDelay:F0}ms");
+                    FileLogger.LogWebsocket($"[Gate WS] Total processing time (receive -> callback done): {totalDelay:F0}ms");
                 }
             });
 

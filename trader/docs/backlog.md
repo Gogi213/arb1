@@ -37,3 +37,33 @@
 |----|-----------|--------|
 | [PROPOSAL-2025-0008](proposals/PROPOSAL-2025-0008.md) | Исправление жизненного цикла Leg 2 | Done |
 | [PROPOSAL-2025-0009](proposals/PROPOSAL-2025-0009.md) | Увеличение суммы ордера для Leg 2 | Done |
+| [PROPOSAL-2025-0010](proposals/PROPOSAL-2025-0010.md) | Использование реального количества для продажи в Leg 2 | Done |
+| [PROPOSAL-2025-0011](proposals/PROPOSAL-2025-0011.md) | Улучшение логирования ошибок в GateIoExchange | Done |
+| [PROPOSAL-2025-0012](proposals/PROPOSAL-2025-0012.md) | Исправление адаптера Bybit для использования `cumExecQty` | Proposed |
+| [PROPOSAL-2025-0013](proposals/PROPOSAL-2025-0013.md) | Тестирование `quoteQuantity` для рыночной продажи на Gate.io | Proposed |
+| [PROPOSAL-2025-0014](proposals/PROPOSAL-2025-0014.md) | Добавление отладочного логирования перед продажей на Gate.io | Done |
+| [PROPOSAL-2025-0015](proposals/PROPOSAL-2025-0015.md) | Финальное исправление: парсинг и использование `cumExecQty` | Done |
+| [PROPOSAL-2025-0016](proposals/PROPOSAL-2025-0016.md) | Исправление уровня доступа для `BybitOrderUpdate` | Done |
+| [PROPOSAL-2025-0017](proposals/PROPOSAL-2025-0017.md) | Увеличение суммы ордера для Leg 2 | Proposed |
+
+
+---
+
+## Sprint 3: Code Refactoring and Simplification (Planned)
+
+**Status:** Not Started
+
+**Goal:** A comprehensive review and refactoring of the existing codebase to eliminate unnecessary layers of abstraction, remove redundant code, and improve overall code clarity and maintainability.
+
+**Details:** See [Sprint 3 Plan](sprint3_refactoring_plan.md).
+
+
+---
+
+## Sprint 4: Dynamic Leg Switching (Planned)
+
+**Status:** Not Started
+
+**Goal:** Implement a "supervisor" component that dynamically decides which arbitrage leg to execute based on real-time market conditions.
+
+**Details:** See [Sprint 4 Plan](sprint4_dynamic_leg_switching.md).

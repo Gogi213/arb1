@@ -148,7 +148,8 @@ namespace TraderBot.Exchanges.Bybit
                 // Use the actual filled quantity from the Bybit order
                 // var sellQuantity = Math.Round(filledOrder.Quantity, _sellBasePrecision);
                 // Используем количество, сохраненное из Leg 1
-                var sellQuantity = _gateIoExchange.RoundQuantity(filledOrder.Symbol, _state.GateIoLeg1BuyQuantity);
+                decimal factor = (decimal)Math.Pow(10, _sellBasePrecision);
+                var sellQuantity = Math.Truncate(_state.GateIoLeg1BuyQuantity * factor) / factor;
                 FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (original from Gate.io Leg 1: {_state.GateIoLeg1BuyQuantity}).");
 
                 var t2 = DateTime.UtcNow;

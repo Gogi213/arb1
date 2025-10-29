@@ -76,3 +76,9 @@
 **Goal:** Implement a "supervisor" component that dynamically decides which arbitrage leg to execute based on real-time market conditions.
 
 **Details:** See [Sprint 4 Plan](sprint4_dynamic_leg_switching.md).
+
+- [x] **PROPOSAL-2025-0030:** Fix `BALANCE_NOT_ENOUGH` error by using post-commission balance.
+
+- [x] **PROPOSAL-2025-0031:** Fix incorrect rounding in ReverseArbitrageTrader by truncating quantity.
+
+- [x] **PROPOSAL-2025-0032:** Implement debounce mechanism for balance stabilization.

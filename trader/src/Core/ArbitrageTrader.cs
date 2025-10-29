@@ -12,13 +12,17 @@ namespace TraderBot.Core
         private readonly SemaphoreSlim _sellLock = new SemaphoreSlim(1, 1);
         private long? _pendingSellOrderId;
         private bool _sellConfirmed;
-        private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new TaskCompletionSource<decimal>();
+        private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new();
         private string? _symbol;
+        private string? _baseAsset;
         private DateTime? _buyFilledServerTime;
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
         private decimal _lastExecutedSellQuantity = 0;
         private ArbitrageCycleState _state;
+        private readonly TaskCompletionSource<decimal> _balanceTcs = new();
+        private Timer? _balanceDebounceTimer;
+        private decimal _lastReceivedBalance;
 
         public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange)
         {
@@ -30,6 +34,7 @@ namespace TraderBot.Core
         public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)
         {
             _symbol = symbol;
+            _baseAsset = symbol.Split('_')[0];
             _state = state;
             FileLogger.LogOther($"--- Starting ArbitrageTrader for {symbol} ---");
             FileLogger.LogOther($"Buy on: {_buyExchange.GetType().Name}, Sell on: {_sellExchange.GetType().Name}");
@@ -42,6 +47,7 @@ namespace TraderBot.Core
 
             // Subscribe to sell exchange order updates for confirmation
             _sellExchange.SubscribeToOrderUpdatesAsync(HandleSellOrderUpdate);
+            _buyExchange.SubscribeToBalanceUpdatesAsync(HandleBuyBalanceUpdate);
 
             // Subscribe to fill events from the TrailingTrader
             _trailingTrader.OnOrderFilled += HandleBuyOrderFilled;
@@ -58,6 +64,8 @@ namespace TraderBot.Core
             FileLogger.LogOther("[Arbitrage] Cleanup started...");
             await _trailingTrader.StopAsync(_symbol);
             await _sellExchange.UnsubscribeAsync();
+            _balanceDebounceTimer?.Dispose();
+            await _buyExchange.UnsubscribeAsync();
             FileLogger.LogOther("[Arbitrage] Cleanup finished.");
             _arbitrageCycleTcs.TrySetResult(_lastExecutedSellQuantity); // Signal that the entire cycle is complete
         }
@@ -78,8 +86,19 @@ namespace TraderBot.Core
                 _buyFilledLocalTime = t0;
 
                 FileLogger.LogOther($"[Arbitrage] Buy order {filledOrder.OrderId} filled on {_buyExchange.GetType().Name}!");
-                _state.GateIoLeg1BuyQuantity = filledOrder.Quantity;
                 FileLogger.LogOther($"[Arbitrage] Buy fill server time: {buyFillServerTimeStr}, Handler entered: {t0:HH:mm:ss.fff}");
+                
+                // --- NEW LOGIC: Wait for the actual balance update ---
+                _balanceDebounceTimer = new Timer(OnBalanceDebounceTimer, null, Timeout.Infinite, Timeout.Infinite);
+
+                FileLogger.LogOther($"[Arbitrage] Waiting for balance update for asset '{_baseAsset}'...");
+                
+                var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var actualQuantity = await _balanceTcs.Task.WaitAsync(cancellationTokenSource.Token);
+                
+                FileLogger.LogOther($"[Arbitrage] Balance update received. Actual available quantity: {actualQuantity}");
+                _state.GateIoLeg1BuyQuantity = actualQuantity;
+                // --- END NEW LOGIC ---
 
                 if (buyFillServerTime.HasValue)
                 {
@@ -95,12 +114,12 @@ namespace TraderBot.Core
 
                 FileLogger.LogOther($"[Arbitrage] Immediately selling on {_sellExchange.GetType().Name}.");
 
-                // Bybit uses a different symbol format (without underscore)
                 var sellSymbol = filledOrder.Symbol.Replace("_", "");
 
                 // Round the quantity according to the sell exchange's rules
-                var sellQuantity = Math.Round(filledOrder.Quantity, _sellBasePrecision);
-                FileLogger.LogOther($"[Arbitrage] Original buy quantity: {filledOrder.Quantity}, rounded sell quantity: {sellQuantity}");
+                // Use the precise quantity from the balance update
+               var sellQuantity = Math.Round(actualQuantity, _sellBasePrecision);
+               FileLogger.LogOther($"[Arbitrage] Original buy quantity from balance: {actualQuantity}, rounded sell quantity: {sellQuantity}");
 
                 var t2 = DateTime.UtcNow;
                 var sellOrderId = await _sellExchange.PlaceOrderAsync(
@@ -134,6 +153,22 @@ namespace TraderBot.Core
             {
                 _sellLock.Release();
             }
+        }
+
+       private void HandleBuyBalanceUpdate(IBalance balance)
+        {
+            if (balance.Asset == _baseAsset)
+            {
+                FileLogger.LogOther($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
+               _lastReceivedBalance = balance.Available;
+               // Reset the timer every time an update comes in
+               _balanceDebounceTimer?.Change(150, Timeout.Infinite);
+            }
+        }
+
+        private void OnBalanceDebounceTimer(object? state)
+        {
+            _balanceTcs.TrySetResult(_lastReceivedBalance);
         }
 
         private async void HandleSellOrderUpdate(IOrder order)

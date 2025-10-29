@@ -12,11 +12,12 @@ namespace TraderBot.Core
         private readonly SemaphoreSlim _sellLock = new SemaphoreSlim(1, 1);
         private long? _pendingSellOrderId;
         private bool _sellConfirmed;
-        private readonly TaskCompletionSource<bool> _arbitrageCycleTcs = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new TaskCompletionSource<decimal>();
         private string? _symbol;
         private DateTime? _buyFilledServerTime;
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
+        private decimal _lastExecutedSellQuantity = 0;
 
         public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange)
         {
@@ -25,7 +26,7 @@ namespace TraderBot.Core
             _trailingTrader = new TrailingTrader(_buyExchange);
         }
 
-        public async Task<bool> StartAsync(string symbol, decimal amount, int durationMinutes)
+        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes)
         {
             _symbol = symbol;
             FileLogger.LogOther($"--- Starting ArbitrageTrader for {symbol} ---");
@@ -56,7 +57,7 @@ namespace TraderBot.Core
             await _trailingTrader.StopAsync(_symbol);
             await _sellExchange.UnsubscribeAsync();
             FileLogger.LogOther("[Arbitrage] Cleanup finished.");
-            _arbitrageCycleTcs.TrySetResult(true); // Signal that the entire cycle is complete
+            _arbitrageCycleTcs.TrySetResult(_lastExecutedSellQuantity); // Signal that the entire cycle is complete
         }
 
         private async void HandleBuyOrderFilled(IOrder filledOrder)
@@ -156,6 +157,9 @@ namespace TraderBot.Core
                 // Check if filled (Bybit returns Status=Filled for market orders)
                 if (order.Status == "Filled" || order.FinishType == "Filled")
                 {
+                    // Store the actual executed quantity from the sell order
+                    _lastExecutedSellQuantity = order.Quantity;
+
                     FileLogger.LogOther($"[Arbitrage] Sell order {order.OrderId} CONFIRMED filled on {_sellExchange.GetType().Name}!");
 
                     // Calculate end-to-end latency

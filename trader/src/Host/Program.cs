@@ -37,17 +37,25 @@ namespace TraderBot.Host
 
             // LEG 1: Gate.io (BUY limit trailing) -> Bybit (SELL market)
             var arbitrageTrader = new ArbitrageTrader(gateIoExchange, bybitExchange);
-            await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes);
+            var leg1SellQuantity = await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes);
 
             FileLogger.LogOther("\n[X7] --- LEG 1 (X1-X7) cycle finished ---");
 
-            // LEG 2 (Y1-Y7): Bybit (BUY limit trailing) -> Gate.io (SELL market)
-            FileLogger.LogOther("\n[Y1] --- Starting LEG 2 (Y1-Y7) ---");
-            var bybitLowLatencyWs = new BybitLowLatencyWs(bybitConfig.ApiKey, bybitConfig.ApiSecret);
-            await bybitLowLatencyWs.ConnectAsync();
+            if (leg1SellQuantity > 0)
+            {
+                FileLogger.LogOther($"[Orchestrator] Leg 1 executed sell quantity on Bybit: {leg1SellQuantity}. Using this for Leg 2.");
+                // LEG 2 (Y1-Y7): Bybit (BUY limit trailing) -> Gate.io (SELL market)
+                FileLogger.LogOther("\n[Y1] --- Starting LEG 2 (Y1-Y7) ---");
+                var bybitLowLatencyWs = new BybitLowLatencyWs(bybitConfig.ApiKey, bybitConfig.ApiSecret);
+                await bybitLowLatencyWs.ConnectAsync();
 
-            var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, gateIoExchange);
-            await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, bybitConfig.Amount, bybitConfig.DurationMinutes);
+                var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, gateIoExchange);
+                await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, leg1SellQuantity, bybitConfig.DurationMinutes);
+            }
+            else
+            {
+                FileLogger.LogOther("[Orchestrator] Leg 1 did not return a valid sell quantity. Skipping Leg 2.");
+            }
 
             FileLogger.LogOther("\n--- Full process (X1-X7 + Y1-Y7) finished. Program exiting. ---");
         }

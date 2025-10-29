@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace TraderBot.Core
 {
-    public class TrailingTrader : ITrader
+    public class TrailingTrader
     {
         private readonly IExchange _exchange;
         private long? _orderId;

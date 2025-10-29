@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TraderBot.Core")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+edb7428ba19e32e5db73693424553e142befdc89")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cad8cf1a468649b456bffee7ecf86a56d634683f")]
 [assembly: System.Reflection.AssemblyProductAttribute("TraderBot.Core")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TraderBot.Core")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

@@ -75,7 +75,7 @@ namespace TraderBot.Exchanges.Bybit
                     if (_orderId == null)
                     {
                         FileLogger.LogOther($"[BybitTrailing] Best Bid: {bestBid:F5}. Placing BUY order at {newTargetPrice:F5}");
-                        _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
+                        _quantity = Math.Round(amount, _basePrecision);
 
                         var placedOrderIdStr = await _ws.PlaceLimitOrderAsync(symbol, "Buy", _quantity, newTargetPrice);
 

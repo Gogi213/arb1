@@ -16,11 +16,12 @@ namespace TraderBot.Exchanges.Bybit
         private readonly SemaphoreSlim _sellLock = new SemaphoreSlim(1, 1);
         private long? _pendingSellOrderId;
         private bool _sellConfirmed;
-        private readonly TaskCompletionSource<bool> _arbitrageCycleTcs = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new TaskCompletionSource<decimal>();
         private string? _symbol;
         private DateTime? _buyFilledServerTime;
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
+        private decimal _lastExecutedSellQuantity = 0;
 
         public ReverseArbitrageTrader(BybitLowLatencyWs bybitWs, IExchange gateIoExchange)
         {
@@ -29,7 +30,7 @@ namespace TraderBot.Exchanges.Bybit
             _bybitTrailingTrader = new BybitTrailingTrader(_bybitWs);
         }
 
-        public async Task<bool> StartAsync(string symbol, decimal amount, int durationMinutes)
+        public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes)
         {
             _symbol = symbol;
             FileLogger.LogOther($"[Y1] --- Starting ReverseArbitrageTrader for {symbol} ---");
@@ -94,7 +95,7 @@ namespace TraderBot.Exchanges.Bybit
             FileLogger.LogOther("[Y7] Cleanup finished.");
             FileLogger.LogOther("[Y7] CLEANUP complete.\n");
 
-            _arbitrageCycleTcs.TrySetResult(true);
+            _arbitrageCycleTcs.TrySetResult(_lastExecutedSellQuantity);
         }
 
         private async void HandleBuyOrderFilled(IOrder filledOrder)
@@ -205,6 +206,9 @@ namespace TraderBot.Exchanges.Bybit
                 // Gate.io returns Status=Finish + FinishType=Filled
                 if (order.Status == "Finish" && order.FinishType == "Filled")
                 {
+                    // Store the actual executed quantity from the sell order
+                    _lastExecutedSellQuantity = order.Quantity;
+
                     FileLogger.LogOther($"[Y6] Sell order {order.OrderId} CONFIRMED filled on {_gateIoExchange.GetType().Name}!");
 
                     // Calculate end-to-end latency

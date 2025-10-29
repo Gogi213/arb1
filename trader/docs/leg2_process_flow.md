@@ -51,7 +51,7 @@ sequenceDiagram
     Gate-->>RAT: Order Update: FILLED
     RAT->>RAT: HandleSellOrderUpdate(sellOrder)
     
-    RAT->>AT: Рассчитать End-to-End Latency
-    RAT->>AT: CleanupAndSignalCompletionAsync()
+    RAT->>RAT: Рассчитать End-to-End Latency
+    RAT->>RAT: CleanupAndSignalCompletionAsync()
     RAT->>Host: arbitrageCycleTcs.SetResult(true)
-    Host->>Host: Вывод в консоль: "Full process ... finished"
+    Host->>Host: Вывод в консоль: "LEG 2 ... finished"

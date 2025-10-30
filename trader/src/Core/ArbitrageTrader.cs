@@ -15,14 +15,21 @@ namespace TraderBot.Core
         private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new();
         private string? _symbol;
         private string? _baseAsset;
+        private string? _quoteAsset;
         private DateTime? _buyFilledServerTime;
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
-        private decimal _lastExecutedSellQuantity = 0;
         private ArbitrageCycleState _state;
-        private readonly TaskCompletionSource<decimal> _balanceTcs = new();
-        private Timer? _balanceDebounceTimer;
-        private decimal _lastReceivedBalance;
+        
+        // For Base Asset (e.g., H)
+        private TaskCompletionSource<decimal> _baseAssetBalanceTcs = new();
+        private Timer? _baseAssetDebounceTimer;
+        private decimal _lastReceivedBaseAssetBalance;
+
+        // For Quote Asset (e.g., USDT)
+        private TaskCompletionSource<decimal> _quoteAssetBalanceTcs = new();
+        private Timer? _quoteAssetDebounceTimer;
+        private decimal _lastReceivedQuoteAssetBalance;
 
         public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange)
         {
@@ -35,6 +42,7 @@ namespace TraderBot.Core
         {
             _symbol = symbol;
             _baseAsset = symbol.Split('_')[0];
+            _quoteAsset = symbol.Split('_')[1];
             _state = state;
             FileLogger.LogOther($"--- Starting ArbitrageTrader for {symbol} ---");
             FileLogger.LogOther($"Buy on: {_buyExchange.GetType().Name}, Sell on: {_sellExchange.GetType().Name}");
@@ -47,10 +55,15 @@ namespace TraderBot.Core
 
             // Subscribe to sell exchange order updates for confirmation
             _sellExchange.SubscribeToOrderUpdatesAsync(HandleSellOrderUpdate);
-            _buyExchange.SubscribeToBalanceUpdatesAsync(HandleBuyBalanceUpdate);
+            _buyExchange.SubscribeToBalanceUpdatesAsync(HandleBaseAssetBalanceUpdate);
+            _sellExchange.SubscribeToBalanceUpdatesAsync(HandleQuoteAssetBalanceUpdate);
 
             // Subscribe to fill events from the TrailingTrader
             _trailingTrader.OnOrderFilled += HandleBuyOrderFilled;
+
+            // Initialize timers here to avoid race conditions
+            _baseAssetDebounceTimer = new Timer(OnBaseAssetBalanceDebounceTimer, null, Timeout.Infinite, Timeout.Infinite);
+            _quoteAssetDebounceTimer = new Timer(OnQuoteAssetBalanceDebounceTimer, null, Timeout.Infinite, Timeout.Infinite);
 
             // Start the buying process on the buyExchange (don't await it here)
             _trailingTrader.StartAsync(symbol, amount, durationMinutes);
@@ -58,16 +71,17 @@ namespace TraderBot.Core
             return await _arbitrageCycleTcs.Task;
         }
 
-        private async Task CleanupAndSignalCompletionAsync()
+        private async Task CleanupAndSignalCompletionAsync(decimal finalAmount)
         {
             if (_symbol == null) return;
             FileLogger.LogOther("[Arbitrage] Cleanup started...");
             await _trailingTrader.StopAsync(_symbol);
             await _sellExchange.UnsubscribeAsync();
-            _balanceDebounceTimer?.Dispose();
+            _baseAssetDebounceTimer?.Dispose();
+            _quoteAssetDebounceTimer?.Dispose();
             await _buyExchange.UnsubscribeAsync();
             FileLogger.LogOther("[Arbitrage] Cleanup finished.");
-            _arbitrageCycleTcs.TrySetResult(_lastExecutedSellQuantity); // Signal that the entire cycle is complete
+            _arbitrageCycleTcs.TrySetResult(finalAmount); // Signal that the entire cycle is complete
         }
 
         private async void HandleBuyOrderFilled(IOrder filledOrder)
@@ -89,12 +103,12 @@ namespace TraderBot.Core
                 FileLogger.LogOther($"[Arbitrage] Buy fill server time: {buyFillServerTimeStr}, Handler entered: {t0:HH:mm:ss.fff}");
                 
                 // --- NEW LOGIC: Wait for the actual balance update ---
-                _balanceDebounceTimer = new Timer(OnBalanceDebounceTimer, null, Timeout.Infinite, Timeout.Infinite);
 
                 FileLogger.LogOther($"[Arbitrage] Waiting for balance update for asset '{_baseAsset}'...");
                 
                 var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                var actualQuantity = await _balanceTcs.Task.WaitAsync(cancellationTokenSource.Token);
+                var actualQuantity = await _baseAssetBalanceTcs.Task.WaitAsync(cancellationTokenSource.Token);
+                _baseAssetBalanceTcs = new TaskCompletionSource<decimal>(); // Re-create for next cycle
                 
                 FileLogger.LogOther($"[Arbitrage] Balance update received. Actual available quantity: {actualQuantity}");
                 _state.GateIoLeg1BuyQuantity = actualQuantity;
@@ -155,20 +169,36 @@ namespace TraderBot.Core
             }
         }
 
-       private void HandleBuyBalanceUpdate(IBalance balance)
+       private void HandleBaseAssetBalanceUpdate(IBalance balance)
         {
             if (balance.Asset == _baseAsset)
             {
                 FileLogger.LogOther($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
-               _lastReceivedBalance = balance.Available;
+               _lastReceivedBaseAssetBalance = balance.Available;
                // Reset the timer every time an update comes in
-               _balanceDebounceTimer?.Change(150, Timeout.Infinite);
+               _baseAssetDebounceTimer?.Change(150, Timeout.Infinite);
             }
         }
 
-        private void OnBalanceDebounceTimer(object? state)
+        private void OnBaseAssetBalanceDebounceTimer(object? state)
         {
-            _balanceTcs.TrySetResult(_lastReceivedBalance);
+            _baseAssetBalanceTcs.TrySetResult(_lastReceivedBaseAssetBalance);
+        }
+
+        private void HandleQuoteAssetBalanceUpdate(IBalance balance)
+        {
+            if (balance.Asset == _quoteAsset)
+            {
+                FileLogger.LogOther($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
+                _lastReceivedQuoteAssetBalance = balance.Available;
+                // Reset the timer every time an update comes in
+                _quoteAssetDebounceTimer?.Change(150, Timeout.Infinite);
+            }
+        }
+
+        private void OnQuoteAssetBalanceDebounceTimer(object? state)
+        {
+            _quoteAssetBalanceTcs.TrySetResult(_lastReceivedQuoteAssetBalance);
         }
 
         private async void HandleSellOrderUpdate(IOrder order)
@@ -195,9 +225,6 @@ namespace TraderBot.Core
                 // Check if filled (Bybit returns Status=Filled for market orders)
                 if (order.Status == "Filled" || order.FinishType == "Filled")
                 {
-                    // Store the actual executed quantity from the sell order
-                    _lastExecutedSellQuantity = order.Quantity;
-
                     FileLogger.LogOther($"[Arbitrage] Sell order {order.OrderId} CONFIRMED filled on {_sellExchange.GetType().Name}!");
 
                     // Calculate end-to-end latency
@@ -216,8 +243,11 @@ namespace TraderBot.Core
                     _sellConfirmed = true;
                     _pendingSellOrderId = null;
 
+                    var usdtProceeds = order.CumulativeQuoteQuantity;
+                    FileLogger.LogOther($"[Arbitrage] Sale executed. USDT proceeds from order.CumulativeQuoteQuantity: {usdtProceeds}");
+
                     FileLogger.LogOther("[Arbitrage] Cycle complete.");
-                    await CleanupAndSignalCompletionAsync();
+                    await CleanupAndSignalCompletionAsync(usdtProceeds);
                 }
             }
             finally

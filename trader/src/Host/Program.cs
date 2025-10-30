@@ -37,22 +37,25 @@ namespace TraderBot.Host
 
             var cycleState = new ArbitrageCycleState();
 
+            // Step 0: Get initial H balance from Gate.io
+            var baseAsset = gateIoConfig.Symbol.Split('_')[0];
+            var initialGateIoBalance = await gateIoExchange.GetBalanceAsync(baseAsset);
+            cycleState.InitialGateIoBaseAssetBalance = initialGateIoBalance;
+            FileLogger.LogOther($"[Orchestrator] Stored initial Gate.io {baseAsset} balance: {initialGateIoBalance}");
+
             // LEG 1: Gate.io (BUY limit trailing) -> Bybit (SELL market)
             var arbitrageTrader = new ArbitrageTrader(gateIoExchange, bybitExchange);
-            var leg1SellQuantity = await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes, cycleState);
+            var leg1UsdtResult = await arbitrageTrader.StartAsync(gateIoConfig.Symbol, gateIoConfig.Amount, gateIoConfig.DurationMinutes, cycleState);
 
             FileLogger.LogOther("\n[X7] --- LEG 1 (X1-X7) cycle finished ---");
 
-            if (leg1SellQuantity > 0)
+            if (leg1UsdtResult > 0)
             {
-                FileLogger.LogOther($"[Orchestrator] Leg 1 executed sell quantity on Bybit: {leg1SellQuantity}. Using this for Leg 2.");
+                FileLogger.LogOther($"[Orchestrator] Leg 1 finished with {leg1UsdtResult} USDT. Starting Leg 2.");
                 // LEG 2 (Y1-Y7): Bybit (BUY limit trailing) -> Gate.io (SELL market)
                 FileLogger.LogOther("\n[Y1] --- Starting LEG 2 (Y1-Y7) ---");
-                var bybitLowLatencyWs = new BybitLowLatencyWs(bybitConfig.ApiKey, bybitConfig.ApiSecret);
-                await bybitLowLatencyWs.ConnectAsync();
-
-                var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitLowLatencyWs, (GateIoExchange)gateIoExchange);
-                await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, leg1SellQuantity, bybitConfig.DurationMinutes, cycleState);
+                var reverseArbitrageTrader = new ReverseArbitrageTrader(bybitExchange, gateIoExchange);
+                await reverseArbitrageTrader.StartAsync(bybitConfig.Symbol, leg1UsdtResult, bybitConfig.DurationMinutes, cycleState);
             }
             else
             {

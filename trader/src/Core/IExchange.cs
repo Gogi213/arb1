@@ -24,6 +24,7 @@ namespace TraderBot.Core
         decimal Price { get; }
         decimal Quantity { get; }
         decimal QuoteQuantity { get; }
+        decimal CumulativeQuoteQuantity { get; }
         string Status { get; }
         string? FinishType { get; }
         DateTime? CreateTime { get; }

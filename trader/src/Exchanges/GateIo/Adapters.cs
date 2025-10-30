@@ -19,6 +19,7 @@ namespace TraderBot.Exchanges.GateIo
         public decimal Price => _order.AveragePrice ?? _order.Price ?? 0m;
         public decimal Quantity => _order.QuantityFilled;
         public decimal QuoteQuantity => _order.QuoteQuantityFilled;
+        public decimal CumulativeQuoteQuantity => _order.QuoteQuantityFilled; // Gate.io provides this directly
         public string Status => _order.Event.ToString();
         public string? FinishType => _order.FinishType?.ToString();
         public DateTime? CreateTime => _order.CreateTime;

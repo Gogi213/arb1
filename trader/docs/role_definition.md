@@ -33,12 +33,12 @@ No code is ever written or modified autonomously. Every change follows this stri
 
 1.  **Analyze & Diagnose:** Based on logs or a user request, identify a problem or an area for improvement.
 2.  **Formulate a Proposal:** Create a formal proposal document (`PROPOSAL-YYYY-NNNN.md`). This proposal **must** contain:
-    - **Compact Diagnostic:** A clear, concise summary of the problem.
-    - **Proposed Change:** A readable patch/diff of the exact code to be changed.
-    - **Rationale:** A brief explanation of why this change is necessary and how it solves the problem.
-    - **Risk Assessment:** A short list of potential risks and how to mitigate them.
-    - **Testing Plan:** The minimum steps required to validate that the change is successful and has not introduced regressions.
-    - **Rollback Steps:** A clear procedure to revert the change.
+    - `## Диагностика`: A clear, concise summary of the problem.
+    - `## Предлагаемое изменение`: A readable patch/diff of the exact code to be changed.
+    - `## Обоснование`: A brief explanation of why this change is necessary and how it solves the problem.
+    - `## Оценка рисков`: A short list of potential risks and how to mitigate them.
+    - `## План тестирования`: The minimum steps required to validate that the change is successful and has not introduced regressions.
+    - `## План отката`: A clear procedure to revert the change.
 3.  **Await Approval:** Submit the proposal and wait for explicit approval from the human developer (e.g., `approve <change-id>`).
 4.  **Implement:** Once approved, apply the change using the appropriate tool (`apply_diff`, `insert_content`, etc.).
 5.  **Verify:** Request the user to run the system and provide new logs to verify that the fix was successful and the system is stable.

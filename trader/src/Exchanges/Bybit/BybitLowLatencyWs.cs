@@ -8,7 +8,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json.Nodes;
 using TraderBot.Core;
+using TraderBot.Exchanges.Bybit.Adapters;
 
 namespace TraderBot.Exchanges.Bybit
 {
@@ -37,6 +39,7 @@ namespace TraderBot.Exchanges.Bybit
         // Callbacks for subscriptions
         private Action<IOrderBook>? _orderBookCallback;
         private Action<IOrder>? _orderUpdateCallback;
+        private Action<IBalance>? _balanceUpdateCallback;
 
         // Mapping reqId -> real OrderId from Bybit response
         private readonly Dictionary<string, TaskCompletionSource<string>> _orderIdMapping = new();
@@ -271,6 +274,14 @@ namespace TraderBot.Exchanges.Bybit
             FileLogger.LogWebsocket("[WS-PRIVATE] Sent subscription request for 'order' topic.");
         }
 
+        public async Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
+        {
+            _balanceUpdateCallback = onBalanceUpdate;
+            var subscribeMessage = @"{""op"":""subscribe"",""args"":[""wallet""]}";
+            await SendMessageAsync(_privateWs, _privateSendLock, subscribeMessage, "PRIVATE");
+            FileLogger.LogWebsocket("[WS-PRIVATE] Sent subscription request for 'wallet' topic.");
+        }
+
         public async Task SubscribeToOrderBookAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
         {
             _orderBookCallback = onOrderBookUpdate;
@@ -312,6 +323,7 @@ namespace TraderBot.Exchanges.Bybit
         {
             _orderBookCallback = null;
             _orderUpdateCallback = null;
+            _balanceUpdateCallback = null;
             await Task.CompletedTask;
         }
 
@@ -452,6 +464,10 @@ namespace TraderBot.Exchanges.Bybit
                             {
                                 HandleOrderBookUpdate(root);
                             }
+                            else if (topicValue == "wallet")
+                            {
+                                HandleBalanceUpdate(root);
+                            }
                         }
                     }
                     catch (JsonException ex)
@@ -495,6 +511,32 @@ namespace TraderBot.Exchanges.Bybit
             catch (Exception ex)
             {
                 FileLogger.LogWebsocket($"[WS-PRIVATE-ERROR] Error in HandleOrderUpdate: {ex.Message}");
+            }
+        }
+
+        private void HandleBalanceUpdate(JsonElement root)
+        {
+            if (_balanceUpdateCallback == null) return;
+
+            try
+            {
+                if (root.TryGetProperty("data", out var dataArray) && dataArray.GetArrayLength() > 0)
+                {
+                    var accountData = dataArray[0];
+                    if (accountData.TryGetProperty("coin", out var coinArray))
+                    {
+                        foreach (var coinData in coinArray.EnumerateArray())
+                        {
+                            var balanceUpdate = new BybitBalanceUpdate(coinData);
+                            var adapter = new BybitBalanceAdapter(balanceUpdate);
+                            _balanceUpdateCallback(adapter);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogWebsocket($"[WS-PRIVATE-ERROR] Error in HandleBalanceUpdate: {ex.Message}");
             }
         }
 
@@ -676,7 +718,9 @@ namespace TraderBot.Exchanges.Bybit
         public decimal Price { get; }
         public decimal Quantity { get; }
         public decimal CumulativeQuantityFilled { get; }
+        public decimal CumulativeExecutedValue { get; }
         public decimal QuoteQuantity { get; }
+        public decimal CumulativeQuoteQuantity { get; }
         public string Status { get; }
         public string? FinishType { get; }
         public DateTime? CreateTime { get; }
@@ -684,14 +728,31 @@ namespace TraderBot.Exchanges.Bybit
 
         public BybitOrderUpdate(JsonElement data)
         {
+            FileLogger.LogOther($"[DEBUG_PARSE] --- Start Parsing BybitOrderUpdate ---");
+            FileLogger.LogOther($"[DEBUG_PARSE] Raw JSON: {data.ToString()}");
+
             Symbol = data.TryGetProperty("symbol", out var sym) ? sym.GetString() ?? "" : "";
             OrderId = data.TryGetProperty("orderId", out var oid) ? long.Parse(oid.GetString() ?? "0") : 0;
-            Price = data.TryGetProperty("price", out var pr) && decimal.TryParse(pr.GetString(), out var price) ? price : 0;
-            Quantity = data.TryGetProperty("qty", out var q) && decimal.TryParse(q.GetString(), out var qty) ? qty : 0;
-            CumulativeQuantityFilled = data.TryGetProperty("cumExecQty", out var cq) && decimal.TryParse(cq.GetString(), out var cqty) ? cqty : 0;
-            QuoteQuantity = data.TryGetProperty("cumExecValue", out var cev) && decimal.TryParse(cev.GetString(), out var ceValue) ? ceValue : 0;
+            Price = data.TryGetProperty("price", out var pr) && decimal.TryParse(pr.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var price) ? price : 0;
+            Quantity = data.TryGetProperty("qty", out var q) && decimal.TryParse(q.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var qty) ? qty : 0;
+            CumulativeQuantityFilled = data.TryGetProperty("cumExecQty", out var cq) && decimal.TryParse(cq.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var cqty) ? cqty : 0;
+            
+            var rawCumExecValue = "NOT_FOUND";
+            if (data.TryGetProperty("cumExecValue", out var cev))
+            {
+                rawCumExecValue = cev.GetString();
+            }
+            var didParse = decimal.TryParse(rawCumExecValue, NumberStyles.Any, CultureInfo.InvariantCulture, out var ceValue);
+            FileLogger.LogOther($"[DEBUG_PARSE] Field 'cumExecValue': Raw='{rawCumExecValue}', ParsedOK={didParse}, Value={ceValue}");
+            CumulativeExecutedValue = didParse ? ceValue : 0;
+
+            QuoteQuantity = CumulativeExecutedValue;
+            CumulativeQuoteQuantity = CumulativeExecutedValue;
             Status = data.TryGetProperty("orderStatus", out var st) ? st.GetString() ?? "" : "";
             FinishType = Status == "Filled" ? "Filled" : Status == "Cancelled" ? "Cancelled" : null;
+
+            FileLogger.LogOther($"[DEBUG_PARSE] Parsed Status: {Status}");
+            FileLogger.LogOther($"[DEBUG_PARSE] --- End Parsing ---");
 
             if (data.TryGetProperty("createdTime", out var ct) && long.TryParse(ct.GetString(), out var createMs))
             {
@@ -702,6 +763,20 @@ namespace TraderBot.Exchanges.Bybit
             {
                 UpdateTime = DateTimeOffset.FromUnixTimeMilliseconds(updateMs).UtcDateTime;
             }
+        }
+    }
+
+    public class BybitBalanceUpdate : IBalance
+    {
+        public string Asset { get; }
+        public decimal Available { get; }
+        public decimal Total { get; }
+
+        public BybitBalanceUpdate(JsonElement coinData)
+        {
+            Asset = coinData.TryGetProperty("coin", out var asset) ? asset.GetString() ?? "" : "";
+            Available = coinData.TryGetProperty("walletBalance", out var bal) && decimal.TryParse(bal.GetString(), CultureInfo.InvariantCulture, out var available) ? available : 0;
+            Total = coinData.TryGetProperty("walletBalance", out var totalBal) && decimal.TryParse(totalBal.GetString(), CultureInfo.InvariantCulture, out var total) ? total : 0;
         }
     }
 

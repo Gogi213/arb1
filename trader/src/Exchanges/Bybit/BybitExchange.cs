@@ -106,9 +106,7 @@ namespace TraderBot.Exchanges.Bybit
         public async Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
         {
             if (_lowLatencyWs == null) throw new InvalidOperationException("Client not initialized");
-            // TODO: Implement balance updates subscription
-            await Task.CompletedTask;
-            FileLogger.LogOther("[Bybit] Balance updates subscription not yet implemented");
+            await _lowLatencyWs.SubscribeToBalanceUpdatesAsync(onBalanceUpdate);
         }
 
         public async Task UnsubscribeAsync()

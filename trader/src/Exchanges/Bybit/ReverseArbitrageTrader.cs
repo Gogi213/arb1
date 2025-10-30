@@ -10,7 +10,7 @@ namespace TraderBot.Exchanges.Bybit
     /// </summary>
     public class ReverseArbitrageTrader : ITrader
     {
-        private readonly BybitLowLatencyWs _bybitWs;
+        private readonly IExchange _bybitExchange;
         private readonly IExchange _gateIoExchange;
         private readonly BybitTrailingTrader _bybitTrailingTrader;
         private readonly SemaphoreSlim _sellLock = new SemaphoreSlim(1, 1);
@@ -18,18 +18,22 @@ namespace TraderBot.Exchanges.Bybit
         private bool _sellConfirmed;
         private readonly TaskCompletionSource<decimal> _arbitrageCycleTcs = new TaskCompletionSource<decimal>();
         private string? _symbol;
+        private string? _baseAsset;
         private DateTime? _buyFilledServerTime;
         private DateTime? _buyFilledLocalTime;
         private int _sellBasePrecision;
         private decimal _lastExecutedSellQuantity = 0;
         private decimal _amount;
         private ArbitrageCycleState _state;
+        private TaskCompletionSource<decimal> _balanceTcs = new();
+        private Timer? _balanceDebounceTimer;
+        private decimal _lastReceivedBalance;
 
-        public ReverseArbitrageTrader(BybitLowLatencyWs bybitWs, IExchange gateIoExchange)
+        public ReverseArbitrageTrader(IExchange bybitExchange, IExchange gateIoExchange)
         {
-            _bybitWs = bybitWs ?? throw new ArgumentNullException(nameof(bybitWs));
+            _bybitExchange = bybitExchange ?? throw new ArgumentNullException(nameof(bybitExchange));
             _gateIoExchange = gateIoExchange ?? throw new ArgumentNullException(nameof(gateIoExchange));
-            _bybitTrailingTrader = new BybitTrailingTrader(_bybitWs);
+            _bybitTrailingTrader = new BybitTrailingTrader(_bybitExchange);
         }
 
         public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)
@@ -37,14 +41,18 @@ namespace TraderBot.Exchanges.Bybit
             _symbol = symbol;
             _amount = amount;
             _state = state;
+            _baseAsset = symbol.Split('_')[0];
             FileLogger.LogOther($"[Y1] --- Starting ReverseArbitrageTrader for {symbol} ---");
             FileLogger.LogOther($"[Y1] Buy on: Bybit (low-latency WS), Sell on: {_gateIoExchange.GetType().Name}");
 
-            // Subscribe to Gate.io order updates for sell confirmation
+            // Subscribe to order updates
             _gateIoExchange.SubscribeToOrderUpdatesAsync(HandleSellOrderUpdate);
+            _bybitExchange.SubscribeToBalanceUpdatesAsync(HandleBuyBalanceUpdate);
 
             // Subscribe to fill events from BybitTrailingTrader
             _bybitTrailingTrader.OnOrderFilled += HandleBuyOrderFilled;
+
+            _balanceDebounceTimer = new Timer(OnBalanceDebounceTimer, null, Timeout.Infinite, Timeout.Infinite);
 
             FileLogger.LogOther("[Y1] INIT complete.");
 
@@ -65,7 +73,7 @@ namespace TraderBot.Exchanges.Bybit
 
             // Cancel all open orders
             FileLogger.LogOther($"[Y2] Cancelling all open orders for {bybitSymbol}...");
-            await _bybitWs.CancelAllOrdersAsync(bybitSymbol);
+            await _bybitExchange.CancelAllOrdersAsync(bybitSymbol);
             FileLogger.LogOther("[Y2] All open orders cancelled.");
             FileLogger.LogOther("[Y2] SETUP complete.\n");
 
@@ -95,6 +103,8 @@ namespace TraderBot.Exchanges.Bybit
 
             // Unsubscribe from Gate.io
             await _gateIoExchange.UnsubscribeAsync();
+            _balanceDebounceTimer?.Dispose();
+            await _bybitExchange.UnsubscribeAsync();
 
             FileLogger.LogOther("[Y7] Cleanup finished.");
             FileLogger.LogOther("[Y7] CLEANUP complete.\n");
@@ -134,7 +144,15 @@ namespace TraderBot.Exchanges.Bybit
                     FileLogger.LogOther($"[Latency] Lock wait time: {lockWait:F0}ms");
                 }
 
-                FileLogger.LogOther("[Y4] FILL complete. Trigger: Place market SELL on Gate.io\n");
+                FileLogger.LogOther("[Y4] FILL complete. Waiting for balance stabilization...\n");
+
+                // --- NEW LOGIC: Wait for the actual balance update ---
+                FileLogger.LogOther($"[Y4] Waiting for balance update for asset '{_baseAsset}'...");
+                var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                var actualQuantity = await _balanceTcs.Task.WaitAsync(cancellationTokenSource.Token);
+                _balanceTcs = new TaskCompletionSource<decimal>(); // Re-create for next cycle
+                FileLogger.LogOther($"[Y4] Balance update received. Actual available quantity: {actualQuantity}");
+                // --- END NEW LOGIC ---
 
                 // Y5 MARKET: Place market SELL on Gate.io
                 FileLogger.LogOther("[Y5] --- MARKET Phase ---");
@@ -145,12 +163,9 @@ namespace TraderBot.Exchanges.Bybit
                     ? filledOrder.Symbol.Replace("USDT", "_USDT")
                     : filledOrder.Symbol;
 
-                // Use the actual filled quantity from the Bybit order
-                // var sellQuantity = Math.Round(filledOrder.Quantity, _sellBasePrecision);
-                // Используем количество, сохраненное из Leg 1
                 decimal factor = (decimal)Math.Pow(10, _sellBasePrecision);
-                var sellQuantity = Math.Truncate(_state.GateIoLeg1BuyQuantity * factor) / factor;
-                FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (original from Gate.io Leg 1: {_state.GateIoLeg1BuyQuantity}).");
+                var sellQuantity = Math.Truncate(actualQuantity * factor) / factor;
+                FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (original from Bybit Leg 2: {actualQuantity}).");
 
                 var t2 = DateTime.UtcNow;
                 var sellOrderId = await _gateIoExchange.PlaceOrderAsync(
@@ -184,6 +199,22 @@ namespace TraderBot.Exchanges.Bybit
             {
                 _sellLock.Release();
             }
+        }
+
+        private void HandleBuyBalanceUpdate(IBalance balance)
+        {
+            if (balance.Asset == _baseAsset)
+            {
+                FileLogger.LogOther($"[Balance Update] Asset: {balance.Asset}, Available: {balance.Available}");
+                _lastReceivedBalance = balance.Available;
+                // Reset the timer every time an update comes in
+                _balanceDebounceTimer?.Change(150, Timeout.Infinite);
+            }
+        }
+
+        private void OnBalanceDebounceTimer(object? state)
+        {
+            _balanceTcs.TrySetResult(_lastReceivedBalance);
         }
 
         private async void HandleSellOrderUpdate(IOrder order)

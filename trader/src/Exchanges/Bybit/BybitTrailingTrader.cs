@@ -12,7 +12,7 @@ namespace TraderBot.Exchanges.Bybit
     /// </summary>
     public class BybitTrailingTrader
     {
-        private readonly BybitLowLatencyWs _ws;
+        private readonly IExchange _exchange;
         private long? _orderId;
         private decimal? _currentOrderPrice;
         private decimal _quantity;
@@ -26,9 +26,9 @@ namespace TraderBot.Exchanges.Bybit
 
         public event Action<IOrder>? OnOrderFilled;
 
-        public BybitTrailingTrader(BybitLowLatencyWs ws)
+        public BybitTrailingTrader(IExchange exchange)
         {
-            _ws = ws ?? throw new ArgumentNullException(nameof(ws));
+            _exchange = exchange ?? throw new ArgumentNullException(nameof(exchange));
         }
 
         public async Task StartAsync(string symbol, decimal amount, decimal dollarDepth)
@@ -38,16 +38,16 @@ namespace TraderBot.Exchanges.Bybit
             FileLogger.LogOther($"[BybitTrailing] Starting for {symbol}, amount=${amount}, depth=${dollarDepth}");
 
             // Fetch filters directly
-            var filters = await _ws.GetSymbolFiltersAsync(symbol);
+            var filters = await _exchange.GetSymbolFiltersAsync(symbol);
             _tickSize = filters.tickSize;
             _basePrecision = (int)filters.basePrecision;
             FileLogger.LogOther($"[BybitTrailing] Filters: TickSize={_tickSize}, BasePrecision={_basePrecision}");
 
             // Subscribe to order updates to detect fills
-            await _ws.SubscribeToOrderUpdatesAsync(HandleOrderUpdate);
+            await _exchange.SubscribeToOrderUpdatesAsync(HandleOrderUpdate);
 
             // Subscribe to order book for trailing
-            await _ws.SubscribeToOrderBookAsync(symbol, async orderBook =>
+            await _exchange.SubscribeToOrderBookUpdatesAsync(symbol, async orderBook =>
             {
                 if (_isStopped || _isFilled) return;
 
@@ -75,11 +75,12 @@ namespace TraderBot.Exchanges.Bybit
                     if (_orderId == null)
                     {
                         FileLogger.LogOther($"[BybitTrailing] Best Bid: {bestBid:F5}. Placing BUY order at {newTargetPrice:F5}");
-                        _quantity = Math.Round(amount, _basePrecision);
+                        // Convert amount in USDT to quantity in base asset (H)
+                        _quantity = Math.Round(amount / newTargetPrice, _basePrecision);
 
-                        var placedOrderIdStr = await _ws.PlaceLimitOrderAsync(symbol, "Buy", _quantity, newTargetPrice);
+                        var placedOrderId = await _exchange.PlaceOrderAsync(symbol, OrderSide.Buy, NewOrderType.Limit, quantity: _quantity, price: newTargetPrice);
 
-                        if (placedOrderIdStr != null && long.TryParse(placedOrderIdStr, out var placedOrderId))
+                        if (placedOrderId.HasValue)
                         {
                             _orderId = placedOrderId;
                             _currentOrderPrice = newTargetPrice;
@@ -97,7 +98,7 @@ namespace TraderBot.Exchanges.Bybit
 
                         FileLogger.LogOther($"[BybitTrailing] Price changed. Best Bid: {bestBid:F5}. Moving order to {newTargetPrice:F5}");
                         var modifyStart = DateTime.UtcNow;
-                        var success = await _ws.ModifyOrderAsync(symbol, _orderId.Value.ToString(), newTargetPrice, _quantity);
+                        var success = await _exchange.ModifyOrderAsync(symbol, _orderId.Value, newTargetPrice, _quantity);
                         var modifyEnd = DateTime.UtcNow;
                         var modifyLatency = (modifyEnd - modifyStart).TotalMilliseconds;
 

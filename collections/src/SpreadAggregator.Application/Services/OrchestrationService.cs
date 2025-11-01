@@ -63,7 +63,8 @@ public class OrchestrationService
             tasks.Add(ProcessExchange(exchangeClient, exchangeName));
         }
 
-        await Task.WhenAll(tasks);
+        // Do not await long-running tasks, let them run in the background.
+        // await Task.WhenAll(tasks);
     }
 
     private async Task ProcessExchange(IExchangeClient exchangeClient, string exchangeName)
@@ -132,7 +133,8 @@ public class OrchestrationService
         Console.WriteLine($"[{exchangeName}] Awaiting {tasks.Count} subscription tasks...");
         try
         {
-            await Task.WhenAll(tasks);
+            // Do not await long-running tasks, let them run in the background.
+            // await Task.WhenAll(tasks);
             Console.WriteLine($"[{exchangeName}] All subscription tasks completed successfully");
         }
         catch (Exception ex)

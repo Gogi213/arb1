@@ -164,12 +164,22 @@ public class ParquetDataWriter : IDataWriter
         var tradeBuffers = new Dictionary<string, List<TradeData>>();
         var batchSize = _configuration.GetValue<int>("Recording:BatchSize", 1000);
 
+        int? lastHour = null;
+
         try
         {
             await foreach (var data in _channelReader.ReadAllAsync(cancellationToken))
             {
                 try
                 {
+                    var currentHour = data.Timestamp.Hour;
+                    if (lastHour.HasValue && lastHour != currentHour)
+                    {
+                        // Hour has changed, flush all buffers
+                        await FlushAllBuffersAsync(spreadBuffers, tradeBuffers);
+                    }
+                    lastHour = currentHour;
+
                     var hourlyPartitionDir = Path.Combine(dataRoot,
                         $"exchange={data.Exchange}",
                         $"symbol={data.Symbol}",

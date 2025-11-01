@@ -14,7 +14,7 @@ public class OkxExchangeClient : IExchangeClient
     public string ExchangeName => "OKX";
     private readonly OKXRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onData;
 
     public OkxExchangeClient()
     {
@@ -62,6 +62,12 @@ public class OkxExchangeClient : IExchangeClient
         }
 
         await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        // Not implemented for this exchange yet.
+        return Task.CompletedTask;
     }
 
     private class ManagedConnection

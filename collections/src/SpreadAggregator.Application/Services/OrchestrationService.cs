@@ -20,10 +20,10 @@ public class OrchestrationService
     private readonly VolumeFilter _volumeFilter;
     private readonly IConfiguration _configuration;
     private readonly IEnumerable<IExchangeClient> _exchangeClients;
-    private readonly Channel<SpreadData> _rawDataChannel;
-    private readonly IDataWriter _dataWriter;
+    private readonly Channel<MarketData> _rawDataChannel;
+    private readonly IDataWriter? _dataWriter;
 
-    public ChannelReader<SpreadData> RawDataChannelReader => _rawDataChannel.Reader;
+    public ChannelReader<MarketData> RawDataChannelReader => _rawDataChannel.Reader;
 
     public OrchestrationService(
         IWebSocketServer webSocketServer,
@@ -31,7 +31,7 @@ public class OrchestrationService
         IConfiguration configuration,
         VolumeFilter volumeFilter,
         IEnumerable<IExchangeClient> exchangeClients,
-        Channel<SpreadData> rawDataChannel,
+        Channel<MarketData> rawDataChannel,
         IDataWriter? dataWriter = null)
     {
         _webSocketServer = webSocketServer;
@@ -87,31 +87,47 @@ public class OrchestrationService
             return;
         }
 
-        await exchangeClient.SubscribeToTickersAsync(filteredSymbols, async spreadData =>
+        var tasks = new List<Task>();
+        var enableTickers = _configuration.GetValue<bool>("StreamSettings:EnableTickers", true);
+        var enableTrades = _configuration.GetValue<bool>("StreamSettings:EnableTrades", true);
+
+        if (enableTickers)
         {
-            if (spreadData.BestAsk == 0) return;
-
-            var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
-
-            var normalizedSpreadData = new SpreadData
+            tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbols, async spreadData =>
             {
-                Exchange = spreadData.Exchange,
-                Symbol = normalizedSymbol,
-                BestBid = spreadData.BestBid,
-                BestAsk = spreadData.BestAsk,
-                SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk),
-                MinVolume = minVolume,
-                MaxVolume = maxVolume,
-                Timestamp = DateTime.UtcNow
-            };
+                if (spreadData.BestAsk == 0) return;
 
-            // Публикуем данные в канал
-            await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
+                var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
+                var normalizedSpreadData = new SpreadData
+                {
+                    Exchange = spreadData.Exchange,
+                    Symbol = normalizedSymbol,
+                    BestBid = spreadData.BestBid,
+                    BestAsk = spreadData.BestAsk,
+                    SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk),
+                    MinVolume = minVolume,
+                    MaxVolume = maxVolume,
+                    Timestamp = DateTime.UtcNow
+                };
+                await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
+                var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };
+                var message = JsonSerializer.Serialize(wrapper);
+                await _webSocketServer.BroadcastRealtimeAsync(message);
+            }));
+        }
 
-            // Временная отправка сырых данных в существующий WebSocket для обратной совместимости с python-клиентом
-            var message = JsonSerializer.Serialize(normalizedSpreadData);
-            _webSocketServer.BroadcastRealtimeAsync(message);
-        });
+        if (enableTrades)
+        {
+            tasks.Add(exchangeClient.SubscribeToTradesAsync(filteredSymbols, async tradeData =>
+            {
+                await _rawDataChannel.Writer.WriteAsync(tradeData);
+                var wrapper = new WebSocketMessage { MessageType = "Trade", Payload = tradeData };
+                var message = JsonSerializer.Serialize(wrapper);
+                await _webSocketServer.BroadcastRealtimeAsync(message);
+            }));
+        }
+
+        await Task.WhenAll(tasks);
     }
 
 }

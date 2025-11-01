@@ -44,11 +44,27 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
 
     public Task BroadcastRealtimeAsync(string message)
     {
+        List<IWebSocketConnection> socketsSnapshot;
         lock (_lock)
         {
-            var tasks = _allSockets.Where(s => s.IsAvailable).Select(s => s.Send(message));
-            return Task.WhenAll(tasks);
+           // Take a snapshot to avoid holding the lock during I/O operations
+           socketsSnapshot = _allSockets.ToList();
         }
+
+        var tasks = new List<Task>();
+        foreach (var socket in socketsSnapshot)
+        {
+            try
+            {
+                if (socket.IsAvailable)
+                    tasks.Add(socket.Send(message));
+            }
+            catch (ObjectDisposedException)
+            {
+                // Expected exception if socket closed during broadcast. Ignore.
+            }
+        }
+        return Task.WhenAll(tasks);
     }
 
     public void Dispose()

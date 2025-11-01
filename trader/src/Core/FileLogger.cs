@@ -8,6 +8,7 @@ namespace TraderBot.Core
     {
         private static readonly string WebsocketLogPath = Path.Combine("trader", "logs", "websocket.txt");
         private static readonly string OtherLogPath = Path.Combine("trader", "logs", "other.txt");
+        private static readonly string SpreadLogPath = Path.Combine("trader", "logs", "spread.txt");
         private static readonly object _lock = new object();
 
         static FileLogger()
@@ -17,6 +18,7 @@ namespace TraderBot.Core
             // Clear logs on start
             File.WriteAllText(WebsocketLogPath, string.Empty);
             File.WriteAllText(OtherLogPath, string.Empty);
+            File.WriteAllText(SpreadLogPath, string.Empty);
         }
 
         public static void LogWebsocket(string message)
@@ -27,6 +29,11 @@ namespace TraderBot.Core
         public static void LogOther(string message)
         {
             Log(OtherLogPath, message);
+        }
+
+        public static void LogSpread(string message)
+        {
+            Log(SpreadLogPath, message);
         }
 
         private static void Log(string path, string message)

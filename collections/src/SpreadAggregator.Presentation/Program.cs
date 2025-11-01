@@ -56,8 +56,8 @@ class Program
 
                 services.AddSingleton<SpreadCalculator>();
                 services.AddSingleton<VolumeFilter>();
-                services.AddSingleton(Channel.CreateUnbounded<SpreadData>());
-                services.AddSingleton(sp => sp.GetRequiredService<Channel<SpreadData>>().Reader);
+                services.AddSingleton(Channel.CreateUnbounded<MarketData>());
+                services.AddSingleton(sp => sp.GetRequiredService<Channel<MarketData>>().Reader);
 
                 // Register all exchange clients
                 services.AddSingleton<IExchangeClient, BinanceExchangeClient>();

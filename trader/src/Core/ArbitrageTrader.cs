@@ -101,6 +101,8 @@ namespace TraderBot.Core
 
                 FileLogger.LogOther($"[Arbitrage] Buy order {filledOrder.OrderId} filled on {_buyExchange.GetType().Name}!");
                 FileLogger.LogOther($"[Arbitrage] Buy fill server time: {buyFillServerTimeStr}, Handler entered: {t0:HH:mm:ss.fff}");
+                _state.Leg1GateBuyFilledQuantity = filledOrder.Quantity;
+                FileLogger.LogOther($"[Arbitrage] Storing Leg 1 filled quantity in state: {filledOrder.Quantity}");
                 
                 // --- NEW LOGIC: Wait for the actual balance update ---
 

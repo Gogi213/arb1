@@ -1,0 +1,88 @@
+=== OVERVIEW ===
+Total opportunities: 3,045
+
+Columns: ['symbol', 'timestamp', 'leader', 'follower', 'leader_price', 'follower_price_before', 'follower_price_after', 'potential_profit_pct', 'lag_window_ms']
+
+=== BASIC STATS ===
+Profit range: 0.100% - 6.304%
+Mean profit: 0.951%
+Median profit: 0.398%
+
+=== BY LEADER ===
+shape: (2, 4)
+┌─────────┬───────┬────────────┬────────────┐
+│ leader  ┆ count ┆ avg_profit ┆ max_profit │
+│ ---     ┆ ---   ┆ ---        ┆ ---        │
+│ str     ┆ u32   ┆ f64        ┆ f64        │
+╞═════════╪═══════╪════════════╪════════════╡
+│ Binance ┆ 2280  ┆ 1.143662   ┆ 6.304255   │
+│ GateIo  ┆ 765   ┆ 0.376912   ┆ 3.159117   │
+└─────────┴───────┴────────────┴────────────┘
+
+=== BY SYMBOL (Top 10) ===
+shape: (10, 4)
+┌────────────┬───────┬────────────┬────────────┐
+│ symbol     ┆ count ┆ avg_profit ┆ max_profit │
+│ ---        ┆ ---   ┆ ---        ┆ ---        │
+│ str        ┆ u32   ┆ f64        ┆ f64        │
+╞════════════╪═══════╪════════════╪════════════╡
+│ FLMUSDT    ┆ 1497  ┆ 0.655808   ┆ 3.272302   │
+│ KDAUSDT    ┆ 802   ┆ 1.649302   ┆ 3.750781   │
+│ GIGGLEUSDT ┆ 240   ┆ 0.548323   ┆ 2.762214   │
+│ WIFUSDT    ┆ 209   ┆ 1.194985   ┆ 1.414427   │
+│ IOUSDT     ┆ 22    ┆ 0.229036   ┆ 1.320132   │
+│ AIXBTUSDT  ┆ 21    ┆ 2.580134   ┆ 6.304255   │
+│ LQTYUSDT   ┆ 20    ┆ 0.275009   ┆ 1.194539   │
+│ FFUSDT     ┆ 16    ┆ 1.052117   ┆ 1.830149   │
+│ ENSOUSDT   ┆ 15    ┆ 0.393338   ┆ 2.671312   │
+│ AVNTUSDT   ┆ 14    ┆ 0.634397   ┆ 2.560919   │
+└────────────┴───────┴────────────┴────────────┘
+
+=== TOP 20 BEST ===
+shape: (20, 4)
+┌───────────┬─────────┬──────────┬──────────────────────┐
+│ symbol    ┆ leader  ┆ follower ┆ potential_profit_pct │
+│ ---       ┆ ---     ┆ ---      ┆ ---                  │
+│ str       ┆ str     ┆ str      ┆ f64                  │
+╞═══════════╪═════════╪══════════╪══════════════════════╡
+│ AIXBTUSDT ┆ Binance ┆ GateIo   ┆ 6.304255             │
+│ AIXBTUSDT ┆ Binance ┆ GateIo   ┆ 6.275793             │
+│ AIXBTUSDT ┆ Binance ┆ GateIo   ┆ 6.275793             │
+│ AIXBTUSDT ┆ Binance ┆ GateIo   ┆ 6.275793             │
+│ AIXBTUSDT ┆ Binance ┆ GateIo   ┆ 6.275793             │
+│ …         ┆ …       ┆ …        ┆ …                    │
+│ KDAUSDT   ┆ Binance ┆ GateIo   ┆ 3.694969             │
+│ KDAUSDT   ┆ Binance ┆ GateIo   ┆ 3.694969             │
+│ KDAUSDT   ┆ Binance ┆ GateIo   ┆ 3.694969             │
+│ KDAUSDT   ┆ Binance ┆ GateIo   ┆ 3.694969             │
+│ KDAUSDT   ┆ Binance ┆ GateIo   ┆ 3.694969             │
+└───────────┴─────────┴──────────┴──────────────────────┘
+
+=== PROFIT DISTRIBUTION ===
+0.1% - 0.2%: 721 opportunities
+0.2% - 0.3%: 269 opportunities
+0.3% - 0.5%: 793 opportunities
+0.5% - 1.0%: 344 opportunities
+1.0% - 2.0%: 562 opportunities
+2.0% - 100.0%: 356 opportunities
+
+=== SAMPLE DATA ===
+shape: (5, 9)
+┌──────────┬────────────┬─────────┬──────────┬───┬────────────┬────────────┬───────────┬───────────┐
+│ symbol   ┆ timestamp  ┆ leader  ┆ follower ┆ … ┆ follower_p ┆ follower_p ┆ potential ┆ lag_windo │
+│ ---      ┆ ---        ┆ ---     ┆ ---      ┆   ┆ rice_befor ┆ rice_after ┆ _profit_p ┆ w_ms      │
+│ str      ┆ i64        ┆ str     ┆ str      ┆   ┆ e          ┆ ---        ┆ ct        ┆ ---       │
+│          ┆            ┆         ┆          ┆   ┆ ---        ┆ f64        ┆ ---       ┆ i64       │
+│          ┆            ┆         ┆          ┆   ┆ f64        ┆            ┆ f64       ┆           │
+╞══════════╪════════════╪═════════╪══════════╪═══╪════════════╪════════════╪═══════════╪═══════════╡
+│ ENSOUSDT ┆ 1761890400 ┆ Binance ┆ GateIo   ┆ … ┆ 1.4796     ┆ 1.4817     ┆ 0.14193   ┆ 500       │
+│          ┆ 619        ┆         ┆          ┆   ┆            ┆            ┆           ┆           │
+│ ENSOUSDT ┆ 1761896330 ┆ Binance ┆ GateIo   ┆ … ┆ 1.4451     ┆ 1.4404     ┆ 0.325237  ┆ 500       │
+│          ┆ 045        ┆         ┆          ┆   ┆            ┆            ┆           ┆           │
+│ ENSOUSDT ┆ 1761904235 ┆ Binance ┆ GateIo   ┆ … ┆ 1.4631     ┆ 1.465      ┆ 0.129861  ┆ 500       │
+│          ┆ 525        ┆         ┆          ┆   ┆            ┆            ┆           ┆           │
+│ ENSOUSDT ┆ 1761908165 ┆ Binance ┆ GateIo   ┆ … ┆ 1.4637     ┆ 1.4246     ┆ 2.671312  ┆ 500       │
+│          ┆ 654        ┆         ┆          ┆   ┆            ┆            ┆           ┆           │
+│ ENSOUSDT ┆ 1761878473 ┆ GateIo  ┆ Binance  ┆ … ┆ 1.54       ┆ 1.538      ┆ 0.12987   ┆ 500       │
+│          ┆ 617        ┆         ┆          ┆   ┆            ┆            ┆           ┆           │
+└──────────┴────────────┴─────────┴──────────┴───┴────────────┴────────────┴───────────┴───────────┘

@@ -163,9 +163,9 @@ namespace TraderBot.Exchanges.Bybit
                     ? filledOrder.Symbol.Replace("USDT", "_USDT")
                     : filledOrder.Symbol;
 
-                decimal factor = (decimal)Math.Pow(10, _sellBasePrecision);
-                var sellQuantity = Math.Truncate(actualQuantity * factor) / factor;
-                FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (original from Bybit Leg 2: {actualQuantity}).");
+                // Use the precise filled quantity from the Leg 1 Gate.io buy order
+                var sellQuantity = _state.Leg1GateBuyFilledQuantity;
+                FileLogger.LogOther($"[Y5] Immediately selling {sellQuantity} on GateIoExchange (from State.Leg1GateBuyFilledQuantity).");
 
                 var t2 = DateTime.UtcNow;
                 var sellOrderId = await _gateIoExchange.PlaceOrderAsync(

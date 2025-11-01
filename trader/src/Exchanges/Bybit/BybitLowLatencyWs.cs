@@ -728,31 +728,16 @@ namespace TraderBot.Exchanges.Bybit
 
         public BybitOrderUpdate(JsonElement data)
         {
-            FileLogger.LogOther($"[DEBUG_PARSE] --- Start Parsing BybitOrderUpdate ---");
-            FileLogger.LogOther($"[DEBUG_PARSE] Raw JSON: {data.ToString()}");
-
             Symbol = data.TryGetProperty("symbol", out var sym) ? sym.GetString() ?? "" : "";
             OrderId = data.TryGetProperty("orderId", out var oid) ? long.Parse(oid.GetString() ?? "0") : 0;
-            Price = data.TryGetProperty("price", out var pr) && decimal.TryParse(pr.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var price) ? price : 0;
-            Quantity = data.TryGetProperty("qty", out var q) && decimal.TryParse(q.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var qty) ? qty : 0;
-            CumulativeQuantityFilled = data.TryGetProperty("cumExecQty", out var cq) && decimal.TryParse(cq.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var cqty) ? cqty : 0;
-            
-            var rawCumExecValue = "NOT_FOUND";
-            if (data.TryGetProperty("cumExecValue", out var cev))
-            {
-                rawCumExecValue = cev.GetString();
-            }
-            var didParse = decimal.TryParse(rawCumExecValue, NumberStyles.Any, CultureInfo.InvariantCulture, out var ceValue);
-            FileLogger.LogOther($"[DEBUG_PARSE] Field 'cumExecValue': Raw='{rawCumExecValue}', ParsedOK={didParse}, Value={ceValue}");
-            CumulativeExecutedValue = didParse ? ceValue : 0;
-
+            Price = data.TryGetProperty("price", out var pr) && decimal.TryParse(pr.GetString(), out var price) ? price : 0;
+            Quantity = data.TryGetProperty("qty", out var q) && decimal.TryParse(q.GetString(), out var qty) ? qty : 0;
+            CumulativeQuantityFilled = data.TryGetProperty("cumExecQty", out var cq) && decimal.TryParse(cq.GetString(), out var cqty) ? cqty : 0;
+            CumulativeExecutedValue = data.TryGetProperty("cumExecValue", out var cev) && decimal.TryParse(cev.GetString(), NumberStyles.Any, CultureInfo.InvariantCulture, out var ceValue) ? ceValue : 0;
             QuoteQuantity = CumulativeExecutedValue;
             CumulativeQuoteQuantity = CumulativeExecutedValue;
             Status = data.TryGetProperty("orderStatus", out var st) ? st.GetString() ?? "" : "";
             FinishType = Status == "Filled" ? "Filled" : Status == "Cancelled" ? "Cancelled" : null;
-
-            FileLogger.LogOther($"[DEBUG_PARSE] Parsed Status: {Status}");
-            FileLogger.LogOther($"[DEBUG_PARSE] --- End Parsing ---");
 
             if (data.TryGetProperty("createdTime", out var ct) && long.TryParse(ct.GetString(), out var createMs))
             {

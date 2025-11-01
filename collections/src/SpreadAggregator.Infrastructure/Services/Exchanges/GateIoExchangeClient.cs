@@ -14,7 +14,8 @@ public class GateIoExchangeClient : IExchangeClient
     public string ExchangeName => "GateIo";
     private readonly GateIoRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onTickerData;
+    private Action<TradeData>? _onTradeData;
 
     public GateIoExchangeClient()
     {
@@ -39,16 +40,28 @@ public class GateIoExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        _onData = onData;
+        _onTickerData = onData;
+        await SetupConnections(symbols);
+    }
 
-        foreach (var connection in _connections)
+    public async Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        _onTradeData = onData;
+        await SetupConnections(symbols);
+    }
+
+    private async Task SetupConnections(IEnumerable<string> symbols)
+    {
+        if (_connections.Any())
         {
-            await connection.StopAsync();
+            foreach (var connection in _connections)
+            {
+                await connection.StopAsync();
+            }
+            _connections.Clear();
         }
-        _connections.Clear();
 
         var symbolsList = symbols.ToList();
-        // Original code used a batch size of 10. We'll use 20% of that.
         const int chunkSize = 30;
 
         for (int i = 0; i < symbolsList.Count; i += chunkSize)
@@ -56,7 +69,7 @@ public class GateIoExchangeClient : IExchangeClient
             var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
             if (chunk.Any())
             {
-                var connection = new ManagedConnection(chunk, _onData);
+                var connection = new ManagedConnection(chunk, _onTickerData, _onTradeData);
                 _connections.Add(connection);
             }
         }
@@ -67,14 +80,16 @@ public class GateIoExchangeClient : IExchangeClient
     private class ManagedConnection
     {
         private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
+        private readonly Action<SpreadData>? _onTickerData;
+        private readonly Action<TradeData>? _onTradeData;
         private readonly GateIoSocketClient _socketClient;
         private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
 
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public ManagedConnection(List<string> symbols, Action<SpreadData>? onTickerData, Action<TradeData>? onTradeData)
         {
             _symbols = symbols;
-            _onData = onData;
+            _onTickerData = onTickerData;
+            _onTradeData = onTradeData;
             _socketClient = new GateIoSocketClient();
         }
 
@@ -95,26 +110,56 @@ public class GateIoExchangeClient : IExchangeClient
 
             await _socketClient.SpotApi.UnsubscribeAllAsync();
 
-            var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
+            if (_onTickerData != null)
             {
-                _onData(new SpreadData
+                var tickerResult = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
                 {
-                    Exchange = "GateIo",
-                    Symbol = data.Data.Symbol,
-                    BestBid = data.Data.BestBidPrice,
-                    BestAsk = data.Data.BestAskPrice
+                    _onTickerData.Invoke(new SpreadData
+                    {
+                        Exchange = "GateIo",
+                        Symbol = data.Data.Symbol,
+                        BestBid = data.Data.BestBidPrice,
+                        BestAsk = data.Data.BestAskPrice
+                    });
                 });
-            });
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [GateIo] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
+                if (!tickerResult.Success)
+                {
+                    Console.WriteLine($"[ERROR] [GateIo] Failed to subscribe to ticker chunk: {tickerResult.Error}");
+                }
+                else
+                {
+                    Console.WriteLine($"[GateIo] Successfully subscribed to ticker chunk starting with {_symbols.FirstOrDefault()}.");
+                    tickerResult.Data.ConnectionLost += HandleConnectionLost;
+                    tickerResult.Data.ConnectionRestored += (t) => Console.WriteLine($"[GateIo] Ticker connection restored after {t}.");
+                }
             }
-            else
+
+            if (_onTradeData != null)
             {
-                Console.WriteLine($"[GateIo] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[GateIo] Connection restored for chunk after {t}.");
+                var tradeResult = await _socketClient.SpotApi.SubscribeToTradeUpdatesAsync(_symbols, data =>
+                {
+                    _onTradeData.Invoke(new TradeData
+                    {
+                        Exchange = "GateIo",
+                        Symbol = data.Data.Symbol,
+                        Price = data.Data.Price,
+                        Quantity = data.Data.Quantity,
+                        Side = data.Data.Side.ToString(),
+                        Timestamp = data.Data.CreateTime
+                    });
+                });
+
+                if (!tradeResult.Success)
+                {
+                    Console.WriteLine($"[ERROR] [GateIo] Failed to subscribe to trade chunk: {tradeResult.Error}");
+                }
+                else
+                {
+                    Console.WriteLine($"[GateIo] Successfully subscribed to trade chunk starting with {_symbols.FirstOrDefault()}.");
+                    tradeResult.Data.ConnectionLost += HandleConnectionLost;
+                    tradeResult.Data.ConnectionRestored += (t) => Console.WriteLine($"[GateIo] Trade connection restored after {t}.");
+                }
             }
         }
 

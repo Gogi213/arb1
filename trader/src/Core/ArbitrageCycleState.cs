@@ -2,6 +2,7 @@ namespace TraderBot.Core
 {
     public class ArbitrageCycleState
     {
+        public decimal Leg1GateBuyFilledQuantity { get; set; }
         public decimal GateIoLeg1BuyQuantity { get; set; }
 
         /// <summary>

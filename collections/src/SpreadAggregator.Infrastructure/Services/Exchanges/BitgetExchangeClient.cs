@@ -14,7 +14,7 @@ public class BitgetExchangeClient : IExchangeClient
     public string ExchangeName => "Bitget";
     private readonly BitgetRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onData;
 
     public BitgetExchangeClient()
     {
@@ -61,6 +61,12 @@ public class BitgetExchangeClient : IExchangeClient
         }
 
         await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        // Not implemented for this exchange yet.
+        return Task.CompletedTask;
     }
 
     private class ManagedConnection

@@ -14,7 +14,8 @@ public class BinanceExchangeClient : IExchangeClient
     public string ExchangeName => "Binance";
     private readonly BinanceRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onTickerData;
+    private Action<TradeData>? _onTradeData;
 
     public BinanceExchangeClient()
     {
@@ -39,25 +40,36 @@ public class BinanceExchangeClient : IExchangeClient
 
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        _onData = onData;
-        
-        foreach (var connection in _connections)
+        _onTickerData = onData;
+        await SetupConnections(symbols);
+    }
+
+    public async Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        _onTradeData = onData;
+        await SetupConnections(symbols);
+    }
+
+    private async Task SetupConnections(IEnumerable<string> symbols)
+    {
+        if (_connections.Any())
         {
-            await connection.StopAsync();
+            foreach (var connection in _connections)
+            {
+                await connection.StopAsync();
+            }
+            _connections.Clear();
         }
-        _connections.Clear();
 
         var symbolsList = symbols.ToList();
-        // Binance API limit for book ticker subscription is 100 symbols per request.
-        // We shard connections by 20% of that limit.
-        const int chunkSize = 20; // 20% of 100
+        const int chunkSize = 20;
 
         for (int i = 0; i < symbolsList.Count; i += chunkSize)
         {
             var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
             if (chunk.Any())
             {
-                var connection = new ManagedConnection(chunk, _onData);
+                var connection = new ManagedConnection(chunk, _onTickerData, _onTradeData);
                 _connections.Add(connection);
             }
         }
@@ -68,14 +80,16 @@ public class BinanceExchangeClient : IExchangeClient
     private class ManagedConnection
     {
         private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
+        private readonly Action<SpreadData>? _onTickerData;
+        private readonly Action<TradeData>? _onTradeData;
         private readonly BinanceSocketClient _socketClient;
         private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
 
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public ManagedConnection(List<string> symbols, Action<SpreadData>? onTickerData, Action<TradeData>? onTradeData)
         {
             _symbols = symbols;
-            _onData = onData;
+            _onTickerData = onTickerData;
+            _onTradeData = onTradeData;
             _socketClient = new BinanceSocketClient();
         }
 
@@ -96,26 +110,56 @@ public class BinanceExchangeClient : IExchangeClient
             
             await _socketClient.SpotApi.UnsubscribeAllAsync();
 
-            var result = await _socketClient.SpotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
+            if (_onTickerData != null)
             {
-                _onData(new SpreadData
+                var tickerSubscription = await _socketClient.SpotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
                 {
-                    Exchange = "Binance",
-                    Symbol = data.Data.Symbol,
-                    BestBid = data.Data.BestBidPrice,
-                    BestAsk = data.Data.BestAskPrice
+                    _onTickerData?.Invoke(new SpreadData
+                    {
+                        Exchange = "Binance",
+                        Symbol = data.Data.Symbol,
+                        BestBid = data.Data.BestBidPrice,
+                        BestAsk = data.Data.BestAskPrice
+                    });
                 });
-            });
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [Binance] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
+                if (!tickerSubscription.Success)
+                {
+                    Console.WriteLine($"[ERROR] [Binance] Failed to subscribe to ticker chunk starting with {_symbols.FirstOrDefault()}: {tickerSubscription.Error}");
+                }
+                else
+                {
+                    Console.WriteLine($"[Binance] Successfully subscribed to ticker chunk starting with {_symbols.FirstOrDefault()}.");
+                    tickerSubscription.Data.ConnectionLost += HandleConnectionLost;
+                    tickerSubscription.Data.ConnectionRestored += (t) => Console.WriteLine($"[Binance] Ticker connection restored for chunk after {t}.");
+                }
             }
-            else
+
+            if (_onTradeData != null)
             {
-                Console.WriteLine($"[Binance] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[Binance] Connection restored for chunk after {t}.");
+                var tradeSubscription = await _socketClient.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(_symbols, data =>
+                {
+                    _onTradeData?.Invoke(new TradeData
+                    {
+                        Exchange = "Binance",
+                        Symbol = data.Data.Symbol,
+                        Price = data.Data.Price,
+                        Quantity = data.Data.Quantity,
+                        Side = data.Data.BuyerIsMaker ? "Sell" : "Buy",
+                        Timestamp = data.Data.TradeTime
+                    });
+                });
+
+                if (!tradeSubscription.Success)
+                {
+                    Console.WriteLine($"[ERROR] [Binance] Failed to subscribe to trade chunk starting with {_symbols.FirstOrDefault()}: {tradeSubscription.Error}");
+                }
+                else
+                {
+                    Console.WriteLine($"[Binance] Successfully subscribed to trade chunk starting with {_symbols.FirstOrDefault()}.");
+                    tradeSubscription.Data.ConnectionLost += HandleConnectionLost;
+                    tradeSubscription.Data.ConnectionRestored += (t) => Console.WriteLine($"[Binance] Trade connection restored for chunk after {t}.");
+                }
             }
         }
 

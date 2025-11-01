@@ -14,7 +14,7 @@ public class BingXExchangeClient : IExchangeClient
     public string ExchangeName => "BingX";
     private readonly BingXRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onData;
 
     public BingXExchangeClient()
     {
@@ -63,6 +63,12 @@ public class BingXExchangeClient : IExchangeClient
         }
 
         await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        // Not implemented for this exchange yet.
+        return Task.CompletedTask;
     }
 
     private class ManagedConnection

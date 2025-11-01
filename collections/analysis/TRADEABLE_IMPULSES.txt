@@ -1,0 +1,155 @@
+======================================================================
+TRADING INSTRUMENT: Impulse Detection for Lagging Exchange Trading
+======================================================================
+
+Execution parameters:
+  - Execution time: 8ms
+  - Safety buffer: 10ms
+  - Min tradeable window: 18ms
+  - Max lag: 500ms
+  - Max CV: 0.8
+  - Min freq: 1.0/hour
+
+[*] Analyzing 91 symbols...
+
+======================================================================
+FOUND 5 TRADEABLE SYMBOLS
+======================================================================
+
+[1] AVNTUSDT
+    Leader: Binance -> Follower: GateIo
+    
+    LAG STATS:
+      Median lag: 128.0ms (execution=8ms)
+      Mean lag: 159.9ms +/- 121.9ms
+      Stability (CV): 0.76 [UNSTABLE]
+    
+    PROFIT:
+      Median: 0.152%
+      Mean: 0.174%
+      Win rate: 100.0%
+    
+    FREQUENCY:
+      15.33 opportunities/hour
+      ~368 opportunities/day
+    
+    CALIBRATION:
+      Min impulse: 0.036%
+      Min profit: 0.116%
+      Spread estimate: 0.016%
+    
+    TRADEABLE: YES (with 8ms execution)
+    Quality score: 3.09
+
+[2] XPLUSDT
+    Leader: Binance -> Follower: GateIo
+    
+    LAG STATS:
+      Median lag: 21.0ms (execution=8ms)
+      Mean lag: 30.5ms +/- 23.0ms
+      Stability (CV): 0.76 [UNSTABLE]
+    
+    PROFIT:
+      Median: 0.200%
+      Mean: 0.204%
+      Win rate: 100.0%
+    
+    FREQUENCY:
+      5.04 opportunities/hour
+      ~121 opportunities/day
+    
+    CALIBRATION:
+      Min impulse: 0.066%
+      Min profit: 0.133%
+      Spread estimate: 0.033%
+    
+    TRADEABLE: YES (with 8ms execution)
+    Quality score: 1.20
+
+[3] TAOUSDT
+    Leader: Binance -> Follower: GateIo
+    
+    LAG STATS:
+      Median lag: 161.0ms (execution=8ms)
+      Mean lag: 182.8ms +/- 137.7ms
+      Stability (CV): 0.75 [UNSTABLE]
+    
+    PROFIT:
+      Median: 0.149%
+      Mean: 0.149%
+      Win rate: 100.0%
+    
+    FREQUENCY:
+      4.63 opportunities/hour
+      ~111 opportunities/day
+    
+    CALIBRATION:
+      Min impulse: 0.046%
+      Min profit: 0.123%
+      Spread estimate: 0.023%
+    
+    TRADEABLE: YES (with 8ms execution)
+    Quality score: 0.81
+
+[4] SYRUPUSDT
+    Leader: Binance -> Follower: GateIo
+    
+    LAG STATS:
+      Median lag: 286.0ms (execution=8ms)
+      Mean lag: 208.6ms +/- 144.8ms
+      Stability (CV): 0.69 [UNSTABLE]
+    
+    PROFIT:
+      Median: 0.145%
+      Mean: 0.155%
+      Win rate: 100.0%
+    
+    FREQUENCY:
+      3.00 opportunities/hour
+      ~72 opportunities/day
+    
+    CALIBRATION:
+      Min impulse: 0.034%
+      Min profit: 0.123%
+      Spread estimate: 0.013%
+    
+    TRADEABLE: YES (with 8ms execution)
+    Quality score: 0.59
+
+[5] PENGUUSDT
+    Leader: Binance -> Follower: GateIo
+    
+    LAG STATS:
+      Median lag: 168.0ms (execution=8ms)
+      Mean lag: 215.2ms +/- 120.6ms
+      Stability (CV): 0.56 [MODERATE]
+    
+    PROFIT:
+      Median: 0.117%
+      Mean: 0.121%
+      Win rate: 100.0%
+    
+    FREQUENCY:
+      2.50 opportunities/hour
+      ~60 opportunities/day
+    
+    CALIBRATION:
+      Min impulse: 0.015%
+      Min profit: 0.105%
+      Spread estimate: 0.005%
+    
+    TRADEABLE: YES (with 8ms execution)
+    Quality score: 0.46
+
+======================================================================
+TRADING RECOMMENDATIONS
+======================================================================
+
+BEST SYMBOL: AVNTUSDT
+  - Monitor Binance for impulses >0.036%
+  - Trade on GateIo when impulse detected
+  - Expected lag window: 128ms (you have 120ms safety margin)
+  - Expected profit: 0.152% per trade
+  - Expected frequency: 15.3 trades/hour
+
+[SAVED] analysis\tradeable_impulses.parquet

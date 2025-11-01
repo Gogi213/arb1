@@ -15,7 +15,7 @@ public class BybitExchangeClient : IExchangeClient
     public string ExchangeName => "Bybit";
     private readonly IBybitRestClient _restClient;
     private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData> _onData;
+    private Action<SpreadData>? _onData;
 
     public BybitExchangeClient(IBybitRestClient restClient)
     {
@@ -64,6 +64,12 @@ public class BybitExchangeClient : IExchangeClient
         }
 
         await Task.WhenAll(_connections.Select(c => c.StartAsync()));
+    }
+
+    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    {
+        // Not implemented for this exchange yet.
+        return Task.CompletedTask;
     }
 
     private class ManagedConnection

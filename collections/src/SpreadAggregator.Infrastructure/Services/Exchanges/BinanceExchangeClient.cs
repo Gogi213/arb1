@@ -1,34 +1,42 @@
 using Binance.Net.Clients;
+using Binance.Net.Interfaces.Clients.SpotApi;
+using CryptoExchange.Net.Objects;
+using CryptoExchange.Net.Sockets;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services.Exchanges.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 
-public class BinanceExchangeClient : IExchangeClient
+/// <summary>
+/// Binance exchange client implementation.
+/// Reduced from 185 lines to ~110 lines using ExchangeClientBase.
+/// </summary>
+public class BinanceExchangeClient : ExchangeClientBase<BinanceRestClient, BinanceSocketClient>
 {
-    public string ExchangeName => "Binance";
-    private readonly BinanceRestClient _restClient;
-    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData>? _onTickerData;
-    private Action<TradeData>? _onTradeData;
+    public override string ExchangeName => "Binance";
+    protected override int ChunkSize => 20;
+    protected override bool SupportsTradesStream => true;
 
-    public BinanceExchangeClient()
+    protected override BinanceRestClient CreateRestClient() => new();
+    protected override BinanceSocketClient CreateSocketClient() => new();
+
+    protected override IExchangeSocketApi CreateSocketApi(BinanceSocketClient client)
     {
-        _restClient = new BinanceRestClient();
+        return new BinanceSocketApiAdapter(client.SpotApi);
     }
 
-    public async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
         return tickers.Data.Select(t => t.Symbol);
     }
 
-    public async Task<IEnumerable<TickerData>> GetTickersAsync()
+    public override async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
         return tickers.Data.Select(t => new TickerData
@@ -38,83 +46,33 @@ public class BinanceExchangeClient : IExchangeClient
         });
     }
 
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    /// <summary>
+    /// Adapter that wraps Binance SpotApi to implement IExchangeSocketApi.
+    /// This eliminates the need for reflection or dynamic typing.
+    /// </summary>
+    private class BinanceSocketApiAdapter : IExchangeSocketApi
     {
-        _onTickerData = onData;
-        await SetupConnections(symbols);
-    }
+        private readonly IBinanceSocketClientSpotApi _spotApi;
 
-    public async Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
-    {
-        _onTradeData = onData;
-        await SetupConnections(symbols);
-    }
-
-    private async Task SetupConnections(IEnumerable<string> symbols)
-    {
-        if (_connections.Any())
+        public BinanceSocketApiAdapter(IBinanceSocketClientSpotApi spotApi)
         {
-            foreach (var connection in _connections)
-            {
-                await connection.StopAsync();
-            }
-            _connections.Clear();
+            _spotApi = spotApi;
         }
 
-        var symbolsList = symbols.ToList();
-        const int chunkSize = 20;
-
-        for (int i = 0; i < symbolsList.Count; i += chunkSize)
+        public Task UnsubscribeAllAsync()
         {
-            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
-            if (chunk.Any())
-            {
-                var connection = new ManagedConnection(chunk, _onTickerData, _onTradeData);
-                _connections.Add(connection);
-            }
+            return _spotApi.UnsubscribeAllAsync();
         }
 
-        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
-    }
-
-    private class ManagedConnection
-    {
-        private readonly List<string> _symbols;
-        private readonly Action<SpreadData>? _onTickerData;
-        private readonly Action<TradeData>? _onTradeData;
-        private readonly BinanceSocketClient _socketClient;
-        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
-
-        public ManagedConnection(List<string> symbols, Action<SpreadData>? onTickerData, Action<TradeData>? onTradeData)
+        public async Task<object> SubscribeToTickerUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<SpreadData> onData)
         {
-            _symbols = symbols;
-            _onTickerData = onTickerData;
-            _onTradeData = onTradeData;
-            _socketClient = new BinanceSocketClient();
-        }
-
-        public async Task StartAsync()
-        {
-            await SubscribeInternalAsync();
-        }
-
-        public async Task StopAsync()
-        {
-            await _socketClient.SpotApi.UnsubscribeAllAsync();
-            _socketClient.Dispose();
-        }
-
-        private async Task SubscribeInternalAsync()
-        {
-            Console.WriteLine($"[BinanceExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
-            
-            await _socketClient.SpotApi.UnsubscribeAllAsync();
-
-            if (_onTickerData != null)
-            {
-                var tickerSubscription = await _socketClient.SpotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
+            var result = await _spotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(
+                symbols,
+                data =>
                 {
-                    _onTickerData?.Invoke(new SpreadData
+                    onData(new SpreadData
                     {
                         Exchange = "Binance",
                         Symbol = data.Data.Symbol,
@@ -123,23 +81,18 @@ public class BinanceExchangeClient : IExchangeClient
                     });
                 });
 
-                if (!tickerSubscription.Success)
-                {
-                    Console.WriteLine($"[ERROR] [Binance] Failed to subscribe to ticker chunk starting with {_symbols.FirstOrDefault()}: {tickerSubscription.Error}");
-                }
-                else
-                {
-                    Console.WriteLine($"[Binance] Successfully subscribed to ticker chunk starting with {_symbols.FirstOrDefault()}.");
-                    tickerSubscription.Data.ConnectionLost += HandleConnectionLost;
-                    tickerSubscription.Data.ConnectionRestored += (t) => Console.WriteLine($"[Binance] Ticker connection restored for chunk after {t}.");
-                }
-            }
+            return result;
+        }
 
-            if (_onTradeData != null)
-            {
-                var tradeSubscription = await _socketClient.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(_symbols, data =>
+        public async Task<object> SubscribeToTradeUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<TradeData> onData)
+        {
+            var result = await _spotApi.ExchangeData.SubscribeToTradeUpdatesAsync(
+                symbols,
+                data =>
                 {
-                    _onTradeData?.Invoke(new TradeData
+                    onData(new TradeData
                     {
                         Exchange = "Binance",
                         Symbol = data.Data.Symbol,
@@ -150,36 +103,7 @@ public class BinanceExchangeClient : IExchangeClient
                     });
                 });
 
-                if (!tradeSubscription.Success)
-                {
-                    Console.WriteLine($"[ERROR] [Binance] Failed to subscribe to trade chunk starting with {_symbols.FirstOrDefault()}: {tradeSubscription.Error}");
-                }
-                else
-                {
-                    Console.WriteLine($"[Binance] Successfully subscribed to trade chunk starting with {_symbols.FirstOrDefault()}.");
-                    tradeSubscription.Data.ConnectionLost += HandleConnectionLost;
-                    tradeSubscription.Data.ConnectionRestored += (t) => Console.WriteLine($"[Binance] Trade connection restored for chunk after {t}.");
-                }
-            }
-        }
-
-        private async void HandleConnectionLost()
-        {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                Console.WriteLine($"[Binance] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000); 
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [Binance] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            return result;
         }
     }
 }

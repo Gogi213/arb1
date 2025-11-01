@@ -1,33 +1,36 @@
 using Bitget.Net.Clients;
+using Bitget.Net.Interfaces.Clients.SpotApiV2;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services.Exchanges.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 
-public class BitgetExchangeClient : IExchangeClient
+public class BitgetExchangeClient : ExchangeClientBase<BitgetRestClient, BitgetSocketClient>
 {
-    public string ExchangeName => "Bitget";
-    private readonly BitgetRestClient _restClient;
-    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData>? _onData;
+    public override string ExchangeName => "Bitget";
+    protected override int ChunkSize => 100;
+    protected override bool SupportsTradesStream => false;
 
-    public BitgetExchangeClient()
+    protected override BitgetRestClient CreateRestClient() => new();
+    protected override BitgetSocketClient CreateSocketClient() => new();
+
+    protected override IExchangeSocketApi CreateSocketApi(BitgetSocketClient client)
     {
-        _restClient = new BitgetRestClient();
+        return new BitgetSocketApiAdapter(client.SpotApiV2);
     }
 
-    public async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var symbols = await _restClient.SpotApiV2.ExchangeData.GetSymbolsAsync();
         return symbols.Data.Select(s => s.Symbol);
     }
 
-    public async Task<IEnumerable<TickerData>> GetTickersAsync()
+    public override async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.SpotApiV2.ExchangeData.GetTickersAsync();
         return tickers.Data.Select(t => new TickerData
@@ -37,116 +40,45 @@ public class BitgetExchangeClient : IExchangeClient
         });
     }
 
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    private class BitgetSocketApiAdapter : IExchangeSocketApi
     {
-        _onData = onData;
+        private readonly IBitgetSocketClientSpotApi _spotApi;
 
-        foreach (var connection in _connections)
+        public BitgetSocketApiAdapter(IBitgetSocketClientSpotApi spotApi)
         {
-            await connection.StopAsync();
-        }
-        _connections.Clear();
-
-        var symbolsList = symbols.ToList();
-        const int chunkSize = 100;
-
-        for (int i = 0; i < symbolsList.Count; i += chunkSize)
-        {
-            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
-            if (chunk.Any())
-            {
-                var connection = new ManagedConnection(chunk, _onData);
-                _connections.Add(connection);
-            }
+            _spotApi = spotApi;
         }
 
-        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
-    }
-
-    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
-    {
-        // Not implemented for this exchange yet.
-        return Task.CompletedTask;
-    }
-
-    private class ManagedConnection
-    {
-        private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
-        private readonly BitgetSocketClient _socketClient;
-        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
-
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public Task UnsubscribeAllAsync()
         {
-            _symbols = symbols;
-            _onData = onData;
-            _socketClient = new BitgetSocketClient();
+            return _spotApi.UnsubscribeAllAsync();
         }
 
-        public async Task StartAsync()
+        public async Task<object> SubscribeToTickerUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<SpreadData> onData)
         {
-            await SubscribeInternalAsync();
-        }
-
-        public async Task StopAsync()
-        {
-            await _socketClient.SpotApiV2.UnsubscribeAllAsync();
-            _socketClient.Dispose();
-        }
-
-        private async Task SubscribeInternalAsync()
-        {
-            Console.WriteLine($"[BitgetExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
-
-            await _socketClient.SpotApiV2.UnsubscribeAllAsync();
-
-            var result = await _socketClient.SpotApiV2.SubscribeToOrderBookUpdatesAsync(_symbols, 1, data =>
-            {
-                var update = data.Data;
-                var bestBid = update.Bids.FirstOrDefault();
-                var bestAsk = update.Asks.FirstOrDefault();
-
-                if (bestBid != null && bestAsk != null)
+            var result = await _spotApi.SubscribeToTickerUpdatesAsync(
+                symbols,
+                data =>
                 {
-                    _onData(new SpreadData
+                    onData(new SpreadData
                     {
                         Exchange = "Bitget",
-                        Symbol = data.Symbol ?? string.Empty,
-                        BestBid = bestBid.Price,
-                        BestAsk = bestAsk.Price
+                        Symbol = data.Data.Symbol,
+                        BestBid = data.Data.BestBidPrice,
+                        BestAsk = data.Data.BestAskPrice
                     });
-                }
-            });
+                });
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [Bitget] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
-            }
-            else
-            {
-                Console.WriteLine($"[Bitget] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[Bitget] Connection restored for chunk after {t}.");
-            }
+            return result;
         }
 
-        private async void HandleConnectionLost()
+        public Task<object> SubscribeToTradeUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<TradeData> onData)
         {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                Console.WriteLine($"[Bitget] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000);
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [Bitget] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            throw new NotImplementedException("Bitget does not support trade stream yet");
         }
     }
 }

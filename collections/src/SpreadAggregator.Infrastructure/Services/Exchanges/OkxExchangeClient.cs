@@ -1,33 +1,41 @@
 using OKX.Net.Clients;
+using OKX.Net.Interfaces.Clients.UnifiedApi;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services.Exchanges.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 
-public class OkxExchangeClient : IExchangeClient
+/// <summary>
+/// OKX exchange client implementation.
+/// Reduced from 150 lines to ~120 lines using ExchangeClientBase.
+/// </summary>
+public class OkxExchangeClient : ExchangeClientBase<OKXRestClient, OKXSocketClient>
 {
-    public string ExchangeName => "OKX";
-    private readonly OKXRestClient _restClient;
-    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData>? _onData;
+    public override string ExchangeName => "OKX";
+    // OKX official limit is 100 symbols per connection. We use 20% of that.
+    protected override int ChunkSize => 20;
+    protected override bool SupportsTradesStream => false;
 
-    public OkxExchangeClient()
+    protected override OKXRestClient CreateRestClient() => new();
+    protected override OKXSocketClient CreateSocketClient() => new();
+
+    protected override IExchangeSocketApi CreateSocketApi(OKXSocketClient client)
     {
-        _restClient = new OKXRestClient();
+        return new OkxSocketApiAdapter(client.UnifiedApi);
     }
 
-    public async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var tickers = await _restClient.UnifiedApi.ExchangeData.GetTickersAsync(OKX.Net.Enums.InstrumentType.Spot);
         return tickers.Data.Select(t => t.Symbol);
     }
 
-    public async Task<IEnumerable<TickerData>> GetTickersAsync()
+    public override async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.UnifiedApi.ExchangeData.GetTickersAsync(OKX.Net.Enums.InstrumentType.Spot);
         return tickers.Data.Select(t => new TickerData
@@ -37,114 +45,54 @@ public class OkxExchangeClient : IExchangeClient
         });
     }
 
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    /// <summary>
+    /// Adapter that wraps OKX UnifiedApi to implement IExchangeSocketApi.
+    /// Note: OKX uses UnifiedApi instead of SpotApi.
+    /// </summary>
+    private class OkxSocketApiAdapter : IExchangeSocketApi
     {
-        _onData = onData;
+        private readonly IOKXSocketClientUnifiedApi _unifiedApi;
 
-        foreach (var connection in _connections)
+        public OkxSocketApiAdapter(IOKXSocketClientUnifiedApi unifiedApi)
         {
-            await connection.StopAsync();
-        }
-        _connections.Clear();
-
-        var symbolsList = symbols.ToList();
-        // OKX official limit is 100 symbols per connection. We use 20% of that.
-        const int chunkSize = 20;
-
-        for (int i = 0; i < symbolsList.Count; i += chunkSize)
-        {
-            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
-            if (chunk.Any())
-            {
-                var connection = new ManagedConnection(chunk, _onData);
-                _connections.Add(connection);
-            }
+            _unifiedApi = unifiedApi;
         }
 
-        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
-    }
-
-    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
-    {
-        // Not implemented for this exchange yet.
-        return Task.CompletedTask;
-    }
-
-    private class ManagedConnection
-    {
-        private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
-        private readonly OKXSocketClient _socketClient;
-        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
-
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public Task UnsubscribeAllAsync()
         {
-            _symbols = symbols;
-            _onData = onData;
-            _socketClient = new OKXSocketClient();
+            return _unifiedApi.UnsubscribeAllAsync();
         }
 
-        public async Task StartAsync()
+        public async Task<object> SubscribeToTickerUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<SpreadData> onData)
         {
-            await SubscribeInternalAsync();
-        }
-
-        public async Task StopAsync()
-        {
-            await _socketClient.UnifiedApi.UnsubscribeAllAsync();
-            _socketClient.Dispose();
-        }
-
-        private async Task SubscribeInternalAsync()
-        {
-            Console.WriteLine($"[OkxExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
-
-            await _socketClient.UnifiedApi.UnsubscribeAllAsync();
-
-            var result = await _socketClient.UnifiedApi.ExchangeData.SubscribeToTickerUpdatesAsync(_symbols, data =>
-            {
-                var ticker = data.Data;
-                if (ticker.BestBidPrice.HasValue && ticker.BestAskPrice.HasValue)
+            var result = await _unifiedApi.ExchangeData.SubscribeToTickerUpdatesAsync(
+                symbols,
+                data =>
                 {
-                    _onData(new SpreadData
+                    var ticker = data.Data;
+                    if (ticker.BestBidPrice.HasValue && ticker.BestAskPrice.HasValue)
                     {
-                        Exchange = "OKX",
-                        Symbol = ticker.Symbol,
-                        BestBid = ticker.BestBidPrice.Value,
-                        BestAsk = ticker.BestAskPrice.Value
-                    });
-                }
-            });
+                        onData(new SpreadData
+                        {
+                            Exchange = "OKX",
+                            Symbol = ticker.Symbol,
+                            BestBid = ticker.BestBidPrice.Value,
+                            BestAsk = ticker.BestAskPrice.Value
+                        });
+                    }
+                });
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [OKX] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
-            }
-            else
-            {
-                Console.WriteLine($"[OKX] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[OKX] Connection restored for chunk after {t}.");
-            }
+            return result;
         }
 
-        private async void HandleConnectionLost()
+        public Task<object> SubscribeToTradeUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<TradeData> onData)
         {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                Console.WriteLine($"[OKX] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000);
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [OKX] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            // Not implemented for this exchange yet
+            throw new NotImplementedException("OKX does not support trade stream yet");
         }
     }
 }

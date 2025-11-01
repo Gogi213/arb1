@@ -1,33 +1,44 @@
 using Mexc.Net.Clients;
+using Mexc.Net.Interfaces.Clients.SpotApi;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services.Exchanges.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 
-public class MexcExchangeClient : IExchangeClient
+/// <summary>
+/// MEXC exchange client implementation.
+/// Reduced from 152 lines to ~115 lines using ExchangeClientBase.
+/// </summary>
+public class MexcExchangeClient : ExchangeClientBase<MexcRestClient, MexcSocketClient>
 {
-    public string ExchangeName => "MEXC";
-    private readonly MexcRestClient _restClient;
-    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData>? _onData;
+    public override string ExchangeName => "MEXC";
+    // MEXC has a limit of 30 subscriptions per connection. We use 20% of that.
+    // MEXC has a limit on the message size for subscriptions.
+    // A chunkSize of 30 was too large and exceeded the 1024 byte limit.
+    // Reducing to 6 to keep message size down.
+    protected override int ChunkSize => 6;
+    protected override bool SupportsTradesStream => false;
 
-    public MexcExchangeClient()
+    protected override MexcRestClient CreateRestClient() => new();
+    protected override MexcSocketClient CreateSocketClient() => new();
+
+    protected override IExchangeSocketApi CreateSocketApi(MexcSocketClient client)
     {
-        _restClient = new MexcRestClient();
+        return new MexcSocketApiAdapter(client.SpotApi);
     }
 
-    public async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
         return tickers.Data.Select(t => t.Symbol);
     }
 
-    public async Task<IEnumerable<TickerData>> GetTickersAsync()
+    public override async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
         return tickers.Data.Select(t => new TickerData
@@ -37,116 +48,52 @@ public class MexcExchangeClient : IExchangeClient
         });
     }
 
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    /// <summary>
+    /// Adapter that wraps MEXC SpotApi to implement IExchangeSocketApi.
+    /// </summary>
+    private class MexcSocketApiAdapter : IExchangeSocketApi
     {
-        _onData = onData;
+        private readonly IMexcSocketClientSpotApi _spotApi;
 
-        foreach (var connection in _connections)
+        public MexcSocketApiAdapter(IMexcSocketClientSpotApi spotApi)
         {
-            await connection.StopAsync();
-        }
-        _connections.Clear();
-
-        var symbolsList = symbols.ToList();
-        // MEXC has a limit of 30 subscriptions per connection. We use 20% of that.
-        // MEXC has a limit on the message size for subscriptions.
-        // A chunkSize of 30 was too large and exceeded the 1024 byte limit.
-        // Reducing to 6 to keep message size down.
-        const int chunkSize = 6;
-
-        for (int i = 0; i < symbolsList.Count; i += chunkSize)
-        {
-            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
-            if (chunk.Any())
-            {
-                var connection = new ManagedConnection(chunk, _onData);
-                _connections.Add(connection);
-            }
+            _spotApi = spotApi;
         }
 
-        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
-    }
-
-    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
-    {
-        // Not implemented for this exchange yet.
-        return Task.CompletedTask;
-    }
-
-    private class ManagedConnection
-    {
-        private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
-        private readonly MexcSocketClient _socketClient;
-        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
-
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public Task UnsubscribeAllAsync()
         {
-            _symbols = symbols;
-            _onData = onData;
-            _socketClient = new MexcSocketClient();
+            return _spotApi.UnsubscribeAllAsync();
         }
 
-        public async Task StartAsync()
+        public async Task<object> SubscribeToTickerUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<SpreadData> onData)
         {
-            await SubscribeInternalAsync();
-        }
-
-        public async Task StopAsync()
-        {
-            await _socketClient.SpotApi.UnsubscribeAllAsync();
-            _socketClient.Dispose();
-        }
-
-        private async Task SubscribeInternalAsync()
-        {
-            Console.WriteLine($"[MexcExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
-
-            await _socketClient.SpotApi.UnsubscribeAllAsync();
-
-            var result = await _socketClient.SpotApi.SubscribeToBookTickerUpdatesAsync(_symbols, data =>
-            {
-                if (data.Data != null && data.Symbol != null)
+            var result = await _spotApi.SubscribeToBookTickerUpdatesAsync(
+                symbols,
+                data =>
                 {
-                    _onData(new SpreadData
+                    if (data.Data != null && data.Symbol != null)
                     {
-                        Exchange = "MEXC",
-                        Symbol = data.Symbol,
-                        BestBid = data.Data.BestBidPrice,
-                        BestAsk = data.Data.BestAskPrice
-                    });
-                }
-            });
+                        onData(new SpreadData
+                        {
+                            Exchange = "MEXC",
+                            Symbol = data.Symbol,
+                            BestBid = data.Data.BestBidPrice,
+                            BestAsk = data.Data.BestAskPrice
+                        });
+                    }
+                });
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [MEXC] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
-            }
-            else
-            {
-                Console.WriteLine($"[MEXC] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[MEXC] Connection restored for chunk after {t}.");
-            }
+            return result;
         }
 
-        private async void HandleConnectionLost()
+        public Task<object> SubscribeToTradeUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<TradeData> onData)
         {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                Console.WriteLine($"[MEXC] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000);
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [MEXC] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            // Not implemented for this exchange yet
+            throw new NotImplementedException("MEXC does not support trade stream yet");
         }
     }
 }

@@ -111,3 +111,14 @@ C:\visual projects\arb1\tests\SpreadAggregator.Tests\obj\Debug\net9.0\refint\Spr
 C:\visual projects\arb1\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.pdb
 c:\visual projects\arb1\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.genruntimeconfig.cache
 c:\visual projects\arb1\tests\SpreadAggregator.Tests\obj\Debug\net9.0\ref\SpreadAggregator.Tests.dll
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.dll
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\refint\SpreadAggregator.Tests.dll
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.pdb
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\bin\Debug\net9.0\.msCoverageSourceRootsMapping_SpreadAggregator.Tests
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\bin\Debug\net9.0\CoverletSourceRootsMapping_SpreadAggregator.Tests
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.csproj.AssemblyReference.cache
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.GeneratedMSBuildEditorConfig.editorconfig
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.AssemblyInfoInputs.cache
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.AssemblyInfo.cs
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.csproj.CoreCompileInputs.cache
+C:\visual projects\arb1\collections\tests\SpreadAggregator.Tests\obj\Debug\net9.0\SpreadAggregator.Tests.sourcelink.json

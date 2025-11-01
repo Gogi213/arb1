@@ -2,33 +2,47 @@ using Bybit.Net.Clients;
 using Bybit.Net.Interfaces.Clients;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services.Exchanges.Base;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace SpreadAggregator.Infrastructure.Services.Exchanges;
 
-public class BybitExchangeClient : IExchangeClient
+/// <summary>
+/// Bybit exchange client implementation.
+/// Reduced from 154 lines to ~115 lines using ExchangeClientBase.
+/// Note: Bybit uses V5SpotApi with Orderbook depth=1 instead of standard BookTicker API.
+/// </summary>
+public class BybitExchangeClient : ExchangeClientBase<IBybitRestClient, BybitSocketClient>
 {
-    public string ExchangeName => "Bybit";
-    private readonly IBybitRestClient _restClient;
-    private readonly List<ManagedConnection> _connections = new List<ManagedConnection>();
-    private Action<SpreadData>? _onData;
+    public override string ExchangeName => "Bybit";
+    protected override int ChunkSize => 10;
+    protected override bool SupportsTradesStream => false;
+
+    private readonly IBybitRestClient _injectedRestClient;
 
     public BybitExchangeClient(IBybitRestClient restClient)
     {
-        _restClient = restClient;
+        _injectedRestClient = restClient;
     }
 
-    public async Task<IEnumerable<string>> GetSymbolsAsync()
+    protected override IBybitRestClient CreateRestClient() => _injectedRestClient;
+    protected override BybitSocketClient CreateSocketClient() => new();
+
+    protected override IExchangeSocketApi CreateSocketApi(BybitSocketClient client)
+    {
+        return new BybitSocketApiAdapter(client);
+    }
+
+    public override async Task<IEnumerable<string>> GetSymbolsAsync()
     {
         var symbols = await _restClient.V5Api.ExchangeData.GetSpotSymbolsAsync();
         return symbols.Data.List.Select(s => s.Name);
     }
 
-    public async Task<IEnumerable<TickerData>> GetTickersAsync()
+    public override async Task<IEnumerable<TickerData>> GetTickersAsync()
     {
         var tickers = await _restClient.V5Api.ExchangeData.GetSpotTickersAsync();
         return tickers.Data.List.Select(t => new TickerData
@@ -38,117 +52,57 @@ public class BybitExchangeClient : IExchangeClient
         });
     }
 
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    /// <summary>
+    /// Adapter for Bybit V5SpotApi.
+    /// Uses concrete BybitSocketClient type to access V5SpotApi directly.
+    /// </summary>
+    private class BybitSocketApiAdapter : IExchangeSocketApi
     {
-        _onData = onData;
-
-        foreach (var connection in _connections)
-        {
-            await connection.StopAsync();
-        }
-        _connections.Clear();
-
-        var symbolsList = symbols.ToList();
-        // Original code used a batch size of 10. We'll use 20% of that.
-        // Original code used a batch size of 10. We'll stick to that as it's a documented limit for subscriptions per connection.
-        const int chunkSize = 10;
-
-        for (int i = 0; i < symbolsList.Count; i += chunkSize)
-        {
-            var chunk = symbolsList.Skip(i).Take(chunkSize).ToList();
-            if (chunk.Any())
-            {
-                var connection = new ManagedConnection(chunk, _onData);
-                _connections.Add(connection);
-            }
-        }
-
-        await Task.WhenAll(_connections.Select(c => c.StartAsync()));
-    }
-
-    public Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
-    {
-        // Not implemented for this exchange yet.
-        return Task.CompletedTask;
-    }
-
-    private class ManagedConnection
-    {
-        private readonly List<string> _symbols;
-        private readonly Action<SpreadData> _onData;
         private readonly BybitSocketClient _socketClient;
-        private readonly SemaphoreSlim _resubscribeLock = new SemaphoreSlim(1, 1);
 
-        public ManagedConnection(List<string> symbols, Action<SpreadData> onData)
+        public BybitSocketApiAdapter(BybitSocketClient socketClient)
         {
-            _symbols = symbols;
-            _onData = onData;
-            _socketClient = new BybitSocketClient();
+            _socketClient = socketClient;
         }
 
-        public async Task StartAsync()
+        public Task UnsubscribeAllAsync()
         {
-            await SubscribeInternalAsync();
+            return _socketClient.V5SpotApi.UnsubscribeAllAsync();
         }
 
-        public async Task StopAsync()
+        public async Task<object> SubscribeToTickerUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<SpreadData> onData)
         {
-            await _socketClient.V5SpotApi.UnsubscribeAllAsync();
-            _socketClient.Dispose();
-        }
-
-        private async Task SubscribeInternalAsync()
-        {
-            Console.WriteLine($"[BybitExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
-
-            await _socketClient.V5SpotApi.UnsubscribeAllAsync();
-
-            var result = await _socketClient.V5SpotApi.SubscribeToOrderbookUpdatesAsync(_symbols, 1, data =>
-            {
-                var bestBid = data.Data.Bids.FirstOrDefault();
-                var bestAsk = data.Data.Asks.FirstOrDefault();
-
-                if (bestBid != null && bestAsk != null)
+            // Bybit uses orderbook depth=1 which is equivalent to BookTicker
+            var result = await _socketClient.V5SpotApi.SubscribeToOrderbookUpdatesAsync(
+                symbols,
+                1,
+                data =>
                 {
-                    _onData(new SpreadData
-                    {
-                        Exchange = "Bybit",
-                        Symbol = data.Data.Symbol,
-                        BestBid = bestBid.Price,
-                        BestAsk = bestAsk.Price
-                    });
-                }
-            });
+                    var bestBid = data.Data.Bids.FirstOrDefault();
+                    var bestAsk = data.Data.Asks.FirstOrDefault();
 
-            if (!result.Success)
-            {
-                Console.WriteLine($"[ERROR] [Bybit] Failed to subscribe to chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
-            }
-            else
-            {
-                Console.WriteLine($"[Bybit] Successfully subscribed to chunk starting with {_symbols.FirstOrDefault()}.");
-                result.Data.ConnectionLost += HandleConnectionLost;
-                result.Data.ConnectionRestored += (t) => Console.WriteLine($"[Bybit] Connection restored for chunk after {t}.");
-            }
+                    if (bestBid != null && bestAsk != null)
+                    {
+                        onData(new SpreadData
+                        {
+                            Exchange = "Bybit",
+                            Symbol = data.Data.Symbol,
+                            BestBid = bestBid.Price,
+                            BestAsk = bestAsk.Price
+                        });
+                    }
+                });
+
+            return result;
         }
 
-        private async void HandleConnectionLost()
+        public Task<object> SubscribeToTradeUpdatesAsync(
+            IEnumerable<string> symbols,
+            Action<TradeData> onData)
         {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                Console.WriteLine($"[Bybit] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000);
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[ERROR] [Bybit] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            throw new NotImplementedException("Bybit does not support trade stream yet");
         }
     }
 }

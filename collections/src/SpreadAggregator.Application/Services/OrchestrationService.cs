@@ -93,6 +93,7 @@ public class OrchestrationService
 
         if (enableTickers)
         {
+            Console.WriteLine($"[{exchangeName}] Adding ticker subscription task...");
             tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbols, async spreadData =>
             {
                 if (spreadData.BestAsk == 0) return;
@@ -118,6 +119,7 @@ public class OrchestrationService
 
         if (enableTrades)
         {
+            Console.WriteLine($"[{exchangeName}] Adding trade subscription task...");
             tasks.Add(exchangeClient.SubscribeToTradesAsync(filteredSymbols, async tradeData =>
             {
                 await _rawDataChannel.Writer.WriteAsync(tradeData);
@@ -127,7 +129,17 @@ public class OrchestrationService
             }));
         }
 
-        await Task.WhenAll(tasks);
+        Console.WriteLine($"[{exchangeName}] Awaiting {tasks.Count} subscription tasks...");
+        try
+        {
+            await Task.WhenAll(tasks);
+            Console.WriteLine($"[{exchangeName}] All subscription tasks completed successfully");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] [{exchangeName}] Subscription failed: {ex}");
+            throw;
+        }
     }
 
 }

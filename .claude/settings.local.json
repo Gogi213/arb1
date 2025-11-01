@@ -19,7 +19,14 @@
       "Bash(timeout 30 dotnet run:*)",
       "Bash(/dev/null)",
       "Bash(timeout 15 dotnet run:*)",
-      "Bash(timeout 20 dotnet run:*)"
+      "Bash(timeout 20 dotnet run:*)",
+      "Bash(xargs cat:*)",
+      "Bash(dotnet nuget:*)",
+      "Bash(timeout 25 dotnet run:*)",
+      "Bash(1)",
+      "Bash(timeout 40 dotnet run:*)",
+      "Bash(git checkout:*)",
+      "Bash(timeout 300 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

@@ -37,7 +37,7 @@ def analyze_symbol_batch(args):
 
     This is the key optimization - prevents re-loading same data.
     """
-    symbol, exchanges, data_path = args
+    symbol, exchanges, data_path, start_date, end_date = args
 
     # OPTIMIZATION #12: Parallel loading of exchanges (1.5-2x faster)
     # Load data for all exchanges in parallel using ThreadPoolExecutor
@@ -46,7 +46,7 @@ def analyze_symbol_batch(args):
     with ThreadPoolExecutor(max_workers=len(exchanges)) as executor:
         # Submit all loading tasks
         future_to_exchange = {
-            executor.submit(load_exchange_symbol_data, data_path, exchange, symbol): exchange
+            executor.submit(load_exchange_symbol_data, data_path, exchange, symbol, start_date, end_date): exchange
             for exchange in exchanges
         }
 
@@ -102,8 +102,17 @@ def analyze_symbol_batch(args):
     return results
 
 
-def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str):
-    """Load all data for (exchange, symbol) pair - OPTIMIZED with single scan."""
+def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str, start_date: str = None, end_date: str = None):
+    """
+    Load all data for (exchange, symbol) pair - OPTIMIZED with single scan.
+
+    Args:
+        data_path: Base path to market data
+        exchange: Exchange name
+        symbol: Symbol name
+        start_date: Start date filter (YYYY-MM-DD format), inclusive. If None, no start filter.
+        end_date: End date filter (YYYY-MM-DD format), inclusive. If None, no end filter.
+    """
     base_path = Path(data_path)
     exchange_path = base_path / f"exchange={exchange}"
 
@@ -117,8 +126,65 @@ def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str):
         return None
 
     # OPTIMIZATION #8: Single parquet scan for ALL dates (2-4x faster I/O)
-    # Instead of looping through dates, read everything at once
-    glob_pattern = str(symbol_path / "date=*" / "hour=*" / "*.parquet")
+    # Now supports date filtering
+    if start_date or end_date:
+        # Build glob pattern for specific dates
+        if start_date and end_date:
+            # Filter by date range during glob pattern construction
+            # This is more efficient than loading all data and filtering
+            import os
+            available_dates = []
+            for item in os.scandir(symbol_path):
+                if item.is_dir() and item.name.startswith('date='):
+                    date_str = item.name.split('=')[1]
+                    if (not start_date or date_str >= start_date) and (not end_date or date_str <= end_date):
+                        available_dates.append(date_str)
+
+            if not available_dates:
+                return None
+
+            # Build pattern for matching dates
+            glob_patterns = [str(symbol_path / f"date={date}" / "hour=*" / "*.parquet") for date in available_dates]
+        else:
+            # Single date filter
+            target_date = start_date or end_date
+            glob_patterns = [str(symbol_path / f"date={target_date}" / "hour=*" / "*.parquet")]
+
+        # Try to load data from filtered dates
+        dfs = []
+        for pattern in glob_patterns:
+            try:
+                df = pl.scan_parquet(pattern) \
+                    .select(['Timestamp', 'BestBid', 'BestAsk']) \
+                    .rename({
+                        'Timestamp': 'timestamp',
+                        'BestBid': 'bestBid',
+                        'BestAsk': 'bestAsk'
+                    }) \
+                    .with_columns([
+                        pl.col('bestBid').cast(pl.Float64),
+                        pl.col('bestAsk').cast(pl.Float64)
+                    ]) \
+                    .filter(
+                        pl.col('bestBid').is_not_null() &
+                        pl.col('bestAsk').is_not_null()
+                    ) \
+                    .collect()
+
+                if not df.is_empty():
+                    dfs.append(df)
+            except Exception:
+                continue
+
+        if not dfs:
+            return None
+
+        # Concatenate and sort all dataframes
+        combined_df = pl.concat(dfs).sort('timestamp')
+        return combined_df if not combined_df.is_empty() else None
+    else:
+        # Original behavior: load all dates
+        glob_pattern = str(symbol_path / "date=*" / "hour=*" / "*.parquet")
 
     try:
         df = pl.scan_parquet(glob_pattern) \
@@ -174,29 +240,35 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
             (pl.col('bid_ex1') / pl.col('bid_ex2')).alias('ratio')
         ])
 
-        # Calculate mean using Polars
-        mean_ratio = joined['ratio'].mean()
-
-        # Calculate deviation in Polars (avoids to_numpy copy)
+        # CRITICAL FIX: Calculate deviation from 1.0, NOT from mean!
+        # For arbitrage, we need to know deviation from PRICE EQUALITY, not from average
+        # deviation = 0 means prices are equal → can close position at break-even
+        # If we used mean_ratio, deviation = 0 would NOT guarantee break-even close!
         joined = joined.with_columns([
-            ((pl.col('ratio') - mean_ratio) / mean_ratio * 100).alias('deviation')
+            ((pl.col('ratio') - 1.0) / 1.0 * 100).alias('deviation')
         ])
 
         # All aggregations in pure Polars (no NumPy conversion)
         max_deviation_pct = float(joined['deviation'].max())
         min_deviation_pct = float(joined['deviation'].min())
+        mean_deviation_pct = float(joined['deviation'].mean())
 
         # Calculate asymmetry (directional bias indicator)
-        # For symmetric mean reversion: asymmetry ≈ 0
-        # For directional bias: |asymmetry| > 0.2
-        deviation_range = max_deviation_pct - min_deviation_pct
-        asymmetry = (max_deviation_pct + min_deviation_pct) / deviation_range if deviation_range != 0 else 0
+        # Now using deviation from 1.0 (price equality)
+        # asymmetry = average deviation from zero
+        # For symmetric oscillation around parity: asymmetry ≈ 0
+        # For persistent bias (e.g., always +0.3%): |asymmetry| > 0.2
+        asymmetry = mean_deviation_pct
 
         # Zero crossings in pure Polars
+        # FIXED: Use multiplication to detect true sign flips (+1 to -1 or vice versa)
+        # This prevents counting transitions through exactly 0.0 as two separate events
+        # sign[i] * sign[i-1] < 0 only when crossing from positive to negative (or vice versa)
+        deviation_sign = pl.col('deviation').sign()
         zero_crossings = int(
-            joined.select([
-                (pl.col('deviation').sign().diff().abs() > 0).sum()
-            ])[0, 0]
+            joined.with_columns([
+                (deviation_sign * deviation_sign.shift(1) < 0).alias('crossed')
+            ])['crossed'].sum()
         )
 
         # Time range
@@ -209,39 +281,80 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
         zero_crossings_per_minute = zero_crossings_per_hour / 60 if duration_hours > 0 else 0
 
         # BATCH OPTIMIZATION: Calculate all thresholds in one pass
-        # Create columns for all thresholds at once
-        # Thresholds in basis points: 30bp=0.30%, 50bp=0.50%, 40bp=0.40%
+        # CORRECTED LOGIC: Count only COMPLETE cycles that return to ZERO
+        #
+        # A cycle = movement from ~zero → above threshold → back to ~zero
+        # This ensures we only count tradeable opportunities (can close position at break-even)
+        #
+        # ZERO_THRESHOLD: Small epsilon for noise tolerance
+        # Real deviation is never exactly 0.0 due to data discreteness and market noise
+        # We consider deviation "at zero" if abs(deviation) < 0.05% (5 basis points)
+
+        ZERO_THRESHOLD = 0.05  # Consider "at zero" if abs(deviation) < 0.05%
+
+        # Define thresholds
         thresholds = [0.3, 0.5, 0.4]
 
         joined_with_thresholds = joined.with_columns([
+            # Above threshold flags
             (pl.col('deviation').abs() > 0.3).alias('above_030bp'),
             (pl.col('deviation').abs() > 0.5).alias('above_050bp'),
-            (pl.col('deviation').abs() > 0.4).alias('above_040bp')
+            (pl.col('deviation').abs() > 0.4).alias('above_040bp'),
+            # In neutral zone flag
+            (pl.col('deviation').abs() < ZERO_THRESHOLD).alias('in_neutral')
         ])
 
-        # Calculate all metrics in one select (batch processing)
+        # Count COMPLETE cycles using correct logic
+        # Cycle = return to neutral AFTER being above threshold
+        def count_complete_cycles(above_threshold_series, in_neutral_series):
+            """
+            Count complete arbitrage cycles.
+
+            A cycle completes when:
+            1. We were above threshold at some point
+            2. We returned to neutral zone (can close position)
+
+            This prevents counting false opportunities that never return to zero.
+            """
+            above = above_threshold_series.to_numpy()
+            neutral = in_neutral_series.to_numpy()
+
+            cycles = 0
+            was_above = False
+
+            for i in range(len(above)):
+                if above[i]:
+                    was_above = True
+                elif neutral[i] and was_above:
+                    # Completed a cycle: was above threshold, now returned to neutral
+                    cycles += 1
+                    was_above = False
+
+            return cycles
+
+        # Calculate cycles for each threshold
+        cycles_030bp = count_complete_cycles(
+            joined_with_thresholds['above_030bp'],
+            joined_with_thresholds['in_neutral']
+        )
+        cycles_050bp = count_complete_cycles(
+            joined_with_thresholds['above_050bp'],
+            joined_with_thresholds['in_neutral']
+        )
+        cycles_040bp = count_complete_cycles(
+            joined_with_thresholds['above_040bp'],
+            joined_with_thresholds['in_neutral']
+        )
+
+        # Calculate percentage of time above thresholds
         threshold_metrics = joined_with_thresholds.select([
-            # Cycles for 30bp (0.3%)
-            pl.concat([pl.lit(False), pl.col('above_030bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_030bp'),
             (pl.col('above_030bp').mean() * 100).alias('pct_030bp'),
-
-            # Cycles for 50bp (0.5%)
-            pl.concat([pl.lit(False), pl.col('above_050bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_050bp'),
             (pl.col('above_050bp').mean() * 100).alias('pct_050bp'),
-
-            # Cycles for 40bp (0.4%)
-            pl.concat([pl.lit(False), pl.col('above_040bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_040bp'),
             (pl.col('above_040bp').mean() * 100).alias('pct_040bp')
         ])
 
         # Extract results
         metrics = threshold_metrics.row(0, named=True)
-
-        # Calculate average cycle durations (in seconds)
-        # Formula: (total_time_above / cycles) * 3600
-        cycles_030bp = int(metrics['cycles_030bp'])
-        cycles_050bp = int(metrics['cycles_050bp'])
-        cycles_040bp = int(metrics['cycles_040bp'])
 
         pct_030bp = float(metrics['pct_030bp'])
         pct_050bp = float(metrics['pct_050bp'])
@@ -329,11 +442,27 @@ def discover_data(data_path: str) -> defaultdict:
     return valid_symbols
 
 
-def run_ultra_fast_analysis(n_workers=None):
+def run_ultra_fast_analysis(n_workers=None, start_date=None, end_date=None):
     """
     ULTRA-FAST analysis with batching and caching.
+
+    Args:
+        n_workers: Number of parallel workers (default: 3x CPU cores)
+        start_date: Start date filter (YYYY-MM-DD format), inclusive. If None, no start filter.
+        end_date: End date filter (YYYY-MM-DD format), inclusive. If None, no end filter.
     """
     DATA_PATH = "../data/market_data"
+
+    # Print date filter info
+    if start_date or end_date:
+        if start_date and end_date:
+            print(f"\n>>> Filtering data: {start_date} to {end_date} <<<")
+        elif start_date:
+            print(f"\n>>> Filtering data: from {start_date} onwards <<<")
+        else:
+            print(f"\n>>> Filtering data: up to {end_date} <<<")
+    else:
+        print("\n>>> Analyzing ALL available data <<<")
 
     # Discover symbols
     symbols_to_analyze = discover_data(DATA_PATH)
@@ -350,7 +479,7 @@ def run_ultra_fast_analysis(n_workers=None):
     for symbol, exchanges in symbols_to_analyze.items():
         n_pairs = len(list(combinations(exchanges, 2)))
         total_pairs += n_pairs
-        tasks.append((symbol, list(exchanges), DATA_PATH))
+        tasks.append((symbol, list(exchanges), DATA_PATH, start_date, end_date))
 
     print(f"Total symbols: {len(tasks)}")
     print(f"Total pairs: {total_pairs}")
@@ -409,15 +538,34 @@ def run_ultra_fast_analysis(n_workers=None):
         stats_df.write_csv(stats_filename)
 
         print(f"\n[OK] Summary statistics saved to: {stats_filename}")
-        print(f"\n  Top 10 pairs by mean reversion frequency:")
-        print(f"  {'Symbol':<12} {'Ex1':<8} {'Ex2':<8} {'ZC/min':<8} {'30bp/hr':<9} {'40bp/hr':<9} {'Time>30bp':<10}")
+
+        print(f"\n  Top 10 pairs by mean reversion frequency (zero crossings/min):")
+        print(f"  {'Symbol':<12} {'Ex1':<8} {'Ex2':<8} {'ZC/min':<8} {'Cycles':<7} {'40bp/hr':<9} {'Asymm':<7}")
         print(f"  {'-'*82}")
         for row in stats_df.head(10).iter_rows(named=True):
+            asymmetry = row.get('deviation_asymmetry', 0)
+            cycles_040bp = row.get('opportunity_cycles_040bp', 0)
+
             print(f"  {row['symbol']:<12} {row['exchange1']:<8} {row['exchange2']:<8} "
                   f"{row.get('zero_crossings_per_minute', 0):>7.2f} "
-                  f"{row.get('cycles_030bp_per_hour', 0):>8.1f} "
+                  f"{cycles_040bp:>6.0f} "
                   f"{row.get('cycles_040bp_per_hour', 0):>8.1f} "
-                  f"{row.get('pct_time_above_030bp', 0):>8.1f}%")
+                  f"{abs(asymmetry):>6.2f}")
+
+        # Sort by opportunity cycles (complete round-trips with return to neutral)
+        cycles_sorted = stats_df.sort('opportunity_cycles_040bp', descending=True)
+        print(f"\n  Top 10 pairs by COMPLETE cycles (most tradeable opportunities):")
+        print(f"  {'Symbol':<12} {'Ex1':<8} {'Ex2':<8} {'Cycles':<7} {'Per hr':<8} {'ZC/min':<8} {'Asymm':<7}")
+        print(f"  {'-'*82}")
+        for row in cycles_sorted.head(10).iter_rows(named=True):
+            asymmetry = row.get('deviation_asymmetry', 0)
+            cycles_040bp = row.get('opportunity_cycles_040bp', 0)
+
+            print(f"  {row['symbol']:<12} {row['exchange1']:<8} {row['exchange2']:<8} "
+                  f"{cycles_040bp:>6.0f} "
+                  f"{row.get('cycles_040bp_per_hour', 0):>7.1f} "
+                  f"{row.get('zero_crossings_per_minute', 0):>7.2f} "
+                  f"{abs(asymmetry):>6.2f}")
 
     print(f"\n--- ULTRA-FAST Analysis Finished ---")
     print(f"Total pairs: {total_pairs}")
@@ -427,17 +575,74 @@ def run_ultra_fast_analysis(n_workers=None):
 
 
 if __name__ == "__main__":
+    # Required for Windows multiprocessing support
+    import multiprocessing
+    multiprocessing.freeze_support()
+
     import argparse
+    from datetime import date
 
     parser = argparse.ArgumentParser(
-        description="ULTRA-FAST parallel ratio analyzer with batching"
+        description="ULTRA-FAST parallel ratio analyzer with batching",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Analyze all available data
+  python run_all_ultra.py
+
+  # Analyze only today's data
+  python run_all_ultra.py --date 2025-11-03
+
+  # Analyze data for a specific date range
+  python run_all_ultra.py --start-date 2025-11-01 --end-date 2025-11-03
+
+  # Analyze from a specific date onwards
+  python run_all_ultra.py --start-date 2025-11-02
+
+  # Analyze up to a specific date
+  python run_all_ultra.py --end-date 2025-11-02
+
+  # Use more workers for faster processing
+  python run_all_ultra.py --workers 16 --date 2025-11-03
+        """
     )
     parser.add_argument("--workers", type=int, default=None,
                         help="Number of parallel workers (default: 3x CPU cores)")
+    parser.add_argument("--date", type=str, default=None,
+                        help="Analyze data for a specific date (YYYY-MM-DD). Shortcut for --start-date=DATE --end-date=DATE")
+    parser.add_argument("--start-date", type=str, default=None,
+                        help="Start date for analysis (YYYY-MM-DD), inclusive")
+    parser.add_argument("--end-date", type=str, default=None,
+                        help="End date for analysis (YYYY-MM-DD), inclusive")
+    parser.add_argument("--today", action="store_true",
+                        help="Analyze only today's data. Shortcut for --date=<today>")
 
     args = parser.parse_args()
+
+    # Handle --today flag
+    if args.today:
+        today_str = date.today().strftime('%Y-%m-%d')
+        start_date = today_str
+        end_date = today_str
+        print(f">>> Using --today: {today_str} <<<")
+    # Handle --date shortcut
+    elif args.date:
+        start_date = args.date
+        end_date = args.date
+    else:
+        start_date = args.start_date
+        end_date = args.end_date
+
+    # Validate date format (basic check)
+    for date_str, name in [(start_date, "start-date"), (end_date, "end-date")]:
+        if date_str:
+            try:
+                datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                print(f"ERROR: Invalid {name} format. Expected YYYY-MM-DD, got: {date_str}")
+                exit(1)
 
     print(">>> ULTRA-FAST MODE <<<")
     print("Optimizations: Batch processing + No subprocess + Data caching\n")
 
-    run_ultra_fast_analysis(n_workers=args.workers)
+    run_ultra_fast_analysis(n_workers=args.workers, start_date=start_date, end_date=end_date)

@@ -15,7 +15,7 @@ Key optimizations:
 
 Output metrics:
 - Zero crossings per minute (mean reversion frequency)
-- Opportunity cycles per hour for multiple thresholds (0.3%, 0.5%, 1.0%)
+- Opportunity cycles per hour for multiple thresholds (0.3%, 0.5%, 0.4%)
 - Percent time above each threshold
 
 Expected speedup: 2-3x vs previous version, 30-60x vs naive implementation
@@ -210,13 +210,13 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
 
         # BATCH OPTIMIZATION: Calculate all thresholds in one pass
         # Create columns for all thresholds at once
-        # Thresholds in basis points: 30bp=0.30%, 50bp=0.50%, 100bp=1.00%
-        thresholds = [0.3, 0.5, 1.0]
+        # Thresholds in basis points: 30bp=0.30%, 50bp=0.50%, 40bp=0.40%
+        thresholds = [0.3, 0.5, 0.4]
 
         joined_with_thresholds = joined.with_columns([
             (pl.col('deviation').abs() > 0.3).alias('above_030bp'),
             (pl.col('deviation').abs() > 0.5).alias('above_050bp'),
-            (pl.col('deviation').abs() > 1.0).alias('above_100bp')
+            (pl.col('deviation').abs() > 0.4).alias('above_040bp')
         ])
 
         # Calculate all metrics in one select (batch processing)
@@ -229,9 +229,9 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
             pl.concat([pl.lit(False), pl.col('above_050bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_050bp'),
             (pl.col('above_050bp').mean() * 100).alias('pct_050bp'),
 
-            # Cycles for 100bp (1.0%)
-            pl.concat([pl.lit(False), pl.col('above_100bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_100bp'),
-            (pl.col('above_100bp').mean() * 100).alias('pct_100bp')
+            # Cycles for 40bp (0.4%)
+            pl.concat([pl.lit(False), pl.col('above_040bp')]).cast(pl.Int8).diff().eq(1).sum().alias('cycles_040bp'),
+            (pl.col('above_040bp').mean() * 100).alias('pct_040bp')
         ])
 
         # Extract results
@@ -241,23 +241,23 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
         # Formula: (total_time_above / cycles) * 3600
         cycles_030bp = int(metrics['cycles_030bp'])
         cycles_050bp = int(metrics['cycles_050bp'])
-        cycles_100bp = int(metrics['cycles_100bp'])
+        cycles_040bp = int(metrics['cycles_040bp'])
 
         pct_030bp = float(metrics['pct_030bp'])
         pct_050bp = float(metrics['pct_050bp'])
-        pct_100bp = float(metrics['pct_100bp'])
+        pct_040bp = float(metrics['pct_040bp'])
 
         # Average duration per cycle (in seconds)
         avg_duration_030bp_sec = (duration_hours * pct_030bp / 100 * 3600) / cycles_030bp if cycles_030bp > 0 else 0
         avg_duration_050bp_sec = (duration_hours * pct_050bp / 100 * 3600) / cycles_050bp if cycles_050bp > 0 else 0
-        avg_duration_100bp_sec = (duration_hours * pct_100bp / 100 * 3600) / cycles_100bp if cycles_100bp > 0 else 0
+        avg_duration_040bp_sec = (duration_hours * pct_040bp / 100 * 3600) / cycles_040bp if cycles_040bp > 0 else 0
 
         # Pattern break detection: check if last cycle is incomplete (didn't return below threshold)
         # If deviation ends above threshold, pattern may be breaking
         last_deviation = float(joined['deviation'][-1])
         pattern_break_030bp = abs(last_deviation) > 0.3
         pattern_break_050bp = abs(last_deviation) > 0.5
-        pattern_break_100bp = abs(last_deviation) > 1.0
+        pattern_break_040bp = abs(last_deviation) > 0.4
 
         threshold_stats = {
             'opportunity_cycles_030bp': cycles_030bp,
@@ -272,11 +272,11 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
             'avg_cycle_duration_050bp_sec': avg_duration_050bp_sec,
             'pattern_break_050bp': pattern_break_050bp,
 
-            'opportunity_cycles_100bp': cycles_100bp,
-            'cycles_100bp_per_hour': cycles_100bp / duration_hours if duration_hours > 0 else 0,
-            'pct_time_above_100bp': pct_100bp,
-            'avg_cycle_duration_100bp_sec': avg_duration_100bp_sec,
-            'pattern_break_100bp': pattern_break_100bp
+            'opportunity_cycles_040bp': cycles_040bp,
+            'cycles_040bp_per_hour': cycles_040bp / duration_hours if duration_hours > 0 else 0,
+            'pct_time_above_040bp': pct_040bp,
+            'avg_cycle_duration_040bp_sec': avg_duration_040bp_sec,
+            'pattern_break_040bp': pattern_break_040bp
         }
 
         return {
@@ -410,13 +410,13 @@ def run_ultra_fast_analysis(n_workers=None):
 
         print(f"\n[OK] Summary statistics saved to: {stats_filename}")
         print(f"\n  Top 10 pairs by mean reversion frequency:")
-        print(f"  {'Symbol':<12} {'Ex1':<8} {'Ex2':<8} {'ZC/min':<8} {'30bp/hr':<9} {'50bp/hr':<9} {'Time>30bp':<10}")
+        print(f"  {'Symbol':<12} {'Ex1':<8} {'Ex2':<8} {'ZC/min':<8} {'30bp/hr':<9} {'40bp/hr':<9} {'Time>30bp':<10}")
         print(f"  {'-'*82}")
         for row in stats_df.head(10).iter_rows(named=True):
             print(f"  {row['symbol']:<12} {row['exchange1']:<8} {row['exchange2']:<8} "
                   f"{row.get('zero_crossings_per_minute', 0):>7.2f} "
                   f"{row.get('cycles_030bp_per_hour', 0):>8.1f} "
-                  f"{row.get('cycles_050bp_per_hour', 0):>8.1f} "
+                  f"{row.get('cycles_040bp_per_hour', 0):>8.1f} "
                   f"{row.get('pct_time_above_030bp', 0):>8.1f}%")
 
     print(f"\n--- ULTRA-FAST Analysis Finished ---")

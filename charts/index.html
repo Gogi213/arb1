@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>High-Performance Spread Dashboard</title>
+    <link rel="stylesheet" href="https://unpkg.com/uplot@1.6.26/dist/uPlot.min.css">
+    <style>
+        body { font-family: sans-serif; padding: 1em; background-color: #1a1a1a; color: #eee; }
+        h1 { text-align: center; }
+        #dashboard { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        .chart-container { border: 1px solid #444; padding: 10px; background-color: #2a2a2a; border-radius: 5px; }
+        .chart-container h2 { margin-top: 0; font-size: 1.1em; text-align: center; }
+        .chart-wrapper { width: 100%; height: 450px; }
+    </style>
+</head>
+<body>
+    <h1>High-Performance Spread Dashboard</h1>
+    <div id="status">Loading dashboard data...</div>
+    <div id="dashboard"></div>
+
+    <script src="https://unpkg.com/uplot@1.6.26/dist/uPlot.iife.min.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const dashboard = document.getElementById('dashboard');
+            const statusEl = document.getElementById('status');
+            
+            try {
+                const response = await fetch('http://127.0.0.1:8000/api/dashboard_data');
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.detail || 'Failed to fetch dashboard data.');
+                }
+                const { charts_data } = await response.json();
+
+                if (!charts_data || charts_data.length === 0) {
+                    statusEl.textContent = 'No opportunities found meeting the criteria.';
+                    return;
+                }
+                
+                statusEl.textContent = `Found ${charts_data.length} opportunities. Rendering charts...`;
+
+                for (const chartData of charts_data) {
+                    const container = document.createElement('div');
+                    container.className = 'chart-container';
+                    
+                    const title = document.createElement('h2');
+                    title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
+                    
+                    const chartWrapper = document.createElement('div');
+                    chartWrapper.className = 'chart-wrapper';
+                    
+                    container.appendChild(title);
+                    container.appendChild(chartWrapper);
+                    dashboard.appendChild(container);
+
+                    // uPlot expects data in a different format: [timestamps[], values[]]
+                    const dataForPlot = [
+                        chartData.timestamps,
+                        chartData.spreads
+                    ];
+
+                    renderChart(chartWrapper, dataForPlot);
+                }
+                statusEl.textContent = `Dashboard loaded with ${charts_data.length} charts.`;
+
+            } catch (error) {
+                console.error('Error building dashboard:', error);
+                statusEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+            }
+        });
+
+        function renderChart(target, data) {
+            const opts = {
+                width: target.clientWidth,
+                height: target.clientHeight,
+                series: [
+                    {},
+                    {
+                        stroke: "rgba(75, 192, 192, 1)",
+                        width: 1,
+                        fill: "rgba(75, 192, 192, 0.1)",
+                    }
+                ],
+                axes: [
+                    { show: false }, // Hide X axis
+                    { stroke: '#888' }  // Style Y axis
+                ],
+                cursor: {
+                    y: false, // Hide Y cursor line
+                    x: false
+                }
+            };
+            new uPlot(opts, data, target);
+        }
+    </script>
+</body>
+</html>

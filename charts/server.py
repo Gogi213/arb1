@@ -19,7 +19,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATA_LAKE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data', 'market_data'))
+DATA_LAKE_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'collections', 'data', 'market_data'))
 
 def clean_price_polars(col: pl.Series) -> pl.Series:
     # This function handles multiple types by trying conversions
@@ -35,25 +35,25 @@ async def load_and_process_pair(opportunity: dict, date: str):
         date_path = os.path.join(DATA_LAKE_PATH, f"exchange={exchange}", f"symbol={symbol}", f"date={date}")
         if not os.path.exists(date_path):
             return None
-        
-        files = [os.path.join(hour_path, f) 
-                 for hour in range(24) 
+
+        files = [os.path.join(hour_path, f)
+                 for hour in range(24)
                  for hour_path in [os.path.join(date_path, f"hour={str(hour).zfill(2)}")] if os.path.exists(hour_path)
                  for f in os.listdir(hour_path) if f.endswith('.parquet')]
 
         if not files:
             return None
-        
+
         # Use Polars for fast parallel reading
         df = pl.read_parquet(files)
-        
+
         # Find timestamp and bid columns
         ts_col = next((col for col in df.columns if 'time' in col.lower()), None)
         bid_col = next((col for col in df.columns if 'bestbid' in col.lower()), 'BestBid')
 
         if not ts_col or not bid_col in df.columns:
             return None
-            
+
         return df.select([
             pl.col(ts_col).alias('timestamp'),
             pl.col(bid_col)
@@ -82,7 +82,7 @@ async def load_and_process_pair(opportunity: dict, date: str):
 
     # Фильтруем строки, где спред не мог быть вычислен (из-за отсутствия данных от df_b)
     result_df = result_df.filter(pl.col('spread').is_not_null())
-    
+
     # Convert to epoch seconds for uPlot
     timestamps = (result_df.get_column("timestamp").dt.epoch(time_unit="ms") / 1000).to_list()
     spreads = result_df.get_column("spread").to_list()
@@ -98,27 +98,39 @@ async def load_and_process_pair(opportunity: dict, date: str):
 
 @app.get("/api/dashboard_data")
 async def get_dashboard_data():
-    stats_file = os.path.join(os.path.dirname(__file__), 'summary_stats_20251105_115056.csv')
-    if not os.path.exists(stats_file):
-        raise HTTPException(status_code=404, detail="Summary stats file not found.")
+    # Find the latest summary stats file from analyzer/summary_stats/
+    analyzer_stats_dir = os.path.join(os.path.dirname(__file__), '..', 'analyzer', 'summary_stats')
+    if not os.path.exists(analyzer_stats_dir):
+        raise HTTPException(status_code=404, detail="Analyzer summary_stats directory not found.")
+
+    # Get all CSV files and find the latest one by modification time
+    csv_files = [f for f in os.listdir(analyzer_stats_dir) if f.endswith('.csv')]
+    if not csv_files:
+        raise HTTPException(status_code=404, detail="No summary stats CSV files found.")
+
+    # Find the most recent file
+    latest_file = max(csv_files, key=lambda f: os.path.getmtime(os.path.join(analyzer_stats_dir, f)))
+    stats_file = os.path.join(analyzer_stats_dir, latest_file)
 
     try:
-        date_today = datetime.now().strftime("%Y-%m-%d")
-        
+        # Use yesterday's date since analysis was run for previous day
+        from datetime import timedelta
+        date_to_use = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
         df_opps = pl.read_csv(stats_file)
         df_filtered = df_opps.filter(pl.col('opportunity_cycles_040bp') > 50)
-        
+
         df_sorted = df_filtered.sort(['symbol', 'exchange1'])
         opportunities = df_sorted.select([
             pl.col('symbol'), pl.col('exchange1'), pl.col('exchange2')
         ]).to_dicts()
 
-        tasks = [load_and_process_pair(opp, date_today) for opp in opportunities]
+        tasks = [load_and_process_pair(opp, date_to_use) for opp in opportunities]
         results = await asyncio.gather(*tasks)
-        
+
         # Filter out None results where data was missing or processing failed
         valid_results = [res for res in results if res is not None]
-        
+
         return {"charts_data": valid_results}
 
     except Exception as e:

@@ -37,7 +37,7 @@ def analyze_symbol_batch(args):
 
     This is the key optimization - prevents re-loading same data.
     """
-    symbol, exchanges, data_path, start_date, end_date = args
+    symbol, exchanges, data_path, start_date, end_date, thresholds = args
 
     # OPTIMIZATION #12: Parallel loading of exchanges (1.5-2x faster)
     # Load data for all exchanges in parallel using ThreadPoolExecutor
@@ -79,7 +79,8 @@ def analyze_symbol_batch(args):
         stats = analyze_pair_fast(
             symbol, ex1, ex2,
             exchange_data[ex1],
-            exchange_data[ex2]
+            exchange_data[ex2],
+            thresholds
         )
 
         if stats is not None:
@@ -126,68 +127,43 @@ def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str, start_
         return None
 
     # OPTIMIZATION #8: Single parquet scan for ALL dates (2-4x faster I/O)
-    # Now supports date filtering
+    # Now supports date filtering with improved file collection
     if start_date or end_date:
-        # Build glob pattern for specific dates
-        if start_date and end_date:
-            # Filter by date range during glob pattern construction
-            # This is more efficient than loading all data and filtering
-            import os
-            available_dates = []
-            for item in os.scandir(symbol_path):
-                if item.is_dir() and item.name.startswith('date='):
-                    date_str = item.name.split('=')[1]
-                    if (not start_date or date_str >= start_date) and (not end_date or date_str <= end_date):
-                        available_dates.append(date_str)
+        # Filter by date range during file collection
+        import os
+        available_dates = []
+        for item in os.scandir(symbol_path):
+            if item.is_dir() and item.name.startswith('date='):
+                date_str = item.name.split('=')[1]
+                if (not start_date or date_str >= start_date) and (not end_date or date_str <= end_date):
+                    available_dates.append(date_str)
 
-            if not available_dates:
-                return None
-
-            # Build pattern for matching dates
-            glob_patterns = [str(symbol_path / f"date={date}" / "hour=*" / "*.parquet") for date in available_dates]
-        else:
-            # Single date filter
-            target_date = start_date or end_date
-            glob_patterns = [str(symbol_path / f"date={target_date}" / "hour=*" / "*.parquet")]
-
-        # Try to load data from filtered dates
-        dfs = []
-        for pattern in glob_patterns:
-            try:
-                df = pl.scan_parquet(pattern) \
-                    .select(['Timestamp', 'BestBid', 'BestAsk']) \
-                    .rename({
-                        'Timestamp': 'timestamp',
-                        'BestBid': 'bestBid',
-                        'BestAsk': 'bestAsk'
-                    }) \
-                    .with_columns([
-                        pl.col('bestBid').cast(pl.Float64),
-                        pl.col('bestAsk').cast(pl.Float64)
-                    ]) \
-                    .filter(
-                        pl.col('bestBid').is_not_null() &
-                        pl.col('bestAsk').is_not_null()
-                    ) \
-                    .collect()
-
-                if not df.is_empty():
-                    dfs.append(df)
-            except Exception:
-                continue
-
-        if not dfs:
+        if not available_dates:
             return None
 
-        # Concatenate and sort all dataframes
-        combined_df = pl.concat(dfs).sort('timestamp')
-        return combined_df if not combined_df.is_empty() else None
+        # Collect ALL parquet files for the filtered dates (single scan approach)
+        all_files = []
+        for date in available_dates:
+            date_path = symbol_path / f"date={date}"
+            if date_path.exists():
+                for hour_dir in date_path.glob("hour=*"):
+                    if hour_dir.is_dir():
+                        all_files.extend(hour_dir.glob("*.parquet"))
     else:
-        # Original behavior: load all dates
-        glob_pattern = str(symbol_path / "date=*" / "hour=*" / "*.parquet")
+        # Original behavior: collect all files
+        all_files = []
+        for date_dir in symbol_path.glob("date=*"):
+            if date_dir.is_dir():
+                for hour_dir in date_dir.glob("hour=*"):
+                    if hour_dir.is_dir():
+                        all_files.extend(hour_dir.glob("*.parquet"))
 
+    if not all_files:
+        return None
+
+    # Single scan for ALL collected files (much faster than multiple scans)
     try:
-        df = pl.scan_parquet(glob_pattern) \
+        df = pl.scan_parquet(all_files) \
             .select(['Timestamp', 'BestBid', 'BestAsk']) \
             .rename({
                 'Timestamp': 'timestamp',
@@ -202,18 +178,15 @@ def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str, start_
                 pl.col('bestBid').is_not_null() &
                 pl.col('bestAsk').is_not_null()
             ) \
-            .sort('timestamp') \
-            .collect()
+            .collect() \
+            .sort('timestamp')
 
-        if df.is_empty():
-            return None
-
-        return df
+        return df if not df.is_empty() else None
     except Exception:
         return None
 
 
-def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data2: pl.DataFrame):
+def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data2: pl.DataFrame, thresholds=None):
     """
     Fast pair analysis without subprocess - OPTIMIZED with Polars operations.
     Data already loaded and passed in.
@@ -292,14 +265,15 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
 
         ZERO_THRESHOLD = 0.05  # Consider "at zero" if abs(deviation) < 0.05%
 
-        # Define thresholds
-        thresholds = [0.3, 0.5, 0.4]
+        # Use provided thresholds or defaults
+        if thresholds is None:
+            thresholds = [0.3, 0.5, 0.4]
 
         joined_with_thresholds = joined.with_columns([
             # Above threshold flags
-            (pl.col('deviation').abs() > 0.3).alias('above_030bp'),
-            (pl.col('deviation').abs() > 0.5).alias('above_050bp'),
-            (pl.col('deviation').abs() > 0.4).alias('above_040bp'),
+            (pl.col('deviation').abs() > thresholds[0]).alias('above_030bp'),
+            (pl.col('deviation').abs() > thresholds[1]).alias('above_050bp'),
+            (pl.col('deviation').abs() > thresholds[2]).alias('above_040bp'),
             # In neutral zone flag
             (pl.col('deviation').abs() < ZERO_THRESHOLD).alias('in_neutral')
         ])
@@ -368,9 +342,9 @@ def analyze_pair_fast(symbol: str, ex1: str, ex2: str, data1: pl.DataFrame, data
         # Pattern break detection: check if last cycle is incomplete (didn't return below threshold)
         # If deviation ends above threshold, pattern may be breaking
         last_deviation = float(joined['deviation'][-1])
-        pattern_break_030bp = abs(last_deviation) > 0.3
-        pattern_break_050bp = abs(last_deviation) > 0.5
-        pattern_break_040bp = abs(last_deviation) > 0.4
+        pattern_break_030bp = abs(last_deviation) > thresholds[0]
+        pattern_break_050bp = abs(last_deviation) > thresholds[1]
+        pattern_break_040bp = abs(last_deviation) > thresholds[2]
 
         threshold_stats = {
             'opportunity_cycles_030bp': cycles_030bp,
@@ -442,7 +416,7 @@ def discover_data(data_path: str) -> defaultdict:
     return valid_symbols
 
 
-def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, start_date=None, end_date=None):
+def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, start_date=None, end_date=None, thresholds=None):
     """
     ULTRA-FAST analysis with batching and caching.
 
@@ -498,7 +472,7 @@ def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, st
     for symbol, exchanges in symbols_to_analyze.items():
         n_pairs = len(list(combinations(exchanges, 2)))
         total_pairs += n_pairs
-        tasks.append((symbol, list(exchanges), DATA_PATH, start_date, end_date))
+        tasks.append((symbol, list(exchanges), DATA_PATH, start_date, end_date, thresholds))
 
     print(f"Total symbols: {len(tasks)}")
     print(f"Total pairs: {total_pairs}")
@@ -552,8 +526,11 @@ def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, st
         # Sort by zero_crossings_per_minute (MOST IMPORTANT for mean reversion)
         stats_df = stats_df.sort('zero_crossings_per_minute', descending=True)
 
+        # Create summary_stats directory inside analyzer if it doesn't exist
+        os.makedirs("summary_stats", exist_ok=True)
+
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        stats_filename = f"summary_stats_{timestamp}.csv"
+        stats_filename = f"summary_stats/summary_stats_{timestamp}.csv"
         stats_df.write_csv(stats_filename)
 
         print(f"\n[OK] Summary statistics saved to: {stats_filename}")
@@ -637,6 +614,8 @@ Examples:
                         help="Start date for analysis (YYYY-MM-DD), inclusive")
     parser.add_argument("--end-date", type=str, default=None,
                         help="End date for analysis (YYYY-MM-DD), inclusive")
+    parser.add_argument("--thresholds", type=float, nargs=3, default=[0.3, 0.5, 0.4],
+                        help="Analysis thresholds as percentages (default: 0.3 0.5 0.4)")
     parser.add_argument("--today", action="store_true",
                         help="Analyze only today's data. Shortcut for --date=<today>")
 
@@ -668,4 +647,4 @@ Examples:
     print(">>> ULTRA-FAST MODE <<<")
     print("Optimizations: Batch processing + No subprocess + Data caching\n")
 
-    run_ultra_fast_analysis(data_path=args.data_path, exchanges_filter=args.exchanges, n_workers=args.workers, start_date=start_date, end_date=end_date)
+    run_ultra_fast_analysis(data_path=args.data_path, exchanges_filter=args.exchanges, n_workers=args.workers, start_date=start_date, end_date=end_date, thresholds=args.thresholds)

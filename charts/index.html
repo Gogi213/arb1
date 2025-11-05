@@ -25,7 +25,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const dashboard = document.getElementById('dashboard');
             const statusEl = document.getElementById('status');
-            
+
             try {
                 const response = await fetch('http://127.0.0.1:8000/api/dashboard_data');
                 if (!response.ok) {
@@ -38,19 +38,19 @@
                     statusEl.textContent = 'No opportunities found meeting the criteria.';
                     return;
                 }
-                
+
                 statusEl.textContent = `Found ${charts_data.length} opportunities. Rendering charts...`;
 
                 for (const chartData of charts_data) {
                     const container = document.createElement('div');
                     container.className = 'chart-container';
-                    
+
                     const title = document.createElement('h2');
                     title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
-                    
+
                     const chartWrapper = document.createElement('div');
                     chartWrapper.className = 'chart-wrapper';
-                    
+
                     container.appendChild(title);
                     container.appendChild(chartWrapper);
                     dashboard.appendChild(container);

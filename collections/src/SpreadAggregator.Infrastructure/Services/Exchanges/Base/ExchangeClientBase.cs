@@ -2,6 +2,7 @@ using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Sockets;
 using SpreadAggregator.Application.Abstractions;
 using SpreadAggregator.Domain.Entities;
+using SpreadAggregator.Infrastructure.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -49,7 +50,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     /// </summary>
     public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
     {
-        Console.WriteLine($"[{ExchangeName}] SubscribeToTickersAsync called with {symbols.Count()} symbols");
+        WebSocketLogger.Log($"[{ExchangeName}] SubscribeToTickersAsync called with {symbols.Count()} symbols");
 
         _onTickerData = onData;
 
@@ -62,7 +63,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 
         // Split symbols into chunks based on exchange limits
         var symbolsList = symbols.ToList();
-        Console.WriteLine($"[{ExchangeName}] Creating {(symbolsList.Count + ChunkSize - 1) / ChunkSize} connection chunks");
+        WebSocketLogger.Log($"[{ExchangeName}] Creating {(symbolsList.Count + ChunkSize - 1) / ChunkSize} connection chunks");
 
         for (int i = 0; i < symbolsList.Count; i += ChunkSize)
         {
@@ -78,12 +79,12 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
             }
         }
 
-        Console.WriteLine($"[{ExchangeName}] Starting {_connections.Count} connections...");
+        WebSocketLogger.Log($"[{ExchangeName}] Starting {_connections.Count} connections...");
 
         // Start all connections
         await Task.WhenAll(_connections.Select(c => c.StartAsync()));
 
-        Console.WriteLine($"[{ExchangeName}] All connections started");
+        WebSocketLogger.Log($"[{ExchangeName}] All connections started");
     }
 
     /// <summary>
@@ -94,7 +95,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     {
         if (!SupportsTradesStream)
         {
-            Console.WriteLine($"[{ExchangeName}] Trades stream not implemented yet.");
+            WebSocketLogger.Log($"[{ExchangeName}] Trades stream not implemented yet.");
             return Task.CompletedTask;
         }
 
@@ -143,7 +144,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 
         private async Task SubscribeInternalAsync()
         {
-            Console.WriteLine($"[{_parent.ExchangeName}ExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
+            WebSocketLogger.Log($"[{_parent.ExchangeName}ExchangeClient] Subscribing to a chunk of {_symbols.Count} symbols.");
 
             var api = _parent.CreateSocketApi(_socketClient);
             await api.UnsubscribeAllAsync();
@@ -187,11 +188,11 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 
             if (!result.Success)
             {
-                Console.WriteLine($"[ERROR] [{_parent.ExchangeName}] Failed to subscribe to {streamType} chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
+                WebSocketLogger.Log($"[ERROR] [{_parent.ExchangeName}] Failed to subscribe to {streamType} chunk starting with {_symbols.FirstOrDefault()}: {result.Error}");
             }
             else
             {
-                Console.WriteLine($"[{_parent.ExchangeName}] Successfully subscribed to {streamType} chunk starting with {_symbols.FirstOrDefault()}.");
+                WebSocketLogger.Log($"[{_parent.ExchangeName}] Successfully subscribed to {streamType} chunk starting with {_symbols.FirstOrDefault()}.");
 
                 // Subscribe to connection events using dynamic to avoid type issues
                 // The JKorf libraries handle reconnection automatically
@@ -199,12 +200,12 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
                 {
                     result.Data.ConnectionLost += new Action(HandleConnectionLost);
                     result.Data.ConnectionRestored += new Action<TimeSpan>((t) =>
-                        Console.WriteLine($"[{_parent.ExchangeName}] {streamType} connection restored for chunk after {t}."));
+                        WebSocketLogger.Log($"[{_parent.ExchangeName}] {streamType} connection restored for chunk after {t}."));
                 }
                 catch
                 {
                     // If event subscription fails, it's not critical - JKorf handles reconnection internally
-                    Console.WriteLine($"[{_parent.ExchangeName}] Note: Connection event handlers not attached (non-critical).");
+                    WebSocketLogger.Log($"[{_parent.ExchangeName}] Note: Connection event handlers not attached (non-critical).");
                 }
             }
         }
@@ -214,13 +215,13 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
             await _resubscribeLock.WaitAsync();
             try
             {
-                Console.WriteLine($"[{_parent.ExchangeName}] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
+                WebSocketLogger.Log($"[{_parent.ExchangeName}] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
                 await Task.Delay(1000);
                 await SubscribeInternalAsync();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[ERROR] [{_parent.ExchangeName}] Failed to resubscribe for chunk: {ex.Message}");
+                WebSocketLogger.Log($"[ERROR] [{_parent.ExchangeName}] Failed to resubscribe for chunk: {ex.Message}");
             }
             finally
             {

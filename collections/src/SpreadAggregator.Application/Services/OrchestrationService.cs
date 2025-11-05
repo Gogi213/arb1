@@ -77,7 +77,7 @@ public class OrchestrationService
         Console.WriteLine($"[{exchangeName}] Received {tickers.Count} tickers.");
 
         var filteredSymbols = tickers
-            .Where(t => t.Symbol.EndsWith("USDT", StringComparison.OrdinalIgnoreCase) && _volumeFilter.IsVolumeSufficient(t.QuoteVolume, minVolume, maxVolume))
+            .Where(t => (t.Symbol.EndsWith("USDT", StringComparison.OrdinalIgnoreCase) || t.Symbol.EndsWith("USDC", StringComparison.OrdinalIgnoreCase)) && _volumeFilter.IsVolumeSufficient(t.QuoteVolume, minVolume, maxVolume))
             .Select(t => t.Symbol)
             .ToList();
         Console.WriteLine($"[{exchangeName}] {filteredSymbols.Count} symbols passed the volume filter.");

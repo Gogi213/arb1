@@ -69,9 +69,9 @@ async def load_and_process_pair(opportunity: dict, date: str):
     df_b = df_b.with_columns(clean_price_polars(pl.col("BestBid")).alias("bid_b")).sort("timestamp")
 
     # Polars asof_join is extremely fast
-    merged_df = df_a.join_asof(df_b, on="timestamp", strategy="nearest")
-    merged_df = merged_df.drop_nulls()
-
+    # Используем 'backward' для предотвращения "заглядывания в будущее".
+    # Добавляем 'tolerance', чтобы не использовать слишком старые данные.
+    merged_df = df_a.join_asof(df_b, on="timestamp", strategy="backward", tolerance="2s")
     if merged_df.height == 0:
         return None
 
@@ -79,6 +79,9 @@ async def load_and_process_pair(opportunity: dict, date: str):
     result_df = merged_df.with_columns(
         (((pl.col('bid_a') / pl.col('bid_b')) - 1) * 100).alias('spread')
     )
+
+    # Фильтруем строки, где спред не мог быть вычислен (из-за отсутствия данных от df_b)
+    result_df = result_df.filter(pl.col('spread').is_not_null())
     
     # Convert to epoch seconds for uPlot
     timestamps = (result_df.get_column("timestamp").dt.epoch(time_unit="ms") / 1000).to_list()
@@ -95,7 +98,7 @@ async def load_and_process_pair(opportunity: dict, date: str):
 
 @app.get("/api/dashboard_data")
 async def get_dashboard_data():
-    stats_file = os.path.join(os.path.dirname(__file__), 'summary_stats_20251103_153920.csv')
+    stats_file = os.path.join(os.path.dirname(__file__), 'summary_stats_20251104_184912.csv')
     if not os.path.exists(stats_file):
         raise HTTPException(status_code=404, detail="Summary stats file not found.")
 

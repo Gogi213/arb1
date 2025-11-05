@@ -442,16 +442,18 @@ def discover_data(data_path: str) -> defaultdict:
     return valid_symbols
 
 
-def run_ultra_fast_analysis(n_workers=None, start_date=None, end_date=None):
+def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, start_date=None, end_date=None):
     """
     ULTRA-FAST analysis with batching and caching.
 
     Args:
+        data_path: Path to the market data directory.
+        exchanges_filter: A list of exchanges to filter by.
         n_workers: Number of parallel workers (default: 3x CPU cores)
         start_date: Start date filter (YYYY-MM-DD format), inclusive. If None, no start filter.
         end_date: End date filter (YYYY-MM-DD format), inclusive. If None, no end filter.
     """
-    DATA_PATH = "../data/market_data"
+    DATA_PATH = data_path
 
     # Print date filter info
     if start_date or end_date:
@@ -469,6 +471,23 @@ def run_ultra_fast_analysis(n_workers=None, start_date=None, end_date=None):
 
     if not symbols_to_analyze:
         return
+
+    # Filter exchanges if provided
+    if exchanges_filter:
+        print(f"\n>>> Filtering for exchanges: {', '.join(exchanges_filter)} <<<")
+        exchanges_filter_set = set(exchanges_filter)
+        filtered_symbols = {}
+        for symbol, exchanges in symbols_to_analyze.items():
+            # Keep only the exchanges that are in the filter list
+            filtered_exchanges = exchanges.intersection(exchanges_filter_set)
+            # Only keep symbols that are on at least 2 of the *filtered* exchanges
+            if len(filtered_exchanges) >= 2:
+                filtered_symbols[symbol] = filtered_exchanges
+        symbols_to_analyze = filtered_symbols
+
+        if not symbols_to_analyze:
+            print("No symbols found trading on 2 or more of the specified exchanges.")
+            return
 
     print("\n--- Preparing Symbol Batches ---")
 
@@ -606,6 +625,10 @@ Examples:
   python run_all_ultra.py --workers 16 --date 2025-11-03
         """
     )
+    parser.add_argument("--data-path", type=str, default="../data/market_data",
+                        help="Path to the market data directory.")
+    parser.add_argument("--exchanges", type=str, nargs='+', default=None,
+                        help="List of exchanges to analyze (e.g., Binance Bybit OKX)")
     parser.add_argument("--workers", type=int, default=None,
                         help="Number of parallel workers (default: 3x CPU cores)")
     parser.add_argument("--date", type=str, default=None,
@@ -645,4 +668,4 @@ Examples:
     print(">>> ULTRA-FAST MODE <<<")
     print("Optimizations: Batch processing + No subprocess + Data caching\n")
 
-    run_ultra_fast_analysis(n_workers=args.workers, start_date=start_date, end_date=end_date)
+    run_ultra_fast_analysis(data_path=args.data_path, exchanges_filter=args.exchanges, n_workers=args.workers, start_date=start_date, end_date=end_date)

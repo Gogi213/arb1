@@ -1,0 +1,20 @@
+> { "method": "SUBSCRIBE", "params": [ "123" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "123",
+	"data": 
+       {
+        "e": "STRATEGY_UPDATE", 
+        "T": 1669261797627, 
+        "E": 1669261797628, 
+        "su": {
+                "si": 176054594, 
+                "st": "GRID", 
+                "ss": "NEW", 
+                "s": "BTCUSDT", 
+                "ut": 1669261797627, 
+                "c": 8007 
+            }
+    }
+}

@@ -1,0 +1,14 @@
+> { "method": "SUBSCRIBE", "params": [ "123" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "123",
+	"data": 
+    {
+	  "e": "balanceUpdate",      
+	  "E": 1573200697110,          
+	  "a": "BTC",               
+	  "d": "100.00000000",          
+	  "T": 1573200697068           
+	}
+}

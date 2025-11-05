@@ -1,0 +1,38 @@
+GET
+/sapi/v1/margin/transfer
+true
+{
+  "rows": [
+    {
+      "amount": "0.10000000",
+      "asset": "BNB",
+      "status": "CONFIRMED",
+      "timestamp": 1566898617,
+      "txId": 5240372201,
+      "type": "ROLL_IN",
+      "transFrom": "SPOT",
+      "transTo": "ISOLATED_MARGIN"
+    },
+    {
+      "amount": "5.00000000",
+      "asset": "USDT",
+      "status": "CONFIRMED",
+      "timestamp": 1566888436,
+      "txId": 5239810406,
+      "type": "ROLL_OUT",
+      "transFrom": "ISOLATED_MARGIN",
+      "transTo": "ISOLATED_MARGIN",
+      "fromSymbol": "BNBUSDT",
+      "toSymbol": "BTCUSDT"
+    },
+    {
+      "amount": "1.00000000",
+      "asset": "EOS",
+      "status": "CONFIRMED",
+      "timestamp": 1566888403,
+      "txId": 5239808703,
+      "type": "ROLL_IN"
+    }
+  ],
+  "total": 3
+}

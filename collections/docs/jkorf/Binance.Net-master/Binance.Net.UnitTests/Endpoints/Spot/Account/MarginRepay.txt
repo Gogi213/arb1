@@ -1,0 +1,6 @@
+POST
+/sapi/v1/margin/borrow-repay
+true
+{
+  "tranId": 100000001
+}

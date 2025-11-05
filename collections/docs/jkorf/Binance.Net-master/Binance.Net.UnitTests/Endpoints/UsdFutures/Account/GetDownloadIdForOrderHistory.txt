@@ -1,0 +1,7 @@
+GET
+/fapi/v1/order/asyn
+true
+{
+    "avgCostTimestampOfLast30d":7241837,
+    "downloadId":"546975389218332672"
+}

@@ -98,7 +98,7 @@ async def load_and_process_pair(opportunity: dict, date: str):
 
 @app.get("/api/dashboard_data")
 async def get_dashboard_data():
-    stats_file = os.path.join(os.path.dirname(__file__), 'summary_stats_20251104_184912.csv')
+    stats_file = os.path.join(os.path.dirname(__file__), 'summary_stats_20251105_115056.csv')
     if not os.path.exists(stats_file):
         raise HTTPException(status_code=404, detail="Summary stats file not found.")
 
@@ -106,7 +106,7 @@ async def get_dashboard_data():
         date_today = datetime.now().strftime("%Y-%m-%d")
         
         df_opps = pl.read_csv(stats_file)
-        df_filtered = df_opps.filter(pl.col('opportunity_cycles_040bp') > 100)
+        df_filtered = df_opps.filter(pl.col('opportunity_cycles_040bp') > 50)
         
         df_sorted = df_filtered.sort(['symbol', 'exchange1'])
         opportunities = df_sorted.select([

@@ -1,0 +1,17 @@
+> { "method": "SUBSCRIBE", "params": [ "123" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "123",
+	"data": 
+       {
+        "e":"CONDITIONAL_ORDER_TRIGGER_REJECT",  
+        "E":1685517224945,   
+        "T":1685517224955,    
+        "or":{
+          "s":"ETHUSDT",   
+          "i":155618472834,  
+          "r":"Due to the order could not be filled immediately, the FOK order has been rejected. The order will not be recorded in the order history"
+         }
+    }  
+}

@@ -1,0 +1,22 @@
+> { "method": "SUBSCRIBE", "params": [ "btcusdt@depth5@100ms" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "btcusdt@depth5@100ms",
+	"data": 
+     {
+      "lastUpdateId": 160,  
+      "bids": [           
+        [
+          "0.0024",      
+          "10"            
+        ]
+      ],
+      "asks": [            
+        [
+          "0.0026",        
+          "100"         
+        ]
+      ]
+    }
+}

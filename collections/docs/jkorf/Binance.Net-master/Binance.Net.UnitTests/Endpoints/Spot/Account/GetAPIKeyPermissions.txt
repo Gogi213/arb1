@@ -1,0 +1,16 @@
+GET
+/sapi/v1/account/apiRestrictions
+true
+{
+  "ipRestrict":false, 
+  "createTime":1698645219000,
+  "enableInternalTransfer":false, 
+  "enableFutures":false,  
+  "enablePortfolioMarginTrading":true, 
+  "enableVanillaOptions":false,  
+  "permitsUniversalTransfer":false, 
+  "enableReading":true, 
+  "enableSpotAndMarginTrading":false,
+  "enableWithdrawals":false,
+  "enableMargin":false  
+}

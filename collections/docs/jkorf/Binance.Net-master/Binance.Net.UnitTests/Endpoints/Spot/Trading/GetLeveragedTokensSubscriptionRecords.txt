@@ -1,0 +1,14 @@
+GET
+/sapi/v1/blvt/subscribe/record
+true
+[  
+  {
+    "id": 1,  
+    "tokenName": "LINKUP",
+    "amount": "0.54216292",
+    "nav": "18.42621386", 
+    "fee": "0.00999000", 
+    "totalCharge": "9.99999991", 
+    "timestamp":1599127217916  
+  }
+]

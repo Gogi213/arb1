@@ -1,0 +1,12 @@
+GET
+/api/v1/accounts/123
+true
+{
+  "data": {
+  "currency": "KCS", 
+  "balance": "1000000060.6299", 
+  "available": "1000000060.6299", 
+  "holds": "0"
+},
+  "code": "200000"
+}

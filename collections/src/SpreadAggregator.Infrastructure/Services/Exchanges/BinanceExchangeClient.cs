@@ -30,10 +30,22 @@ public class BinanceExchangeClient : ExchangeClientBase<BinanceRestClient, Binan
         return new BinanceSocketApiAdapter(client.SpotApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
-        return tickers.Data.Select(t => t.Symbol);
+        var exchangeInfo = await _restClient.SpotApi.ExchangeData.GetExchangeInfoAsync();
+        if (!exchangeInfo.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return exchangeInfo.Data.Symbols.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Name,
+            PriceStep = s.PriceFilter?.TickSize ?? 0,
+            QuantityStep = s.LotSizeFilter?.StepSize ?? 0,
+            MinNotional = s.MinNotionalFilter?.MinNotional ?? 0
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

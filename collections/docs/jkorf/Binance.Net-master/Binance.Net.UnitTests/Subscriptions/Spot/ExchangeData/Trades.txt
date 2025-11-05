@@ -1,0 +1,20 @@
+> { "method": "SUBSCRIBE", "params": [ "btcusdt@trade" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "btcusdt@trade",
+	"data": 
+	{
+	  "e": "trade",  
+	  "E": 1672515782136,  
+	  "s": "BNBBTC",   
+	  "t": 12345,     
+	  "p": "0.001",    
+	  "q": "100",      
+	  "b": 88,        
+	  "a": 50,         
+	  "T": 1672515782136,  
+	  "m": true,       
+	  "M": true      
+	}
+}

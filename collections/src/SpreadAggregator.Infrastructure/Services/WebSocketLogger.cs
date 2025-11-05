@@ -19,6 +19,10 @@ public static class WebSocketLogger
         try
         {
             Directory.CreateDirectory(LogDirectory);
+            if (File.Exists(LogFilePath))
+            {
+                File.Delete(LogFilePath);
+            }
         }
         catch (Exception ex)
         {

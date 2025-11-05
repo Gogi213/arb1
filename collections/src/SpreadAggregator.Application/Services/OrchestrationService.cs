@@ -21,9 +21,14 @@ public class OrchestrationService
     private readonly IConfiguration _configuration;
     private readonly IEnumerable<IExchangeClient> _exchangeClients;
     private readonly Channel<MarketData> _rawDataChannel;
+    private readonly Channel<MarketData> _rollingWindowChannel;
     private readonly IDataWriter? _dataWriter;
 
+    private readonly List<SymbolInfo> _allSymbolInfo = new();
+    public IEnumerable<SymbolInfo> AllSymbolInfo => _allSymbolInfo;
+
     public ChannelReader<MarketData> RawDataChannelReader => _rawDataChannel.Reader;
+    public ChannelReader<MarketData> RollingWindowChannelReader => _rollingWindowChannel.Reader;
 
     public OrchestrationService(
         IWebSocketServer webSocketServer,
@@ -32,6 +37,7 @@ public class OrchestrationService
         VolumeFilter volumeFilter,
         IEnumerable<IExchangeClient> exchangeClients,
         Channel<MarketData> rawDataChannel,
+        Channel<MarketData> rollingWindowChannel,
         IDataWriter? dataWriter = null)
     {
         _webSocketServer = webSocketServer;
@@ -40,6 +46,7 @@ public class OrchestrationService
         _volumeFilter = volumeFilter;
         _exchangeClients = exchangeClients;
         _rawDataChannel = rawDataChannel;
+        _rollingWindowChannel = rollingWindowChannel;
         _dataWriter = dataWriter;
     }
 
@@ -73,16 +80,25 @@ public class OrchestrationService
         var minVolume = exchangeConfig.GetValue<decimal?>("MinUsdVolume") ?? 0;
         var maxVolume = exchangeConfig.GetValue<decimal?>("MaxUsdVolume") ?? decimal.MaxValue;
 
+        var allSymbols = (await exchangeClient.GetSymbolsAsync()).ToList();
+        _allSymbolInfo.AddRange(allSymbols);
+        
         var tickers = (await exchangeClient.GetTickersAsync()).ToList();
-        Console.WriteLine($"[{exchangeName}] Received {tickers.Count} tickers.");
+        Console.WriteLine($"[{exchangeName}] Received {tickers.Count} tickers and {allSymbols.Count} symbol info objects.");
 
-        var filteredSymbols = tickers
-            .Where(t => (t.Symbol.EndsWith("USDT", StringComparison.OrdinalIgnoreCase) || t.Symbol.EndsWith("USDC", StringComparison.OrdinalIgnoreCase)) && _volumeFilter.IsVolumeSufficient(t.QuoteVolume, minVolume, maxVolume))
-            .Select(t => t.Symbol)
+        var tickerLookup = tickers.ToDictionary(t => t.Symbol, t => t.QuoteVolume);
+
+        var filteredSymbolInfo = allSymbols
+            .Where(s => tickerLookup.ContainsKey(s.Name) &&
+                        (s.Name.EndsWith("USDT", StringComparison.OrdinalIgnoreCase) || s.Name.EndsWith("USDC", StringComparison.OrdinalIgnoreCase)) &&
+                        _volumeFilter.IsVolumeSufficient(tickerLookup[s.Name], minVolume, maxVolume))
             .ToList();
-        Console.WriteLine($"[{exchangeName}] {filteredSymbols.Count} symbols passed the volume filter.");
+        
+        var filteredSymbolNames = filteredSymbolInfo.Select(s => s.Name).ToList();
+        
+        Console.WriteLine($"[{exchangeName}] {filteredSymbolNames.Count} symbols passed the volume filter.");
 
-        if (!filteredSymbols.Any())
+        if (!filteredSymbolNames.Any())
         {
             Console.WriteLine($"[{exchangeName}] No symbols to subscribe to after filtering.");
             return;
@@ -95,7 +111,7 @@ public class OrchestrationService
         if (enableTickers)
         {
             Console.WriteLine($"[{exchangeName}] Adding ticker subscription task...");
-            tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbols, async spreadData =>
+            tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbolNames, async spreadData =>
             {
                 if (spreadData.BestAsk == 0) return;
 
@@ -112,6 +128,7 @@ public class OrchestrationService
                     Timestamp = DateTime.UtcNow
                 };
                 await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
+                await _rollingWindowChannel.Writer.WriteAsync(normalizedSpreadData);
                 var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };
                 var message = JsonSerializer.Serialize(wrapper);
                 await _webSocketServer.BroadcastRealtimeAsync(message);
@@ -121,9 +138,10 @@ public class OrchestrationService
         if (enableTrades)
         {
             Console.WriteLine($"[{exchangeName}] Adding trade subscription task...");
-            tasks.Add(exchangeClient.SubscribeToTradesAsync(filteredSymbols, async tradeData =>
+            tasks.Add(exchangeClient.SubscribeToTradesAsync(filteredSymbolNames, async tradeData =>
             {
                 await _rawDataChannel.Writer.WriteAsync(tradeData);
+                await _rollingWindowChannel.Writer.WriteAsync(tradeData);
                 var wrapper = new WebSocketMessage { MessageType = "Trade", Payload = tradeData };
                 var message = JsonSerializer.Serialize(wrapper);
                 await _webSocketServer.BroadcastRealtimeAsync(message);

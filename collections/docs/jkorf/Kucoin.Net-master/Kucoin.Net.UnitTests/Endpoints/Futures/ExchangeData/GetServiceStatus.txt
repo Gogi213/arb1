@@ -1,0 +1,10 @@
+GET
+/api/v1/status
+false
+{
+  "code": "200000",
+  "data": {
+    "status": "open", 
+    "msg": "upgrade match engine"
+  }
+}

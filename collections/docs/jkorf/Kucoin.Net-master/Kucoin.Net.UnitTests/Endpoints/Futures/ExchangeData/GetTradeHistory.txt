@@ -1,0 +1,16 @@
+GET
+/api/v1/trade/history
+false
+{
+  "code": "200000",
+  "data": [{
+    "sequence": 102,
+    "tradeId": "5cbd7377a6ffab0c7ba98b26",
+    "takerOrderId": "5cbd7377a6ffab0c7ba98b27", 
+    "makerOrderId": "5cbd7377a6ffab0c7ba98b28",
+    "price": "7000.0", 
+    "size": 1, 
+    "side": "buy", 
+    "ts": 1545904567062140823 
+  }]
+}

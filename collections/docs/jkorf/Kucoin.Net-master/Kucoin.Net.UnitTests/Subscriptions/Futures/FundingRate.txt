@@ -1,0 +1,12 @@
+> {"id":"|1|","type":"subscribe","topic":"/contract/instrument:XBTUSDM","privateChannel":false,"response":true}
+< { "id": "|1|", "type": "ack" }
+= 
+{
+  "topic": "/contract/instrument:XBTUSDM",
+  "subject": "funding.rate",
+  "data": {
+    "granularity": 60000,
+    "fundingRate": -0.002966, 
+    "timestamp": 1551770400000
+  }
+}

@@ -24,10 +24,22 @@ public class BitgetExchangeClient : ExchangeClientBase<BitgetRestClient, BitgetS
         return new BitgetSocketApiAdapter(client.SpotApiV2);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var symbols = await _restClient.SpotApiV2.ExchangeData.GetSymbolsAsync();
-        return symbols.Data.Select(s => s.Symbol);
+        var symbolsData = await _restClient.SpotApiV2.ExchangeData.GetSymbolsAsync();
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Symbol,
+            PriceStep = s.PricePrecision.HasValue ? (decimal)Math.Pow(10, -s.PricePrecision.Value) : 0,
+            QuantityStep = s.QuantityPrecision.HasValue ? (decimal)Math.Pow(10, -s.QuantityPrecision.Value) : 0,
+            MinNotional = s.MinOrderValue
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

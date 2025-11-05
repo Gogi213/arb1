@@ -1,5 +1,7 @@
 using Fleck;
 using SpreadAggregator.Application.Abstractions;
+using SpreadAggregator.Application.Services;
+using SpreadAggregator.Domain.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,11 +14,13 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
     private readonly WebSocketServer _server;
     private readonly List<IWebSocketConnection> _allSockets;
     private readonly object _lock = new object();
+    private readonly Func<OrchestrationService> _orchestrationServiceFactory;
 
-    public FleckWebSocketServer(string location)
+    public FleckWebSocketServer(string location, Func<OrchestrationService> orchestrationServiceFactory)
     {
         _server = new WebSocketServer(location);
         _allSockets = new List<IWebSocketConnection>();
+        _orchestrationServiceFactory = orchestrationServiceFactory;
     }
 
     public void Start()
@@ -30,6 +34,13 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
                     Console.WriteLine($"[Fleck] Client connected: {socket.ConnectionInfo.ClientIpAddress}");
                     _allSockets.Add(socket);
                 }
+
+                // Send all symbol info on connect
+                var orchestrationService = _orchestrationServiceFactory();
+                var allSymbols = orchestrationService.AllSymbolInfo;
+                var wrapper = new WebSocketMessage { MessageType = "AllSymbolInfo", Payload = allSymbols };
+                var message = System.Text.Json.JsonSerializer.Serialize(wrapper);
+                socket.Send(message);
             };
             socket.OnClose = () =>
             {

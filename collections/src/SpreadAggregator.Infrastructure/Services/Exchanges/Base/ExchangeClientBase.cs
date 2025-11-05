@@ -41,7 +41,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     protected abstract IExchangeSocketApi CreateSocketApi(TSocketClient client);
 
     // Abstract methods for exchange-specific logic
-    public abstract Task<IEnumerable<string>> GetSymbolsAsync();
+    public abstract Task<IEnumerable<SymbolInfo>> GetSymbolsAsync();
     public abstract Task<IEnumerable<TickerData>> GetTickersAsync();
 
     /// <summary>
@@ -210,23 +210,11 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
             }
         }
 
-        private async void HandleConnectionLost()
+        private void HandleConnectionLost()
         {
-            await _resubscribeLock.WaitAsync();
-            try
-            {
-                WebSocketLogger.Log($"[{_parent.ExchangeName}] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Attempting to resubscribe...");
-                await Task.Delay(1000);
-                await SubscribeInternalAsync();
-            }
-            catch (Exception ex)
-            {
-                WebSocketLogger.Log($"[ERROR] [{_parent.ExchangeName}] Failed to resubscribe for chunk: {ex.Message}");
-            }
-            finally
-            {
-                _resubscribeLock.Release();
-            }
+            // Логируем разрыв, но не вмешиваемся.
+            // Библиотека CryptoExchange.Net обрабатывает переподключение автоматически.
+            WebSocketLogger.Log($"[{_parent.ExchangeName}] Connection lost for chunk starting with {_symbols.FirstOrDefault()}. Library will handle reconnection.");
         }
     }
 }

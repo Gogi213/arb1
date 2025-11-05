@@ -1,0 +1,19 @@
+GET
+/api/v1/ticker
+false
+{
+  "code": "200000",
+  "data": {
+    "sequence": 1001, 
+    "symbol": "XBTUSDM", 
+    "side": "buy", 
+    "size": 10, 
+    "price": "7000.0", 
+    "bestBidSize": 20, 
+    "bestBidPrice": "7000.0", 
+    "bestAskSize": 30, 
+    "bestAskPrice": "7001.0", 
+    "tradeId": "5cbd7377a6ffab0c7ba98b26",
+    "ts": 1550653727731 
+  }
+}

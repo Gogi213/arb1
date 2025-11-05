@@ -1,0 +1,19 @@
+GET
+/sapi/v1/margin/interestHistory
+true
+{
+  "rows": [
+    {            
+      "txId": 1352286576452864727,           
+      "interestAccuredTime": 1672160400000,            
+      "asset": "USDT", 
+      "rawAsset": "USDT",           
+      "principal": "45.3313",            
+      "interest": "0.00024995",            
+      "interestRate": "0.00013233",            
+      "type": "ON_BORROW",           
+      "isolatedSymbol": "BNBUSDT"      
+    }
+  ],
+  "total": 1
+}

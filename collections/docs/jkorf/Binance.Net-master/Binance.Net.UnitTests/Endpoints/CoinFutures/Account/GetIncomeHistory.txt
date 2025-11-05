@@ -1,0 +1,25 @@
+GET
+/dapi/v1/income
+true
+[
+    {
+        "symbol": "",           
+        "incomeType": "TRANSFER",   
+        "income": "-0.37500000",  
+        "asset": "BTC",          
+        "info":"WITHDRAW",         
+        "time": 1570608000000,
+        "tranId":"9689322392",      
+        "tradeId":""               
+    },
+    {
+        "symbol": "BTCUSD_200925",
+        "incomeType": "COMMISSION", 
+        "income": "-0.01000000",
+        "asset": "BTC",
+        "info":"",
+        "time": 1570636800000,
+        "tranId":"9689322392",
+        "tradeId":"2059192"
+    }
+]

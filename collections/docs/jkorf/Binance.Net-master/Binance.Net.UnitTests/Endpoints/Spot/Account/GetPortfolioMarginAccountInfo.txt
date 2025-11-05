@@ -1,0 +1,11 @@
+GET
+/sapi/v1/portfolio/account
+true
+{
+        "uniMMR": "5167.92171923",       
+        "accountEquity": "122607.35137903", 
+        "actualEquity": "142607.35137903",  
+        "accountMaintMargin": "23.72469206", 
+        "accountStatus": "NORMAL",  
+        "accountType": "PM_1"    
+}

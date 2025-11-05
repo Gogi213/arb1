@@ -1,0 +1,25 @@
+> {"id":"|1|","type":"subscribe","topic":"/account/balance","privateChannel":true,"response":true}
+< { "id": "|1|", "type": "ack" }
+= 
+{
+  "type": "message",
+  "topic": "/account/balance",
+  "subject": "account.balance",
+  "channelType": "private",
+  "data": {
+    "total": "88",
+    "available": "88",
+    "availableChange": "88", 
+    "currency": "KCS",
+    "hold": "0",
+    "holdChange": "0", 
+    "relationEvent": "trade.setted", 
+    "relationEventId": "5c21e80303aa677bd09d7dff", 
+    "relationContext": {
+      "symbol": "BTC-USDT",
+      "tradeId": "5e6a5dca9e16882a7d83b7a4", 
+      "orderId": "5ea10479415e2f0009949d54"
+    }, 
+    "time": "1545743136994" 
+  }
+}

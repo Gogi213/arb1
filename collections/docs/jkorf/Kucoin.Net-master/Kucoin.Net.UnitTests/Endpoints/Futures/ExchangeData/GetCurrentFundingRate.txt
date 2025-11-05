@@ -1,0 +1,13 @@
+GET
+/api/v1/funding-rate/ETHUSDT/current
+false
+{
+  "code": "200000",
+  "data": {
+     "symbol": ".XBTUSDMFPI8H", 
+     "granularity": 28800000, 	
+     "timePoint": 1558000800000,
+     "value": 0.00375, 			
+     "predictedValue": 0.00375 	
+   }
+}

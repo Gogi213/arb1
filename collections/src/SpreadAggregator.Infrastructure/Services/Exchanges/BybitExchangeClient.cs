@@ -36,10 +36,23 @@ public class BybitExchangeClient : ExchangeClientBase<IBybitRestClient, BybitSoc
         return new BybitSocketApiAdapter(client);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var symbols = await _restClient.V5Api.ExchangeData.GetSpotSymbolsAsync();
-        return symbols.Data.List.Select(s => s.Name);
+        var symbolsData = await _restClient.V5Api.ExchangeData.GetSpotSymbolsAsync();
+        if (!symbolsData.Success)
+        {
+            // Handle error appropriately
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.List.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Name,
+            PriceStep = s.PriceFilter?.TickSize ?? 0,
+            QuantityStep = s.LotSizeFilter?.BasePrecision ?? 0,
+            MinNotional = s.LotSizeFilter?.MinOrderValue ?? 0
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

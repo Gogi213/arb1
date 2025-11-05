@@ -25,10 +25,22 @@ public class BingXExchangeClient : ExchangeClientBase<BingXRestClient, BingXSock
         return new BingXSocketApiAdapter(client.SpotApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var symbols = await _restClient.SpotApi.ExchangeData.GetSymbolsAsync();
-        return symbols.Data.Select(s => s.Name);
+        var symbolsData = await _restClient.SpotApi.ExchangeData.GetSymbolsAsync();
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Name,
+            PriceStep = s.TickSize,
+            QuantityStep = s.StepSize,
+            MinNotional = s.MinNotional
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

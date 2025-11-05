@@ -1,0 +1,37 @@
+> { "method": "SUBSCRIBE", "params": [ "!contractInfo" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "!contractInfo",
+	"data": 
+       {
+        "e":"contractInfo",       
+        "E":1669356423908,        
+        "s":"IOTAUSDT",         
+        "ps":"IOTAUSDT",    
+        "ct":"PERPETUAL",          
+        "dt":4133404800000,        
+        "ot":1569398400000,          
+        "cs":"TRADING",            
+        "bks":[
+            {
+                "bs":1,       
+                "bnf":0,          
+                "bnc":5000,       
+                "mmr":0.01,      
+                "cf":0,        
+                "mi":21,         
+                "ma":50         
+            },
+            {
+                "bs":2,
+                "bnf":5000,
+                "bnc":25000,
+                "mmr":0.025,
+                "cf":75,
+                "mi":11,
+                "ma":20
+            }
+        ]
+    }
+}

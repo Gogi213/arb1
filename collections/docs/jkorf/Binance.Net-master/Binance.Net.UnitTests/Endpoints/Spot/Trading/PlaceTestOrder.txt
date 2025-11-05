@@ -1,0 +1,19 @@
+POST
+/api/v3/order/test
+true
+{
+  "standardCommissionForOrder": {   
+    "maker": "0.00000112",
+    "taker": "0.00000114"
+  },
+  "taxCommissionForOrder": {      
+    "maker": "0.00000112",
+    "taker": "0.00000114"
+  },
+  "discount": {                   
+    "enabledForAccount": true,
+    "enabledForSymbol": true,
+    "discountAsset": "BNB",
+    "discount": "0.25000000"      
+  }
+}

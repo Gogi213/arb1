@@ -18,6 +18,18 @@ using Bybit.Net.Clients;
 
 namespace SpreadAggregator.Presentation;
 
+public class RawDataChannel
+{
+    public Channel<MarketData> Channel { get; }
+    public RawDataChannel(Channel<MarketData> channel) => Channel = channel;
+}
+
+public class RollingWindowChannel
+{
+    public Channel<MarketData> Channel { get; }
+    public RollingWindowChannel(Channel<MarketData> channel) => Channel = channel;
+}
+
 class Program
 {
     static async Task Main(string[] args)
@@ -51,13 +63,15 @@ class Program
                     {
                         throw new InvalidOperationException("WebSocket connection string is not configured.");
                     }
-                    return new FleckWebSocketServer(connectionString);
+                    // Используем фабрику, чтобы избежать циклической зависимости при запуске
+                    return new FleckWebSocketServer(connectionString, () => sp.GetRequiredService<OrchestrationService>());
                 });
 
                 services.AddSingleton<SpreadCalculator>();
                 services.AddSingleton<VolumeFilter>();
-                services.AddSingleton(Channel.CreateUnbounded<MarketData>());
-                services.AddSingleton(sp => sp.GetRequiredService<Channel<MarketData>>().Reader);
+                services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateUnbounded<MarketData>()));
+                services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateUnbounded<MarketData>()));
+                services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
 
                 // Register all exchange clients
                 services.AddSingleton<IExchangeClient, BinanceExchangeClient>();
@@ -72,13 +86,41 @@ class Program
                 services.AddBybit();
 
                 // Регистрация IDataWriter
-                services.AddSingleton<IDataWriter, ParquetDataWriter>();
-                
-                services.AddSingleton<OrchestrationService>();
+                services.AddSingleton<IDataWriter>(sp =>
+                {
+                    var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
+                    var config = sp.GetRequiredService<IConfiguration>();
+                    return new ParquetDataWriter(rawChannel, config);
+                });
+
+                services.AddSingleton<RollingWindowService>(sp =>
+                {
+                    var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
+                    return new RollingWindowService(rollingChannel);
+                });
+
+                services.AddSingleton<OrchestrationService>(sp =>
+                {
+                    var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
+                    var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
+                    return new OrchestrationService(
+                        sp.GetRequiredService<IWebSocketServer>(),
+                        sp.GetRequiredService<SpreadCalculator>(),
+                        sp.GetRequiredService<IConfiguration>(),
+                        sp.GetRequiredService<VolumeFilter>(),
+                        sp.GetRequiredService<IEnumerable<IExchangeClient>>(),
+                        rawChannel,
+                        rollingChannel,
+                        sp.GetRequiredService<IDataWriter>()
+                    );
+                });
                 services.AddHostedService<OrchestrationServiceHost>();
-                
+
                 // Запускаем сборщик данных как отдельный, долгоживущий сервис
                 services.AddHostedService<DataCollectorService>();
+
+                // Запускаем rolling window сервис
+                services.AddHostedService<RollingWindowServiceHost>();
             });
 }
 
@@ -101,6 +143,27 @@ public class OrchestrationServiceHost : IHostedService
     public Task StopAsync(CancellationToken cancellationToken)
     {
         // Здесь можно добавить логику для грациозной остановки, если потребуется
+        return Task.CompletedTask;
+    }
+}
+
+public class RollingWindowServiceHost : IHostedService
+{
+    private readonly RollingWindowService _rollingWindowService;
+
+    public RollingWindowServiceHost(RollingWindowService rollingWindowService)
+    {
+        _rollingWindowService = rollingWindowService;
+    }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _ = _rollingWindowService.StartAsync(cancellationToken);
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
         return Task.CompletedTask;
     }
 }

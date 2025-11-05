@@ -16,10 +16,9 @@ public interface IExchangeClient
     string ExchangeName { get; }
 
     /// <summary>
-    /// Gets all symbols from the exchange.
+    /// Gets detailed information for all available symbols on the exchange.
     /// </summary>
-    /// <returns>A list of symbols.</returns>
-    Task<IEnumerable<string>> GetSymbolsAsync();
+    Task<IEnumerable<SymbolInfo>> GetSymbolsAsync();
 
     /// <summary>
     /// Gets tickers for all symbols.

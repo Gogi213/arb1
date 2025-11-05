@@ -1,0 +1,16 @@
+GET
+/api/v1/account-overview
+true
+  {
+    "code": "200000",
+    "data": {
+      "accountEquity": 99.8999305281,
+      "unrealisedPNL": 0, 			
+      "marginBalance": 99.8999305281, 
+      "positionMargin": 0, 				
+      "orderMargin": 0, 			
+      "frozenFunds": 0, 			
+      "availableBalance": 99.8999305281, 
+      "currency": "XBT" 				
+    }
+  }

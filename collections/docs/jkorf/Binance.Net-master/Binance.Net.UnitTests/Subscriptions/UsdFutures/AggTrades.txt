@@ -1,0 +1,19 @@
+> { "method": "SUBSCRIBE", "params": [ "btcusdt@aggTrade" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "btcusdt@aggTrade",
+	"data": 
+       {
+	  "e": "aggTrade",  
+	  "E": 123456789,   
+	  "s": "BTCUSDT",   
+	  "a": 5933014, 
+	  "p": "0.001",  
+	  "q": "100",    
+	  "f": 100,      
+	  "l": 105,        
+	  "T": 123456785,   
+	  "m": true      
+	}
+}

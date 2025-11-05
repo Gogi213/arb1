@@ -1,0 +1,31 @@
+> { "method": "SUBSCRIBE", "params": [ "123" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "123",
+	"data": 
+     {
+      "e": "listStatus",            
+      "E": 1564035303637,              
+      "s": "ETHBTC",                   
+      "g": 2,                           
+      "c": "OCO",                  
+      "l": "EXEC_STARTED",            
+      "L": "EXECUTING",         
+      "r": "NONE",                    
+      "C": "F4QN4G8DlFATFlIUQ0cjdD",  
+      "T": 1564035303625,              
+      "O": [                           
+        {
+          "s": "ETHBTC",               
+          "i": 17,                    
+          "c": "AJYsMjErWJesZvqlJCTUgL" 
+        },
+        {
+          "s": "ETHBTC",
+          "i": 18,
+          "c": "bfYPSQdLoqAJeNrOr9adzq"
+        }
+      ]
+    }
+}

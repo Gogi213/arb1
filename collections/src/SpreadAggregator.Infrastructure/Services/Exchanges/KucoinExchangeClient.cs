@@ -29,10 +29,22 @@ public class KucoinExchangeClient : ExchangeClientBase<KucoinRestClient, KucoinS
         return new KucoinSocketApiAdapter(client.SpotApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var markets = await _restClient.SpotApi.ExchangeData.GetSymbolsAsync();
-        return markets.Data.Select(m => m.Symbol);
+        var symbolsData = await _restClient.SpotApi.ExchangeData.GetSymbolsAsync();
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Symbol,
+            PriceStep = s.PriceIncrement,
+            QuantityStep = s.BaseIncrement,
+            MinNotional = s.QuoteMinQuantity
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

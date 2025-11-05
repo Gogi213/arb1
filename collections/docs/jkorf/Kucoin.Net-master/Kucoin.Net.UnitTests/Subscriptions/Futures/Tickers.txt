@@ -1,0 +1,15 @@
+> {"id":"|1|","type":"subscribe","topic":"/contractMarket/tickerV2:XBTUSDM","privateChannel":false,"response":true}
+< { "id": "|1|", "type": "ack" }
+= 
+{
+  "subject": "tickerV2",
+  "topic": "/contractMarket/tickerV2:XBTUSDM",
+  "data": {
+    "symbol": "XBTUSDM",
+    "bestBidSize": 795, 
+    "bestBidPrice": 3200.0, 
+    "bestAskPrice": 3600.0,
+    "bestAskSize": 284,
+    "ts": 1553846081210004941 
+  }
+}

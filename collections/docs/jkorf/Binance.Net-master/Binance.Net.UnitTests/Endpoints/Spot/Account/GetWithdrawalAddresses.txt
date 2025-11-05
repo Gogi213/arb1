@@ -1,0 +1,15 @@
+GET
+/sapi/v1/capital/withdraw/address/list
+true
+[
+  {
+    "address": "string",
+    "addressTag": "string",
+    "coin": "string",
+    "name": "string",        
+    "network": "string",
+    "origin": "string",     
+    "originType": "string", 
+    "whiteStatus": true      
+  }
+]

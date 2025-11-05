@@ -29,10 +29,22 @@ public class OkxExchangeClient : ExchangeClientBase<OKXRestClient, OKXSocketClie
         return new OkxSocketApiAdapter(client.UnifiedApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var tickers = await _restClient.UnifiedApi.ExchangeData.GetTickersAsync(OKX.Net.Enums.InstrumentType.Spot);
-        return tickers.Data.Select(t => t.Symbol);
+        var symbolsData = await _restClient.UnifiedApi.ExchangeData.GetSymbolsAsync(OKX.Net.Enums.InstrumentType.Spot);
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Symbol,
+            PriceStep = s.TickSize ?? 0,
+            QuantityStep = s.LotSize ?? 0,
+            MinNotional = 0 // OKX provides MinSize in base currency, not notional value
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

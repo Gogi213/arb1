@@ -32,10 +32,22 @@ public class MexcExchangeClient : ExchangeClientBase<MexcRestClient, MexcSocketC
         return new MexcSocketApiAdapter(client.SpotApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
-        return tickers.Data.Select(t => t.Symbol);
+        var symbolsData = await _restClient.SpotApi.ExchangeData.GetExchangeInfoAsync();
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Symbols.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Name,
+            PriceStep = (decimal)Math.Pow(10, -s.QuoteAssetPrecision),
+            QuantityStep = (decimal)Math.Pow(10, -s.BaseAssetPrecision),
+            MinNotional = s.QuoteQuantityPrecision
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

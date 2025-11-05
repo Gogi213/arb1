@@ -1,0 +1,31 @@
+> { "method": "SUBSCRIBE", "params": [ "btcusdt_perpetual@continuousKline_1M" ], "id": "|1|" }
+< { "result": null, "id": |1| }
+= 
+{ 
+	"stream": "btcusdt_perpetual@continuousKline_1M",
+	"data": 
+       {
+          "e":"continuous_kline",
+          "E":1607443058651,       
+          "ps":"BTCUSDT",        
+          "ct":"PERPETUAL",    
+          "k":{
+            "t":1607443020000,     
+            "T":1607443079999,   
+            "i":"1m",             
+            "f":116467658886,     
+            "L":116468012423,      
+            "o":"18787.00",       
+            "c":"18804.04",        
+            "h":"18804.04",       
+            "l":"18786.54",        
+            "v":"197.664",        
+            "n": 543,               
+            "x":false,              
+            "q":"3715253.19494",    
+            "V":"184.769",          
+            "Q":"3472925.84746",   
+            "B":"0"                 
+          }
+        }
+}

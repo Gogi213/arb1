@@ -1,0 +1,19 @@
+GET
+/dapi/v2/leverageBracket
+true
+[
+    {
+        "symbol": "BTCUSD_PERP",
+        "notionalCoef": 1.50, 
+        "brackets": [
+            {
+                "bracket": 1,  
+                "initialLeverage": 125,
+                "qtyCap": 50,  
+                "qtylFloor": 0, 
+                "maintMarginRatio": 0.004,
+                "cum": 0.0 
+            }
+        ]
+    }
+]

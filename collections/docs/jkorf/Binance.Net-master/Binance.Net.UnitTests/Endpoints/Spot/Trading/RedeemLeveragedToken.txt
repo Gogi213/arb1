@@ -1,0 +1,11 @@
+POST
+/sapi/v1/blvt/redeem
+true
+ {
+    "id": 123,  
+    "status": "S",
+    "tokenName": "LINKUP",
+    "redeemAmount": "0.95590905",       
+    "amount": "10.05022099",    
+    "timestamp":1600250279614  
+ }

@@ -1,0 +1,21 @@
+> {"id":"|1|","type":"subscribe","topic":"/market/candles:BTC-USDT_8hour","privateChannel":false,"response":true}
+< { "id": "|1|", "type": "ack" }
+= 
+{
+  "type": "message",
+  "topic": "/market/candles:BTC-USDT_8hour",
+  "subject": "trade.candles.update",
+  "data": {
+    "symbol": "BTC-USDT", 
+    "candles": [
+      "1589968800", 
+      "9786.9",
+      "9740.8", 
+      "9806.1",
+      "9732", 
+      "27.45649579", 
+      "268280.09830877"
+    ],
+    "time": 1589970010253893337
+  }
+}

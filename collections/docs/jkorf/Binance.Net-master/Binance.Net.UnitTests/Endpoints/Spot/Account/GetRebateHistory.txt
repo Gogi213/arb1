@@ -1,0 +1,28 @@
+GET
+/sapi/v1/rebate/taxQuery
+true
+{
+   "status": "OK",
+   "type": "GENERAL",
+   "code": "000000000",
+   "data": {
+        "page": 1,  
+        "totalRecords": 2, 
+        "totalPageNum": 1, 
+        "data": [
+            {
+                "asset": "USDT", 
+                "type": 1,
+                "amount": "0.0001126", 
+                "updateTime": 1637651320000
+            },
+            {
+                "asset": "ETH",
+                "type": 1,
+                "amount": "0.00000056",
+                "updateTime": 1637928379000
+            }
+        ]
+    }
+
+}

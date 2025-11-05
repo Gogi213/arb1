@@ -1,0 +1,11 @@
+POST
+/sapi/v1/blvt/subscribe
+true
+ {
+    "id": 123,  
+    "status": "S", 
+    "tokenName": "LINKUP",
+    "amount": "0.95590905", 
+    "cost": "9.99999995", 
+    "timestamp":1600249972899  
+ }

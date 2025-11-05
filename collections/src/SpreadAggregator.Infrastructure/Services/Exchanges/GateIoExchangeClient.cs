@@ -28,10 +28,22 @@ public class GateIoExchangeClient : ExchangeClientBase<GateIoRestClient, GateIoS
         return new GateIoSocketApiAdapter(client.SpotApi);
     }
 
-    public override async Task<IEnumerable<string>> GetSymbolsAsync()
+    public override async Task<IEnumerable<SymbolInfo>> GetSymbolsAsync()
     {
-        var tickers = await _restClient.SpotApi.ExchangeData.GetTickersAsync();
-        return tickers.Data.Select(t => t.Symbol);
+        var symbolsData = await _restClient.SpotApi.ExchangeData.GetSymbolsAsync();
+        if (!symbolsData.Success)
+        {
+            return Enumerable.Empty<SymbolInfo>();
+        }
+
+        return symbolsData.Data.Select(s => new SymbolInfo
+        {
+            Exchange = ExchangeName,
+            Name = s.Name,
+            PriceStep = (decimal)Math.Pow(10, -s.PricePrecision),
+            QuantityStep = (decimal)Math.Pow(10, -s.QuantityPrecision),
+            MinNotional = s.MinQuoteQuantity
+        });
     }
 
     public override async Task<IEnumerable<TickerData>> GetTickersAsync()

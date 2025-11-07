@@ -156,7 +156,7 @@ public class ParquetDataWriter : IDataWriter
     
     public async Task InitializeCollectorAsync(CancellationToken cancellationToken)
     {
-        var dataRoot = Path.Combine("data", "market_data");
+        var dataRoot = _configuration.GetValue<string>("Recording:DataRootPath", Path.Combine("data", "market_data"));
         Directory.CreateDirectory(dataRoot);
         Console.WriteLine($"[DataCollector] Starting to record data with hybrid partitioning into: {dataRoot}");
 

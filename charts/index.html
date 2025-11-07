@@ -22,51 +22,80 @@
     <script src="https://unpkg.com/uplot@1.6.26/dist/uPlot.iife.min.js"></script>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async () => {
+        function renderSingleChart(chartData) {
             const dashboard = document.getElementById('dashboard');
+            
+            const container = document.createElement('div');
+            container.className = 'chart-container';
+
+            const title = document.createElement('h2');
+            title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
+
+            const chartWrapper = document.createElement('div');
+            chartWrapper.className = 'chart-wrapper';
+
+            container.appendChild(title);
+            container.appendChild(chartWrapper);
+            dashboard.appendChild(container);
+
+            const dataForPlot = [
+                chartData.timestamps,
+                chartData.spreads,
+                chartData.upper_band,
+                chartData.lower_band
+            ];
+
+            renderChart(chartWrapper, dataForPlot);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
             const statusEl = document.getElementById('status');
+            let chartCount = 0;
 
             try {
+                statusEl.textContent = 'Connecting to data stream...';
                 const response = await fetch('http://127.0.0.1:8000/api/dashboard_data');
+                
                 if (!response.ok) {
-                    const err = await response.json();
-                    throw new Error(err.detail || 'Failed to fetch dashboard data.');
+                    throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
                 }
-                const { charts_data } = await response.json();
 
-                if (!charts_data || charts_data.length === 0) {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) {
+                        if (buffer.trim()) {
+                           const chartData = JSON.parse(buffer);
+                           renderSingleChart(chartData);
+                           chartCount++;
+                        }
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // Keep the last, possibly incomplete, line
+
+                    for (const line of lines) {
+                        if (line.trim() === '') continue;
+                        const chartData = JSON.parse(line);
+                        renderSingleChart(chartData);
+                        chartCount++;
+                        statusEl.textContent = `Rendered ${chartCount} charts...`;
+                    }
+                }
+                
+                if (chartCount === 0) {
                     statusEl.textContent = 'No opportunities found meeting the criteria.';
-                    return;
+                } else {
+                    statusEl.textContent = `Dashboard loaded with ${chartCount} charts.`;
                 }
-
-                statusEl.textContent = `Found ${charts_data.length} opportunities. Rendering charts...`;
-
-                for (const chartData of charts_data) {
-                    const container = document.createElement('div');
-                    container.className = 'chart-container';
-
-                    const title = document.createElement('h2');
-                    title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
-
-                    const chartWrapper = document.createElement('div');
-                    chartWrapper.className = 'chart-wrapper';
-
-                    container.appendChild(title);
-                    container.appendChild(chartWrapper);
-                    dashboard.appendChild(container);
-
-                    // uPlot expects data in a different format: [timestamps[], values[]]
-                    const dataForPlot = [
-                        chartData.timestamps,
-                        chartData.spreads
-                    ];
-
-                    renderChart(chartWrapper, dataForPlot);
-                }
-                statusEl.textContent = `Dashboard loaded with ${charts_data.length} charts.`;
 
             } catch (error) {
-                console.error('Error building dashboard:', error);
+                console.error('Error building dashboard from stream:', error);
                 statusEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             }
         });
@@ -76,11 +105,24 @@
                 width: target.clientWidth,
                 height: target.clientHeight,
                 series: [
-                    {},
-                    {
-                        stroke: "rgba(75, 192, 192, 1)",
+                    {}, // For timestamps
+                    { // Spread
+                        stroke: "rgba(80, 150, 255, 1)",
                         width: 1,
-                        fill: "rgba(75, 192, 192, 0.1)",
+                        fill: "rgba(80, 150, 255, 0.1)",
+                        label: "Spread"
+                    },
+                    { // Upper Band
+                        stroke: "rgba(255, 100, 100, 0.8)",
+                        width: 1,
+                        dash: [10, 5],
+                        label: "90th Percentile"
+                    },
+                    { // Lower Band
+                        stroke: "rgba(100, 255, 100, 0.8)",
+                        width: 1,
+                        dash: [10, 5],
+                        label: "10th Percentile"
                     }
                 ],
                 axes: [

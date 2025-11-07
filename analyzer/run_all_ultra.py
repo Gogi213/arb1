@@ -527,10 +527,12 @@ def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, st
         stats_df = stats_df.sort('zero_crossings_per_minute', descending=True)
 
         # Create summary_stats directory inside analyzer if it doesn't exist
-        os.makedirs("summary_stats", exist_ok=True)
+        analyzer_dir = Path(__file__).parent
+        save_dir = analyzer_dir / "summary_stats"
+        os.makedirs(save_dir, exist_ok=True)
 
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        stats_filename = f"summary_stats/summary_stats_{timestamp}.csv"
+        stats_filename = save_dir / f"summary_stats_{timestamp}.csv"
         stats_df.write_csv(stats_filename)
 
         print(f"\n[OK] Summary statistics saved to: {stats_filename}")
@@ -602,7 +604,7 @@ Examples:
   python run_all_ultra.py --workers 16 --date 2025-11-03
         """
     )
-    parser.add_argument("--data-path", type=str, default="../data/market_data",
+    parser.add_argument("--data-path", type=str, default="C:/visual projects/arb1/data/market_data",
                         help="Path to the market data directory.")
     parser.add_argument("--exchanges", type=str, nargs='+', default=None,
                         help="List of exchanges to analyze (e.g., Binance Bybit OKX)")

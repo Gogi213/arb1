@@ -12,31 +12,43 @@
         .chart-container { border: 1px solid #444; padding: 10px; background-color: #2a2a2a; border-radius: 5px; }
         .chart-container h2 { margin-top: 0; font-size: 1.1em; text-align: center; }
         .chart-wrapper { width: 100%; height: 450px; }
+        #controls button {
+            padding: 8px 16px;
+            font-size: 1em;
+            cursor: pointer;
+            background-color: #333;
+            color: #eee;
+            border: 1px solid #555;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+        #controls button:hover {
+            background-color: #444;
+        }
     </style>
 </head>
 <body>
     <h1>High-Performance Spread Dashboard</h1>
-    <div id="status">Loading dashboard data...</div>
+    <div id="controls" style="text-align: center; margin-bottom: 1em;">
+        <button onclick="loadHttpStream('http://127.0.0.1:8002/api/dashboard_data')">Load Historical Analysis</button>
+        <button onclick="connectWebSocket()">Load Real-time Window</button>
+    </div>
+    <div id="status">Select a data source to load the dashboard.</div>
     <div id="dashboard"></div>
 
     <script src="https://unpkg.com/uplot@1.6.26/dist/uPlot.iife.min.js"></script>
 
     <script>
-        function renderSingleChart(chartData) {
+        let chartInstances = new Map();
+        let activeSocket = null;
+
+        function getChartKey(chartData) {
+            return `${chartData.symbol}-${chartData.exchange1}-${chartData.exchange2}`;
+        }
+
+        function renderOrUpdateChart(chartData) {
             const dashboard = document.getElementById('dashboard');
-            
-            const container = document.createElement('div');
-            container.className = 'chart-container';
-
-            const title = document.createElement('h2');
-            title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
-
-            const chartWrapper = document.createElement('div');
-            chartWrapper.className = 'chart-wrapper';
-
-            container.appendChild(title);
-            container.appendChild(chartWrapper);
-            dashboard.appendChild(container);
+            const key = getChartKey(chartData);
 
             const dataForPlot = [
                 chartData.timestamps,
@@ -45,16 +57,60 @@
                 chartData.lower_band
             ];
 
-            renderChart(chartWrapper, dataForPlot);
+            if (chartInstances.has(key)) {
+                // Update existing chart
+                const uplot = chartInstances.get(key);
+                uplot.setData(dataForPlot);
+            } else {
+                // Create new chart
+                const container = document.createElement('div');
+                container.className = 'chart-container';
+                container.id = key;
+
+                const title = document.createElement('h2');
+                title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
+
+                const chartWrapper = document.createElement('div');
+                chartWrapper.className = 'chart-wrapper';
+
+                container.appendChild(title);
+                container.appendChild(chartWrapper);
+                dashboard.appendChild(container);
+
+                const uplot = renderChart(chartWrapper, dataForPlot);
+                chartInstances.set(key, uplot);
+            }
         }
 
-        document.addEventListener('DOMContentLoaded', async () => {
+        function cleanupOldCharts(activeKeys) {
+            const activeKeySet = new Set(activeKeys);
+            for (const [key, uplot] of chartInstances.entries()) {
+                if (!activeKeySet.has(key)) {
+                    document.getElementById(key)?.remove();
+                    chartInstances.delete(key);
+                }
+            }
+        }
+
+        function closeActiveSocket() {
+            if (activeSocket) {
+                activeSocket.close();
+                activeSocket = null;
+                console.log("Previous WebSocket connection closed.");
+            }
+        }
+
+        async function loadHttpStream(dataSourceUrl) {
+            closeActiveSocket();
             const statusEl = document.getElementById('status');
+            const dashboardEl = document.getElementById('dashboard');
+            dashboardEl.innerHTML = ''; // Clear previous charts
+            chartInstances.clear();
             let chartCount = 0;
 
             try {
-                statusEl.textContent = 'Connecting to data stream...';
-                const response = await fetch('http://127.0.0.1:8000/api/dashboard_data');
+                statusEl.textContent = `Connecting to data stream at ${dataSourceUrl}...`;
+                const response = await fetch(dataSourceUrl);
                 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
@@ -69,7 +125,7 @@
                     if (done) {
                         if (buffer.trim()) {
                            const chartData = JSON.parse(buffer);
-                           renderSingleChart(chartData);
+                           renderOrUpdateChart(chartData);
                            chartCount++;
                         }
                         break;
@@ -77,19 +133,19 @@
 
                     buffer += decoder.decode(value, { stream: true });
                     const lines = buffer.split('\n');
-                    buffer = lines.pop(); // Keep the last, possibly incomplete, line
+                    buffer = lines.pop();
 
                     for (const line of lines) {
                         if (line.trim() === '') continue;
                         const chartData = JSON.parse(line);
-                        renderSingleChart(chartData);
+                        renderOrUpdateChart(chartData);
                         chartCount++;
                         statusEl.textContent = `Rendered ${chartCount} charts...`;
                     }
                 }
                 
                 if (chartCount === 0) {
-                    statusEl.textContent = 'No opportunities found meeting the criteria.';
+                    statusEl.textContent = 'No data found meeting the criteria for this source.';
                 } else {
                     statusEl.textContent = `Dashboard loaded with ${chartCount} charts.`;
                 }
@@ -98,6 +154,50 @@
                 console.error('Error building dashboard from stream:', error);
                 statusEl.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
             }
+        }
+
+        function connectWebSocket() {
+            closeActiveSocket();
+            const statusEl = document.getElementById('status');
+            const dashboardEl = document.getElementById('dashboard');
+            dashboardEl.innerHTML = ''; // Clear previous charts
+            chartInstances.clear();
+
+            const socketUrl = "ws://127.0.0.1:8002/ws/realtime_charts";
+            const socket = new WebSocket(socketUrl);
+            activeSocket = socket;
+
+            socket.onopen = () => {
+                statusEl.textContent = "Real-time connection established. Waiting for data...";
+            };
+
+            socket.onmessage = (event) => {
+                const allChartsData = JSON.parse(event.data);
+                if (allChartsData.length === 0) {
+                    statusEl.textContent = "Real-time connection active, but no opportunities meet the criteria currently.";
+                    return;
+                }
+                
+                const activeKeys = allChartsData.map(getChartKey);
+                cleanupOldCharts(activeKeys);
+
+                allChartsData.forEach(renderOrUpdateChart);
+                statusEl.textContent = `Displaying ${chartInstances.size} real-time charts. Last update: ${new Date().toLocaleTimeString()}`;
+            };
+
+            socket.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+                statusEl.innerHTML = `<p style="color: red;">WebSocket connection failed.</p>`;
+            };
+
+            socket.onclose = () => {
+                statusEl.textContent = "Real-time connection closed.";
+                activeSocket = null;
+            };
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Data will now be loaded only on button click.
         });
 
         function renderChart(target, data) {
@@ -134,7 +234,8 @@
                     x: false
                 }
             };
-            new uPlot(opts, data, target);
+            const uplot = new uPlot(opts, data, target);
+            return uplot;
         }
     </script>
 </body>

@@ -173,8 +173,8 @@ async def websocket_client():
     uri = "ws://127.0.0.1:8181"
     while True:
         try:
-            # Disable keepalive pings to prevent timeouts with servers that don't respond to them.
-            async with websockets.connect(uri, ping_interval=None, ping_timeout=None) as websocket:
+            # Enable keepalive pings to detect dead connections early
+            async with websockets.connect(uri, ping_interval=30, ping_timeout=10) as websocket:
                 logging.info("Connected to collections WebSocket")
                 async for message in websocket:
                     try:

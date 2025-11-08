@@ -25,6 +25,7 @@ public class OrchestrationService
     private readonly IDataWriter? _dataWriter;
 
     private readonly List<SymbolInfo> _allSymbolInfo = new();
+    private readonly List<Task> _exchangeTasks = new();
     public IEnumerable<SymbolInfo> AllSymbolInfo => _allSymbolInfo;
 
     public ChannelReader<MarketData> RawDataChannelReader => _rawDataChannel.Reader;
@@ -67,11 +68,13 @@ public class OrchestrationService
                 continue;
             }
 
-            tasks.Add(ProcessExchange(exchangeClient, exchangeName));
+            var task = ProcessExchange(exchangeClient, exchangeName);
+            tasks.Add(task);
+            _exchangeTasks.Add(task); // Store for monitoring/cleanup
         }
 
-        // Do not await long-running tasks, let them run in the background.
-        // await Task.WhenAll(tasks);
+        // Store tasks but don't await - they are long-running background subscriptions
+        Console.WriteLine($"[Orchestration] Started {_exchangeTasks.Count} exchange subscription tasks");
     }
 
     private async Task ProcessExchange(IExchangeClient exchangeClient, string exchangeName)
@@ -165,16 +168,27 @@ public class OrchestrationService
         }
 
         Console.WriteLine($"[{exchangeName}] Awaiting {tasks.Count} subscription tasks...");
-        try
+
+        // These are long-running subscriptions - await them to handle errors properly
+        await Task.WhenAll(tasks);
+
+        Console.WriteLine($"[{exchangeName}] All subscription tasks completed");
+    }
+
+    public async Task StopAsync(CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine($"[Orchestration] Stopping {_exchangeTasks.Count} exchange tasks...");
+
+        // Give tasks a chance to complete gracefully
+        var completedTask = await Task.WhenAny(Task.WhenAll(_exchangeTasks), Task.Delay(5000, cancellationToken));
+
+        if (completedTask == Task.WhenAll(_exchangeTasks))
         {
-            // Do not await long-running tasks, let them run in the background.
-            // await Task.WhenAll(tasks);
-            Console.WriteLine($"[{exchangeName}] All subscription tasks completed successfully");
+            Console.WriteLine("[Orchestration] All tasks stopped gracefully");
         }
-        catch (Exception ex)
+        else
         {
-            Console.WriteLine($"[ERROR] [{exchangeName}] Subscription failed: {ex}");
-            throw;
+            Console.WriteLine("[Orchestration] Tasks did not complete in 5 seconds, forcing shutdown");
         }
     }
 

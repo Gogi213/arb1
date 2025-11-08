@@ -8,12 +8,13 @@ using System;
 
 namespace SpreadAggregator.Application.Services;
 
-public class RollingWindowService
+public class RollingWindowService : IDisposable
 {
     private readonly ChannelReader<MarketData> _channelReader;
-    private readonly TimeSpan _windowSize = TimeSpan.FromHours(1);
+    private readonly TimeSpan _windowSize = TimeSpan.FromMinutes(30);
     private readonly ConcurrentDictionary<string, RollingWindowData> _windows = new();
     private readonly Timer _cleanupTimer;
+    private bool _disposed;
 
     public RollingWindowService(Channel<MarketData> channel)
     {
@@ -81,5 +82,14 @@ public class RollingWindowService
     public IEnumerable<RollingWindowData> GetAllWindows()
     {
         return _windows.Values;
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+
+        _cleanupTimer?.Dispose();
+        _disposed = true;
+        GC.SuppressFinalize(this);
     }
 }

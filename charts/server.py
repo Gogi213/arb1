@@ -57,7 +57,7 @@ class RollingWindowData:
 
 class RollingWindow:
     def __init__(self):
-        self.window_size = timedelta(hours=1)
+        self.window_size = timedelta(minutes=30)
         self.windows: Dict[str, RollingWindowData] = {}
         self.cleanup_timer: Optional[Timer] = None
 

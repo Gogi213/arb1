@@ -116,6 +116,9 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
         private readonly Func<TradeData, Task>? _onTradeData;
         private readonly TSocketClient _socketClient;
         private readonly SemaphoreSlim _resubscribeLock = new(1, 1);
+        private dynamic? _subscriptionResultData; // Сохраняем ссылку на объект с событиями
+        private Action? _connectionLostHandler;
+        private Action<TimeSpan>? _connectionRestoredHandler;
 
         public ManagedConnection(
             ExchangeClientBase<TRestClient, TSocketClient> parent,
@@ -137,6 +140,18 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 
         public async Task StopAsync()
         {
+            // Отписываемся от событий, если они были подписаны
+            if (_subscriptionResultData != null)
+            {
+                if (_connectionLostHandler != null)
+                {
+                    _subscriptionResultData.ConnectionLost -= _connectionLostHandler;
+                }
+                if (_connectionRestoredHandler != null)
+                {
+                    _subscriptionResultData.ConnectionRestored -= _connectionRestoredHandler;
+                }
+            }
             var api = _parent.CreateSocketApi(_socketClient);
             await api.UnsubscribeAllAsync();
             _socketClient.Dispose();
@@ -198,9 +213,12 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
                 // The JKorf libraries handle reconnection automatically
                 try
                 {
-                    result.Data.ConnectionLost += new Action(HandleConnectionLost);
-                    result.Data.ConnectionRestored += new Action<TimeSpan>((t) =>
+                    _subscriptionResultData = result.Data; // Сохраняем
+                    _connectionLostHandler = new Action(HandleConnectionLost);
+                    _connectionRestoredHandler = new Action<TimeSpan>((t) =>
                         WebSocketLogger.Log($"[{_parent.ExchangeName}] {streamType} connection restored for chunk after {t}."));
+                    _subscriptionResultData.ConnectionLost += _connectionLostHandler;
+                    _subscriptionResultData.ConnectionRestored += _connectionRestoredHandler;
                 }
                 catch
                 {

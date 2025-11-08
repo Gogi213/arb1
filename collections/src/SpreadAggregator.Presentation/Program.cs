@@ -69,8 +69,12 @@ class Program
 
                 services.AddSingleton<SpreadCalculator>();
                 services.AddSingleton<VolumeFilter>();
-                services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateUnbounded<MarketData>()));
-                services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateUnbounded<MarketData>()));
+                var channelOptions = new BoundedChannelOptions(100_000)
+                {
+                    FullMode = BoundedChannelFullMode.Wait
+                };
+                services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateBounded<MarketData>(channelOptions)));
+                services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateBounded<MarketData>(channelOptions)));
                 services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
 
                 // Register all exchange clients

@@ -79,15 +79,15 @@ public class MexcExchangeClient : ExchangeClientBase<MexcRestClient, MexcSocketC
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             var result = await _spotApi.SubscribeToBookTickerUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
                     if (data.Data != null && data.Symbol != null)
                     {
-                        onData(new SpreadData
+                        await onData(new SpreadData
                         {
                             Exchange = "MEXC",
                             Symbol = data.Symbol,
@@ -102,7 +102,7 @@ public class MexcExchangeClient : ExchangeClientBase<MexcRestClient, MexcSocketC
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             // Not implemented for this exchange yet
             throw new NotImplementedException("MEXC does not support trade stream yet");

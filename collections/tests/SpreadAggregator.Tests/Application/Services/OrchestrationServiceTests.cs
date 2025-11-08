@@ -25,7 +25,8 @@ public class OrchestrationServiceTests
         var volumeFilter = new VolumeFilter();
         var mockConfiguration = new Mock<IConfiguration>();
         var mockExchangeClient = new Mock<IExchangeClient>();
-        var channel = Channel.CreateUnbounded<MarketData>();
+        var rawDataChannel = Channel.CreateUnbounded<MarketData>();
+        var rollingWindowChannel = Channel.CreateUnbounded<MarketData>();
 
         var exchangeName = "TestExchange";
 
@@ -33,13 +34,19 @@ public class OrchestrationServiceTests
         {
             new TickerData { Symbol = "BTCUSDT", QuoteVolume = 2000000 }
         };
+        
+        var symbols = new List<SymbolInfo>
+        {
+            new SymbolInfo { Name = "BTCUSDT" }
+        };
 
         mockExchangeClient.Setup(c => c.ExchangeName).Returns(exchangeName);
         mockExchangeClient.Setup(c => c.GetTickersAsync()).ReturnsAsync(tickers);
+        mockExchangeClient.Setup(c => c.GetSymbolsAsync()).ReturnsAsync(symbols);
         mockExchangeClient.Setup(c => c.SubscribeToTickersAsync(
-            It.Is<IEnumerable<string>>(symbols => symbols.Contains("BTCUSDT")),
+            It.Is<IEnumerable<string>>(s => s.Contains("BTCUSDT")),
             It.IsAny<Func<SpreadData, Task>>()))
-            .Callback<IEnumerable<string>, Func<SpreadData, Task>>((s, onData) =>
+            .Callback<IEnumerable<string>, Func<SpreadData, Task>>(async (s, onData) =>
             {
                 var spread = new SpreadData
                 {
@@ -48,8 +55,9 @@ public class OrchestrationServiceTests
                     BestBid = 50000,
                     BestAsk = 50001,
                 };
-                onData(spread);
-            });
+                await onData(spread);
+            })
+            .Returns(Task.CompletedTask);
 
         var configSection = new Mock<IConfigurationSection>();
         configSection.Setup(a => a.Key).Returns(exchangeName);
@@ -61,7 +69,7 @@ public class OrchestrationServiceTests
         mockConfiguration.Setup(c => c.GetValue<bool>(It.IsAny<string>(), It.IsAny<bool>())).Returns(true);
 
 
-        string capturedMessage = null;
+        string? capturedMessage = null;
         mockWebSocketServer
             .Setup(ws => ws.BroadcastRealtimeAsync(It.IsAny<string>()))
             .Callback<string>(m => capturedMessage = m)
@@ -73,7 +81,8 @@ public class OrchestrationServiceTests
             mockConfiguration.Object,
             volumeFilter,
             new[] { mockExchangeClient.Object },
-            channel
+            rawDataChannel,
+            rollingWindowChannel
         );
 
         // Act
@@ -85,7 +94,7 @@ public class OrchestrationServiceTests
         Assert.NotNull(capturedMessage);
         var capturedWrapper = JsonSerializer.Deserialize<WebSocketMessage>(capturedMessage);
         Assert.NotNull(capturedWrapper);
-        var capturedData = JsonSerializer.Deserialize<SpreadData>(capturedWrapper.Payload.ToString());
+        var capturedData = JsonSerializer.Deserialize<SpreadData>(capturedWrapper.Payload.ToString()!);
         Assert.NotNull(capturedData);
         Assert.True(capturedData.Timestamp > DateTime.MinValue);
         Assert.Equal("BTCUSDT", capturedData.Symbol);
@@ -100,7 +109,8 @@ public class OrchestrationServiceTests
         var volumeFilter = new VolumeFilter();
         var mockConfiguration = new Mock<IConfiguration>();
         var mockExchangeClient = new Mock<IExchangeClient>();
-        var channel = Channel.CreateUnbounded<MarketData>();
+        var rawDataChannel = Channel.CreateUnbounded<MarketData>();
+        var rollingWindowChannel = Channel.CreateUnbounded<MarketData>();
 
         var exchangeName = "TestExchange";
 
@@ -108,13 +118,19 @@ public class OrchestrationServiceTests
         {
             new TickerData { Symbol = "BTCUSDC", QuoteVolume = 2000000 }
         };
+        
+        var symbols = new List<SymbolInfo>
+        {
+            new SymbolInfo { Name = "BTCUSDC" }
+        };
 
         mockExchangeClient.Setup(c => c.ExchangeName).Returns(exchangeName);
         mockExchangeClient.Setup(c => c.GetTickersAsync()).ReturnsAsync(tickers);
+        mockExchangeClient.Setup(c => c.GetSymbolsAsync()).ReturnsAsync(symbols);
         mockExchangeClient.Setup(c => c.SubscribeToTickersAsync(
-            It.Is<IEnumerable<string>>(symbols => symbols.Contains("BTCUSDC")),
+            It.Is<IEnumerable<string>>(s => s.Contains("BTCUSDC")),
             It.IsAny<Func<SpreadData, Task>>()))
-            .Callback<IEnumerable<string>, Func<SpreadData, Task>>((s, onData) =>
+            .Callback<IEnumerable<string>, Func<SpreadData, Task>>(async (s, onData) =>
             {
                 var spread = new SpreadData
                 {
@@ -123,8 +139,9 @@ public class OrchestrationServiceTests
                     BestBid = 50000,
                     BestAsk = 50001,
                 };
-                onData(spread);
-            });
+                await onData(spread);
+            })
+            .Returns(Task.CompletedTask);
 
         var configSection = new Mock<IConfigurationSection>();
         configSection.Setup(a => a.Key).Returns(exchangeName);
@@ -135,7 +152,7 @@ public class OrchestrationServiceTests
         mockConfiguration.Setup(c => c.GetSection(It.Is<string>(s => s.EndsWith(":VolumeFilter")))).Returns(new Mock<IConfigurationSection>().Object);
         mockConfiguration.Setup(c => c.GetValue<bool>(It.IsAny<string>(), It.IsAny<bool>())).Returns(true);
 
-        string capturedMessage = null;
+        string? capturedMessage = null;
         mockWebSocketServer
             .Setup(ws => ws.BroadcastRealtimeAsync(It.IsAny<string>()))
             .Callback<string>(m => capturedMessage = m)
@@ -147,7 +164,8 @@ public class OrchestrationServiceTests
             mockConfiguration.Object,
             volumeFilter,
             new[] { mockExchangeClient.Object },
-            channel
+            rawDataChannel,
+            rollingWindowChannel
         );
 
         // Act
@@ -159,7 +177,7 @@ public class OrchestrationServiceTests
         Assert.NotNull(capturedMessage);
         var capturedWrapper = JsonSerializer.Deserialize<WebSocketMessage>(capturedMessage);
         Assert.NotNull(capturedWrapper);
-        var capturedData = JsonSerializer.Deserialize<SpreadData>(capturedWrapper.Payload.ToString());
+        var capturedData = JsonSerializer.Deserialize<SpreadData>(capturedWrapper.Payload.ToString()!);
         Assert.NotNull(capturedData);
         Assert.True(capturedData.Timestamp > DateTime.MinValue);
         Assert.Equal("BTCUSDC", capturedData.Symbol);
@@ -174,7 +192,8 @@ public class OrchestrationServiceTests
         var volumeFilter = new VolumeFilter();
         var mockConfiguration = new Mock<IConfiguration>();
         var mockExchangeClient = new Mock<IExchangeClient>();
-        var channel = Channel.CreateUnbounded<MarketData>();
+        var rawDataChannel = Channel.CreateUnbounded<MarketData>();
+        var rollingWindowChannel = Channel.CreateUnbounded<MarketData>();
 
         var exchangeName = "TestExchange";
 
@@ -182,9 +201,15 @@ public class OrchestrationServiceTests
         {
             new TickerData { Symbol = "BTCETH", QuoteVolume = 2000000 }
         };
+        
+        var symbols = new List<SymbolInfo>
+        {
+            new SymbolInfo { Name = "BTCETH" }
+        };
 
         mockExchangeClient.Setup(c => c.ExchangeName).Returns(exchangeName);
         mockExchangeClient.Setup(c => c.GetTickersAsync()).ReturnsAsync(tickers);
+        mockExchangeClient.Setup(c => c.GetSymbolsAsync()).ReturnsAsync(symbols);
 
         var configSection = new Mock<IConfigurationSection>();
         configSection.Setup(a => a.Key).Returns(exchangeName);
@@ -201,7 +226,8 @@ public class OrchestrationServiceTests
             mockConfiguration.Object,
             volumeFilter,
             new[] { mockExchangeClient.Object },
-            channel
+            rawDataChannel,
+            rollingWindowChannel
         );
 
         // Act
@@ -209,7 +235,7 @@ public class OrchestrationServiceTests
 
         // Assert
         mockExchangeClient.Verify(c => c.SubscribeToTickersAsync(
-            It.Is<IEnumerable<string>>(symbols => !symbols.Any()),
+            It.IsAny<IEnumerable<string>>(),
             It.IsAny<Func<SpreadData, Task>>()), Times.Never);
         mockWebSocketServer.Verify(ws => ws.BroadcastRealtimeAsync(It.IsAny<string>()), Times.Never);
     }

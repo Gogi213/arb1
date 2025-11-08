@@ -76,15 +76,15 @@ public class KucoinExchangeClient : ExchangeClientBase<KucoinRestClient, KucoinS
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             var result = await _spotApi.SubscribeToBookTickerUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
                     if (data.Data?.BestBid != null && data.Data?.BestAsk != null && data.Symbol != null)
                     {
-                        onData(new SpreadData
+                        await onData(new SpreadData
                         {
                             Exchange = "Kucoin",
                             Symbol = data.Symbol,
@@ -99,7 +99,7 @@ public class KucoinExchangeClient : ExchangeClientBase<KucoinRestClient, KucoinS
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             // Not implemented for this exchange yet
             throw new NotImplementedException("Kucoin does not support trade stream yet");

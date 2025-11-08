@@ -85,20 +85,20 @@ public class BybitExchangeClient : ExchangeClientBase<IBybitRestClient, BybitSoc
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             // Bybit uses orderbook depth=1 which is equivalent to BookTicker
             var result = await _socketClient.V5SpotApi.SubscribeToOrderbookUpdatesAsync(
                 symbols,
                 1,
-                data =>
+                async data =>
                 {
                     var bestBid = data.Data.Bids.FirstOrDefault();
                     var bestAsk = data.Data.Asks.FirstOrDefault();
 
                     if (bestBid != null && bestAsk != null)
                     {
-                        onData(new SpreadData
+                        await onData(new SpreadData
                         {
                             Exchange = "Bybit",
                             Symbol = data.Data.Symbol,
@@ -113,7 +113,7 @@ public class BybitExchangeClient : ExchangeClientBase<IBybitRestClient, BybitSoc
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             throw new NotImplementedException("Bybit does not support trade stream yet");
         }

@@ -68,13 +68,13 @@ public class BitgetExchangeClient : ExchangeClientBase<BitgetRestClient, BitgetS
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             var result = await _spotApi.SubscribeToTickerUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
-                    onData(new SpreadData
+                    await onData(new SpreadData
                     {
                         Exchange = "Bitget",
                         Symbol = data.Data.Symbol,
@@ -88,7 +88,7 @@ public class BitgetExchangeClient : ExchangeClientBase<BitgetRestClient, BitgetS
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             throw new NotImplementedException("Bitget does not support trade stream yet");
         }

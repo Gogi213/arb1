@@ -77,16 +77,16 @@ public class OkxExchangeClient : ExchangeClientBase<OKXRestClient, OKXSocketClie
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             var result = await _unifiedApi.ExchangeData.SubscribeToTickerUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
                     var ticker = data.Data;
                     if (ticker.BestBidPrice.HasValue && ticker.BestAskPrice.HasValue)
                     {
-                        onData(new SpreadData
+                        await onData(new SpreadData
                         {
                             Exchange = "OKX",
                             Symbol = ticker.Symbol,
@@ -101,7 +101,7 @@ public class OkxExchangeClient : ExchangeClientBase<OKXRestClient, OKXSocketClie
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             // Not implemented for this exchange yet
             throw new NotImplementedException("OKX does not support trade stream yet");

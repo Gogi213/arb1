@@ -23,8 +23,8 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 {
     // Common fields for all exchanges
     private readonly List<ManagedConnection> _connections = new();
-    private Action<SpreadData>? _onTickerData;
-    private Action<TradeData>? _onTradeData;
+    private Func<SpreadData, Task>? _onTickerData;
+    private Func<TradeData, Task>? _onTradeData;
 
     private TRestClient? _restClientCache;
     protected TRestClient _restClient => _restClientCache ??= CreateRestClient();
@@ -48,7 +48,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     /// Subscribe to ticker (book ticker) updates for a list of symbols.
     /// This method implements the common chunking and connection management logic.
     /// </summary>
-    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Action<SpreadData> onData)
+    public async Task SubscribeToTickersAsync(IEnumerable<string> symbols, Func<SpreadData, Task> onData)
     {
         WebSocketLogger.Log($"[{ExchangeName}] SubscribeToTickersAsync called with {symbols.Count()} symbols");
 
@@ -91,7 +91,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     /// Subscribe to trade updates for a list of symbols.
     /// Default implementation returns completed task (not all exchanges support this yet).
     /// </summary>
-    public virtual Task SubscribeToTradesAsync(IEnumerable<string> symbols, Action<TradeData> onData)
+    public virtual Task SubscribeToTradesAsync(IEnumerable<string> symbols, Func<TradeData, Task> onData)
     {
         if (!SupportsTradesStream)
         {
@@ -112,16 +112,16 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     {
         private readonly ExchangeClientBase<TRestClient, TSocketClient> _parent;
         private readonly List<string> _symbols;
-        private readonly Action<SpreadData>? _onTickerData;
-        private readonly Action<TradeData>? _onTradeData;
+        private readonly Func<SpreadData, Task>? _onTickerData;
+        private readonly Func<TradeData, Task>? _onTradeData;
         private readonly TSocketClient _socketClient;
         private readonly SemaphoreSlim _resubscribeLock = new(1, 1);
 
         public ManagedConnection(
             ExchangeClientBase<TRestClient, TSocketClient> parent,
             List<string> symbols,
-            Action<SpreadData>? onTickerData,
-            Action<TradeData>? onTradeData)
+            Func<SpreadData, Task>? onTickerData,
+            Func<TradeData, Task>? onTradeData)
         {
             _parent = parent;
             _symbols = symbols;

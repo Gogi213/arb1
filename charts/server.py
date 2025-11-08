@@ -226,6 +226,13 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logging.info("Application shutdown...")
     # Stop background services
     rolling_window.stop_cleanup()
+    
+    # Clear mock data to free up memory
+    global MOCK_OPPORTUNITIES
+    if MOCK_OPPORTUNITIES is not None:
+        MOCK_OPPORTUNITIES = None
+        logging.info("Cleared mock opportunities data.")
+        
     # WebSocket task will be cancelled automatically on app exit
 
 app = FastAPI(lifespan=lifespan)

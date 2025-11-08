@@ -28,7 +28,7 @@ public interface IExchangeSocketApi
     /// <returns>CallResult with subscription if successful.</returns>
     Task<object> SubscribeToTickerUpdatesAsync(
         IEnumerable<string> symbols,
-        Action<SpreadData> onData);
+        Func<SpreadData, Task> onData);
 
     /// <summary>
     /// Subscribe to trade updates for multiple symbols.
@@ -38,5 +38,5 @@ public interface IExchangeSocketApi
     /// <returns>CallResult with subscription if successful.</returns>
     Task<object> SubscribeToTradeUpdatesAsync(
         IEnumerable<string> symbols,
-        Action<TradeData> onData);
+        Func<TradeData, Task> onData);
 }

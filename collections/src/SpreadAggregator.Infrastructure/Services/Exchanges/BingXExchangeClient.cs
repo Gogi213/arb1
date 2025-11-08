@@ -69,16 +69,16 @@ public class BingXExchangeClient : ExchangeClientBase<BingXRestClient, BingXSock
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             // BingX only supports single symbol subscription, so subscribe to first symbol
             // Base class handles SupportsMultipleSymbols = false and subscribes one by one
             var symbol = symbols.First();
             var result = await _spotApi.SubscribeToBookPriceUpdatesAsync(
                 symbol,
-                data =>
+                async data =>
                 {
-                    onData(new SpreadData
+                    await onData(new SpreadData
                     {
                         Exchange = "BingX",
                         Symbol = data.Data.Symbol,
@@ -92,7 +92,7 @@ public class BingXExchangeClient : ExchangeClientBase<BingXRestClient, BingXSock
 
         public Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             throw new NotImplementedException("BingX does not support trade stream yet");
         }

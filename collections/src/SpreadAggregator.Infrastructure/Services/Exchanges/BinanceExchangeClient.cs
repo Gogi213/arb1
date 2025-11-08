@@ -78,13 +78,13 @@ public class BinanceExchangeClient : ExchangeClientBase<BinanceRestClient, Binan
 
         public async Task<object> SubscribeToTickerUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<SpreadData> onData)
+            Func<SpreadData, Task> onData)
         {
             var result = await _spotApi.ExchangeData.SubscribeToBookTickerUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
-                    onData(new SpreadData
+                    await onData(new SpreadData
                     {
                         Exchange = "Binance",
                         Symbol = data.Data.Symbol,
@@ -98,13 +98,13 @@ public class BinanceExchangeClient : ExchangeClientBase<BinanceRestClient, Binan
 
         public async Task<object> SubscribeToTradeUpdatesAsync(
             IEnumerable<string> symbols,
-            Action<TradeData> onData)
+            Func<TradeData, Task> onData)
         {
             var result = await _spotApi.ExchangeData.SubscribeToTradeUpdatesAsync(
                 symbols,
-                data =>
+                async data =>
                 {
-                    onData(new TradeData
+                    await onData(new TradeData
                     {
                         Exchange = "Binance",
                         Symbol = data.Data.Symbol,

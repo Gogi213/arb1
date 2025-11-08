@@ -81,7 +81,9 @@ public class OrchestrationService
         var maxVolume = exchangeConfig.GetValue<decimal?>("MaxUsdVolume") ?? decimal.MaxValue;
 
         var allSymbols = (await exchangeClient.GetSymbolsAsync()).ToList();
-        _allSymbolInfo.AddRange(allSymbols);
+        var existingSymbols = new HashSet<string>(_allSymbolInfo.Select(s => s.Name));
+        var newSymbols = allSymbols.Where(s => !existingSymbols.Contains(s.Name)).ToList();
+        _allSymbolInfo.AddRange(newSymbols);
         
         var tickers = (await exchangeClient.GetTickersAsync()).ToList();
         Console.WriteLine($"[{exchangeName}] Received {tickers.Count} tickers and {allSymbols.Count} symbol info objects.");

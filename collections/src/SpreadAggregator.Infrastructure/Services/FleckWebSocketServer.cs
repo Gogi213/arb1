@@ -65,14 +65,16 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
         var tasks = new List<Task>();
         foreach (var socket in socketsSnapshot)
         {
-            try
+            if (socket.IsAvailable)
             {
-                if (socket.IsAvailable)
+                try
+                {
                     tasks.Add(socket.Send(message));
-            }
-            catch (ObjectDisposedException)
-            {
-                // Expected exception if socket closed during broadcast. Ignore.
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Fleck] Error sending to socket: {ex.Message}. Client might have disconnected.");
+                }
             }
         }
         return Task.WhenAll(tasks);

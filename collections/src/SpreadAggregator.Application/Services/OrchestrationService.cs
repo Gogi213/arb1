@@ -131,7 +131,14 @@ public class OrchestrationService
                 await _rollingWindowChannel.Writer.WriteAsync(normalizedSpreadData);
                 var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };
                 var message = JsonSerializer.Serialize(wrapper);
-                await _webSocketServer.BroadcastRealtimeAsync(message);
+                try
+                {
+                    await _webSocketServer.BroadcastRealtimeAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Orchestration] Failed to broadcast spread data: {ex.Message}");
+                }
             }));
         }
 
@@ -144,7 +151,14 @@ public class OrchestrationService
                 await _rollingWindowChannel.Writer.WriteAsync(tradeData);
                 var wrapper = new WebSocketMessage { MessageType = "Trade", Payload = tradeData };
                 var message = JsonSerializer.Serialize(wrapper);
-                await _webSocketServer.BroadcastRealtimeAsync(message);
+                try
+                {
+                    await _webSocketServer.BroadcastRealtimeAsync(message);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[Orchestration] Failed to broadcast trade data: {ex.Message}");
+                }
             }));
         }
 

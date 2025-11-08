@@ -23,6 +23,7 @@ import threading
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.getLogger("websockets").setLevel(logging.INFO)
 
 # Data classes
 @dataclass
@@ -190,7 +191,6 @@ async def websocket_client():
                         logging.error(f"Failed to parse WS message: {e}")
                     except Exception as e:
                         logging.error(f"Error processing WS message: {e}", exc_info=True)
-                        logging.debug(f"Problematic WS message content: {message}")
 
         except (websockets.exceptions.ConnectionClosedError,
                 websockets.exceptions.ConnectionClosedOK,
@@ -378,7 +378,8 @@ def _get_filtered_opportunities() -> List[Dict]:
 
     latest_file = max(csv_files, key=lambda f: os.path.getmtime(os.path.join(analyzer_stats_dir, f)))
     stats_file = os.path.join(analyzer_stats_dir, latest_file)
-    logging.info(f"Using stats file: {stats_file}")
+    # This log is too noisy for real-time updates, so it's removed.
+    # logging.info(f"Using stats file: {stats_file}")
 
     df_opps = pl.read_csv(stats_file)
     df_filtered = df_opps.filter(pl.col('opportunity_cycles_040bp') > 40)

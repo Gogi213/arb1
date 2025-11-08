@@ -27,7 +27,8 @@
       "Bash(timeout 40 dotnet run:*)",
       "Bash(git checkout:*)",
       "Bash(timeout 300 dotnet run:*)",
-      "Bash(copy diagram.json diagram_backup.json)"
+      "Bash(copy diagram.json diagram_backup.json)",
+      "Bash(nul)"
     ],
     "deny": [],
     "ask": []

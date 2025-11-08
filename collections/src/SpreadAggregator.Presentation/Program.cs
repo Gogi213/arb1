@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -34,98 +34,107 @@ class Program
 {
     static async Task Main(string[] args)
     {
-        await CreateHostBuilder(args).Build().RunAsync();
+        var builder = WebApplication.CreateBuilder(args);
+
+        // Configure logging
+        builder.Logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
+        builder.Logging.AddFilter("BingX", LogLevel.Warning);
+        builder.Logging.AddFilter("Bybit", LogLevel.Debug);
+
+        // Configure application services
+        ConfigureServices(builder.Services, builder.Configuration);
+
+        // Add ASP.NET Core services for Charts API
+        builder.Services.AddControllers();
+        builder.Services.AddCors(options =>
+        {
+            options.AddDefaultPolicy(policy =>
+            {
+                policy.AllowAnyOrigin()
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            });
+        });
+
+        var app = builder.Build();
+
+        // Configure middleware
+        app.UseCors();
+        app.MapControllers();
+
+        // Start background services
+        await app.RunAsync();
     }
 
-    private static IHostBuilder CreateHostBuilder(string[] args) =>
-        Host.CreateDefaultBuilder(args)
-            .ConfigureAppConfiguration((hostingContext, configuration) =>
+    private static void ConfigureServices(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddSingleton<IWebSocketServer>(sp =>
+        {
+            var connectionString = configuration.GetSection("ConnectionStrings")?["WebSocket"];
+            if (string.IsNullOrEmpty(connectionString))
             {
-                configuration.Sources.Clear();
-                var env = hostingContext.HostingEnvironment;
-                configuration
-                    .SetBasePath(AppContext.BaseDirectory)
-                    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                    .AddJsonFile($"appsettings.{env.EnvironmentName}.json", true, true);
-            })
-            .ConfigureLogging(logging =>
-            {
-                logging.AddFilter("System.Net.Http.HttpClient", LogLevel.Warning);
-                logging.AddFilter("BingX", LogLevel.Warning);
-                logging.AddFilter("Bybit", LogLevel.Debug);
-            })
-            .ConfigureServices((context, services) =>
-            {
-                services.AddSingleton<IWebSocketServer>(sp =>
-                {
-                    var connectionString = context.Configuration.GetSection("ConnectionStrings")?["WebSocket"];
-                    if (string.IsNullOrEmpty(connectionString))
-                    {
-                        throw new InvalidOperationException("WebSocket connection string is not configured.");
-                    }
-                    // Используем фабрику, чтобы избежать циклической зависимости при запуске
-                    return new FleckWebSocketServer(connectionString, () => sp.GetRequiredService<OrchestrationService>());
-                });
+                throw new InvalidOperationException("WebSocket connection string is not configured.");
+            }
+            return new FleckWebSocketServer(connectionString, () => sp.GetRequiredService<OrchestrationService>());
+        });
 
-                services.AddSingleton<SpreadCalculator>();
-                services.AddSingleton<VolumeFilter>();
-                var channelOptions = new BoundedChannelOptions(100_000)
-                {
-                    FullMode = BoundedChannelFullMode.Wait
-                };
-                services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateBounded<MarketData>(channelOptions)));
-                services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateBounded<MarketData>(channelOptions)));
-                services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
+        services.AddSingleton<SpreadCalculator>();
+        services.AddSingleton<VolumeFilter>();
 
-                // Register all exchange clients
-                services.AddSingleton<IExchangeClient, BinanceExchangeClient>();
-                services.AddSingleton<IExchangeClient, MexcExchangeClient>();
-                services.AddSingleton<IExchangeClient, GateIoExchangeClient>();
-                services.AddSingleton<IExchangeClient, KucoinExchangeClient>();
-                services.AddSingleton<IExchangeClient, OkxExchangeClient>();
-                services.AddSingleton<IExchangeClient, BitgetExchangeClient>();
-                services.AddSingleton<IExchangeClient, BingXExchangeClient>();
-                services.AddSingleton<IExchangeClient, BybitExchangeClient>();
+        var channelOptions = new BoundedChannelOptions(100_000)
+        {
+            FullMode = BoundedChannelFullMode.Wait
+        };
+        services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateBounded<MarketData>(channelOptions)));
+        services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateBounded<MarketData>(channelOptions)));
+        services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
 
-                services.AddBybit();
+        // Register all exchange clients
+        services.AddSingleton<IExchangeClient, BinanceExchangeClient>();
+        services.AddSingleton<IExchangeClient, MexcExchangeClient>();
+        services.AddSingleton<IExchangeClient, GateIoExchangeClient>();
+        services.AddSingleton<IExchangeClient, KucoinExchangeClient>();
+        services.AddSingleton<IExchangeClient, OkxExchangeClient>();
+        services.AddSingleton<IExchangeClient, BitgetExchangeClient>();
+        services.AddSingleton<IExchangeClient, BingXExchangeClient>();
+        services.AddSingleton<IExchangeClient, BybitExchangeClient>();
 
-                // Регистрация IDataWriter
-                services.AddSingleton<IDataWriter>(sp =>
-                {
-                    var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
-                    var config = sp.GetRequiredService<IConfiguration>();
-                    return new ParquetDataWriter(rawChannel, config);
-                });
+        services.AddBybit();
 
-                services.AddSingleton<RollingWindowService>(sp =>
-                {
-                    var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
-                    return new RollingWindowService(rollingChannel);
-                });
+        // Регистрация IDataWriter
+        services.AddSingleton<IDataWriter>(sp =>
+        {
+            var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
+            var config = sp.GetRequiredService<IConfiguration>();
+            return new ParquetDataWriter(rawChannel, config);
+        });
 
-                services.AddSingleton<OrchestrationService>(sp =>
-                {
-                    var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
-                    var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
-                    return new OrchestrationService(
-                        sp.GetRequiredService<IWebSocketServer>(),
-                        sp.GetRequiredService<SpreadCalculator>(),
-                        sp.GetRequiredService<IConfiguration>(),
-                        sp.GetRequiredService<VolumeFilter>(),
-                        sp.GetRequiredService<IEnumerable<IExchangeClient>>(),
-                        rawChannel,
-                        rollingChannel,
-                        sp.GetRequiredService<IDataWriter>()
-                    );
-                });
-                services.AddHostedService<OrchestrationServiceHost>();
+        services.AddSingleton<RollingWindowService>(sp =>
+        {
+            var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
+            return new RollingWindowService(rollingChannel);
+        });
 
-                // Запускаем сборщик данных как отдельный, долгоживущий сервис
-                services.AddHostedService<DataCollectorService>();
+        services.AddSingleton<OrchestrationService>(sp =>
+        {
+            var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
+            var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
+            return new OrchestrationService(
+                sp.GetRequiredService<IWebSocketServer>(),
+                sp.GetRequiredService<SpreadCalculator>(),
+                sp.GetRequiredService<IConfiguration>(),
+                sp.GetRequiredService<VolumeFilter>(),
+                sp.GetRequiredService<IEnumerable<IExchangeClient>>(),
+                rawChannel,
+                rollingChannel,
+                sp.GetRequiredService<IDataWriter>()
+            );
+        });
 
-                // Запускаем rolling window сервис
-                services.AddHostedService<RollingWindowServiceHost>();
-            });
+        services.AddHostedService<OrchestrationServiceHost>();
+        services.AddHostedService<DataCollectorService>();
+        services.AddHostedService<RollingWindowServiceHost>();
+    }
 }
 
 public class OrchestrationServiceHost : IHostedService
@@ -139,14 +148,12 @@ public class OrchestrationServiceHost : IHostedService
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        // Не блокируем запуск, OrchestrationService сам управляет фоновыми задачами
         _ = _orchestrationService.StartAsync(cancellationToken);
         return Task.CompletedTask;
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
     {
-        // Здесь можно добавить логику для грациозной остановки, если потребуется
         return Task.CompletedTask;
     }
 }

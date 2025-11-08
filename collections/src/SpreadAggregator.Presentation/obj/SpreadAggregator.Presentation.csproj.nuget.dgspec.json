@@ -224,6 +224,10 @@
               "target": "Package",
               "version": "[7.9.0, )"
             },
+            "Microsoft.Data.Analysis": {
+              "target": "Package",
+              "version": "[0.22.3, )"
+            },
             "Parquet.Net": {
               "target": "Package",
               "version": "[5.2.0, )"
@@ -317,6 +321,9 @@
           "assetTargetFallback": true,
           "warn": true,
           "frameworkReferences": {
+            "Microsoft.AspNetCore.App": {
+              "privateAssets": "none"
+            },
             "Microsoft.NETCore.App": {
               "privateAssets": "all"
             }

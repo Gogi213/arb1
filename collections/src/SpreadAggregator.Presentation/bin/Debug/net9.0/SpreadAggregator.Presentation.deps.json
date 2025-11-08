@@ -17,6 +17,14 @@
           "SpreadAggregator.Presentation.dll": {}
         }
       },
+      "Apache.Arrow/14.0.2": {
+        "runtime": {
+          "lib/net6.0/Apache.Arrow.dll": {
+            "assemblyVersion": "14.0.2.0",
+            "fileVersion": "14.0.2.0"
+          }
+        }
+      },
       "Binance.Net/11.9.0": {
         "dependencies": {
           "CryptoExchange.Net": "9.10.0"
@@ -170,6 +178,19 @@
           "lib/net9.0/Kucoin.Net.dll": {
             "assemblyVersion": "7.9.0.0",
             "fileVersion": "7.9.0.0"
+          }
+        }
+      },
+      "Microsoft.Data.Analysis/0.22.3": {
+        "dependencies": {
+          "Apache.Arrow": "14.0.2",
+          "Microsoft.ML.DataView": "4.0.3",
+          "System.Numerics.Tensors": "9.0.0"
+        },
+        "runtime": {
+          "lib/net8.0/Microsoft.Data.Analysis.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "0.2200.325.52801"
           }
         }
       },
@@ -556,6 +577,18 @@
           }
         }
       },
+      "Microsoft.ML.DataView/4.0.3": {
+        "dependencies": {
+          "System.Collections.Immutable": "8.0.0",
+          "System.Memory": "4.6.0"
+        },
+        "runtime": {
+          "lib/netstandard2.0/Microsoft.ML.DataView.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "4.0.325.52801"
+          }
+        }
+      },
       "Parquet.Net/5.2.0": {
         "dependencies": {
           "IronCompress": "1.6.3",
@@ -595,6 +628,7 @@
           }
         }
       },
+      "System.Collections.Immutable/8.0.0": {},
       "System.Diagnostics.EventLog/9.0.9": {
         "runtime": {
           "lib/net9.0/System.Diagnostics.EventLog.dll": {
@@ -603,17 +637,20 @@
           }
         },
         "runtimeTargets": {
-          "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.Messages.dll": {
-            "rid": "win",
-            "assetType": "runtime",
-            "assemblyVersion": "9.0.0.0",
-            "fileVersion": "0.0.0.0"
-          },
           "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.dll": {
             "rid": "win",
             "assetType": "runtime",
             "assemblyVersion": "9.0.0.0",
             "fileVersion": "9.0.925.41916"
+          }
+        }
+      },
+      "System.Memory/4.6.0": {},
+      "System.Numerics.Tensors/9.0.0": {
+        "runtime": {
+          "lib/net9.0/System.Numerics.Tensors.dll": {
+            "assemblyVersion": "9.0.0.0",
+            "fileVersion": "9.0.24.52809"
           }
         }
       },
@@ -660,6 +697,7 @@
           "JK.Mexc.Net": "3.10.0",
           "JK.OKX.Net": "3.9.0",
           "Kucoin.Net": "7.9.0",
+          "Microsoft.Data.Analysis": "0.22.3",
           "Parquet.Net": "5.2.0",
           "SpreadAggregator.Application": "1.0.0"
         },
@@ -677,6 +715,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "Apache.Arrow/14.0.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-2xvo9q2ag/Ze7TKSMsZfcQFMk3zZKWcduttJXoYnoevZD2bv+lKnOPeleyxONuR1ZwhZ00D86pPM9TWx2GMY2w==",
+      "path": "apache.arrow/14.0.2",
+      "hashPath": "apache.arrow.14.0.2.nupkg.sha512"
     },
     "Binance.Net/11.9.0": {
       "type": "package",
@@ -761,6 +806,13 @@
       "sha512": "sha512-2XPrh7QNBy9HX+TFcGMkYWkQlLDLlQmlkcpfFqrgATGsmretH6SrsfHy88PWOCm9mT6F1XlwM+m+GcOxAsZ8Kg==",
       "path": "kucoin.net/7.9.0",
       "hashPath": "kucoin.net.7.9.0.nupkg.sha512"
+    },
+    "Microsoft.Data.Analysis/0.22.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9bVb4qrap1LPv0VZzEaCtS1/htKmvRK58gE1dlIsGw6PojZZXeOWPrZYJCTk1+hu74DkOncjF9xWU9Ez67HL+g==",
+      "path": "microsoft.data.analysis/0.22.3",
+      "hashPath": "microsoft.data.analysis.0.22.3.nupkg.sha512"
     },
     "Microsoft.Extensions.Configuration/9.0.9": {
       "type": "package",
@@ -965,6 +1017,13 @@
       "path": "microsoft.io.recyclablememorystream/3.0.1",
       "hashPath": "microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512"
     },
+    "Microsoft.ML.DataView/4.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AspAQ3efu7zWARfl2d2Y7Uqb/5f2I56He5PfVEN5jIytQCoTm0LAIsWaby3neZlI0MqNALuMB9Nvl5O4FE53Rw==",
+      "path": "microsoft.ml.dataview/4.0.3",
+      "hashPath": "microsoft.ml.dataview.4.0.3.nupkg.sha512"
+    },
     "Parquet.Net/5.2.0": {
       "type": "package",
       "serviceable": true,
@@ -993,12 +1052,33 @@
       "path": "snappier/1.1.6",
       "hashPath": "snappier.1.1.6.nupkg.sha512"
     },
+    "System.Collections.Immutable/8.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-AurL6Y5BA1WotzlEvVaIDpqzpIPvYnnldxru8oXJU2yFxFUy3+pNXjXd1ymO+RA0rq0+590Q8gaz2l3Sr7fmqg==",
+      "path": "system.collections.immutable/8.0.0",
+      "hashPath": "system.collections.immutable.8.0.0.nupkg.sha512"
+    },
     "System.Diagnostics.EventLog/9.0.9": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-wpsUfnyv8E5K4WQaok6weewvAbQhcLwXFcHBm5U0gdEaBs85N//ssuYvRPFWwz2rO/9/DFP3A1sGMzUFBj8y3w==",
       "path": "system.diagnostics.eventlog/9.0.9",
       "hashPath": "system.diagnostics.eventlog.9.0.9.nupkg.sha512"
+    },
+    "System.Memory/4.6.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-OEkbBQoklHngJ8UD8ez2AERSk2g+/qpAaSWWCBFbpH727HxDq5ydVkuncBaKcKfwRqXGWx64dS6G1SUScMsitg==",
+      "path": "system.memory/4.6.0",
+      "hashPath": "system.memory.4.6.0.nupkg.sha512"
+    },
+    "System.Numerics.Tensors/9.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-hyJB4UlpAi19Xr9AXzu2NuagKC4lPfHObNMEAA0HmqFz2rX7wKgzeYzO/jM/eBHDhnUGFFEjk5cOoJaxqg5J4A==",
+      "path": "system.numerics.tensors/9.0.0",
+      "hashPath": "system.numerics.tensors.9.0.0.nupkg.sha512"
     },
     "System.Text.Json/9.0.6": {
       "type": "package",

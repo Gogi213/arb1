@@ -88,9 +88,20 @@ public class RollingWindowService : IDisposable
         var now = DateTime.UtcNow;
         var keysToRemove = _windows.Where(kvp => kvp.Value.WindowEnd < now - _windowSize).Select(kvp => kvp.Key).ToList();
 
+        var removedCount = 0;
         foreach (var key in keysToRemove)
         {
-            _windows.TryRemove(key, out _);
+            if (_windows.TryRemove(key, out _))
+            {
+                removedCount++;
+            }
+        }
+
+        // Log memory metrics
+        if (removedCount > 0 || _windows.Count > 10)
+        {
+            var totalPoints = _windows.Values.Sum(w => w.Spreads.Count + w.Trades.Count);
+            Console.WriteLine($"[RollingWindow] Cleanup: removed {removedCount} windows, active: {_windows.Count}, total points: {totalPoints}");
         }
     }
 
@@ -130,11 +141,19 @@ public class RollingWindowService : IDisposable
             .Select(s => (ts: s.Timestamp, bid: s.BestAsk)) // Use BestAsk for second exchange
             .ToList();
 
-        // AsOf join with 2s tolerance - keep full history for quantile calculations
-        var joined = AsOfJoin(data1, data2, TimeSpan.FromSeconds(2));
+        // AsOf join with 1000ms tolerance - reduced to minimize timestamp duplicates
+        var joined = AsOfJoin(data1, data2, TimeSpan.FromMilliseconds(1000));
 
         if (joined.Count == 0)
             return null;
+
+        // Memory protection: limit joined data to prevent OOM
+        const int maxJoinedPoints = 10000;
+        if (joined.Count > maxJoinedPoints)
+        {
+            Console.WriteLine($"[RollingWindow] Warning: {joined.Count} joined points exceeds limit {maxJoinedPoints}, truncating to recent {maxJoinedPoints}");
+            joined = joined.Skip(joined.Count - maxJoinedPoints).ToList();
+        }
 
         // Calculate spreads for the entire history (needed for quantiles)
         var spreads = joined.Select(x =>
@@ -164,15 +183,29 @@ public class RollingWindowService : IDisposable
         var upperBands = CalculateRollingQuantile(spreads, 0.97, 200);
         var lowerBands = CalculateRollingQuantile(spreads, 0.03, 200);
 
-        // Return RECENT points for chart display (last 100 points to show trend)
-        // This gives enough points for uPlot to draw a proper line chart
-        const int maxChartPoints = 100;
-        var startIndex = Math.Max(0, joined.Count - maxChartPoints);
+        // Return points for chart display (last 15 minutes for dynamic window)
+        // This gives enough points for uPlot to draw a proper line chart with time-based window
+        var now = DateTime.UtcNow;
+        var fifteenMinutesAgo = now - TimeSpan.FromMinutes(15);
 
-        var chartPoints = joined.Skip(startIndex).ToList();
-        var chartSpreads = spreads.Skip(startIndex).ToList();
-        var chartUpperBands = upperBands.Skip(startIndex).ToList();
-        var chartLowerBands = lowerBands.Skip(startIndex).ToList();
+        // Filter data to last 15 minutes
+        var recentIndices = joined
+            .Select((point, index) => (point, index))
+            .Where(x => x.point.timestamp >= fifteenMinutesAgo)
+            .Select(x => x.index)
+            .ToList();
+
+        if (recentIndices.Count == 0)
+        {
+            // If no data in last 15 minutes, return last 10 points as fallback
+            var startIndex = Math.Max(0, joined.Count - 10);
+            recentIndices = Enumerable.Range(startIndex, joined.Count - startIndex).ToList();
+        }
+
+        var chartPoints = recentIndices.Select(i => joined[i]).ToList();
+        var chartSpreads = recentIndices.Select(i => spreads[i]).ToList();
+        var chartUpperBands = recentIndices.Select(i => upperBands[i]).ToList();
+        var chartLowerBands = recentIndices.Select(i => lowerBands[i]).ToList();
 
         // Convert to epoch timestamps
         var epochTimestamps = chartPoints.Select(x =>
@@ -233,6 +266,12 @@ public class RollingWindowService : IDisposable
             if ((targetTs - matchTs) > tolerance) continue; // Outside tolerance
 
             result.Add((targetTs, data1[i].bid, data2[j - 1].bid));
+        }
+
+        // TEMP: Log join statistics for testing tolerance impact
+        if (result.Count > 0)
+        {
+            Console.WriteLine($"[AsOfJoin] Tolerance {tolerance.TotalMilliseconds}ms: {result.Count} joins from {data1.Count}x{data2.Count} points");
         }
 
         return result;

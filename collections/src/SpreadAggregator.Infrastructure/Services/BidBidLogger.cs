@@ -18,6 +18,7 @@ public class BidBidLogger : IBidBidLogger, IDisposable
     private readonly ILogger<BidBidLogger> _logger;
     private readonly Task _backgroundTask;
     private bool _disposed;
+    private int _loggedPointsCount;
 
     public BidBidLogger(ILogger<BidBidLogger> logger, string logDirectory = "logs")
     {
@@ -65,7 +66,19 @@ public class BidBidLogger : IBidBidLogger, IDisposable
         if (symbol.Equals("ICPUSDT", StringComparison.OrdinalIgnoreCase))
         {
             // Non-blocking write to channel
-            _logChannel.Writer.TryWrite((symbol, exchange1, exchange2, timestamp, bid1, bid2, spread));
+            if (_logChannel.Writer.TryWrite((symbol, exchange1, exchange2, timestamp, bid1, bid2, spread)))
+            {
+                // Log metrics every 100 points
+                var currentCount = Interlocked.Increment(ref _loggedPointsCount);
+                if (currentCount % 100 == 0)
+                {
+                    _logger.LogInformation($"BidBidLogger: Logged {currentCount} points total, channel capacity: {_logChannel.Reader.Count}");
+                }
+            }
+            else
+            {
+                _logger.LogWarning("BidBidLogger: Channel full, dropping log entry");
+            }
         }
 
         return Task.CompletedTask;
@@ -88,6 +101,9 @@ public class BidBidLogger : IBidBidLogger, IDisposable
                              $"{spread.ToString("F6", System.Globalization.CultureInfo.InvariantCulture)}";
 
                 await _icpWriter.WriteLineAsync(logLine);
+
+                // Increment counter for metrics
+                _loggedPointsCount++;
             }
             catch (Exception ex)
             {
@@ -112,6 +128,9 @@ public class BidBidLogger : IBidBidLogger, IDisposable
         {
             _logger.LogError(ex, "Error waiting for background task to complete");
         }
+
+        // Log final metrics
+        _logger.LogInformation($"BidBidLogger disposed. Total logged points: {_loggedPointsCount}");
 
         _icpWriter?.Dispose();
 

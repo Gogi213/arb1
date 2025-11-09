@@ -90,6 +90,7 @@ public class BinanceExchangeClient : ExchangeClientBase<BinanceRestClient, Binan
                         Symbol = data.Data.Symbol,
                         BestBid = data.Data.BestBidPrice,
                         BestAsk = data.Data.BestAskPrice
+                        // ServerTimestamp not available in BookTickerUpdate
                     });
                 });
 

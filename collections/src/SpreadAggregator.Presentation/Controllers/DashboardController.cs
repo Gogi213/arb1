@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using SpreadAggregator.Infrastructure.Services.Charts;
 using SpreadAggregator.Presentation.Models;
 
 namespace SpreadAggregator.Presentation.Controllers;
@@ -13,10 +14,17 @@ namespace SpreadAggregator.Presentation.Controllers;
 public class DashboardController : ControllerBase
 {
     private readonly ILogger<DashboardController> _logger;
+    private readonly ParquetReaderService _parquetReader;
+    private readonly OpportunityFilterService _opportunityFilter;
 
-    public DashboardController(ILogger<DashboardController> logger)
+    public DashboardController(
+        ILogger<DashboardController> logger,
+        ParquetReaderService parquetReader,
+        OpportunityFilterService opportunityFilter)
     {
         _logger = logger;
+        _parquetReader = parquetReader;
+        _opportunityFilter = opportunityFilter;
     }
 
     /// <summary>
@@ -29,15 +37,44 @@ public class DashboardController : ControllerBase
     {
         _logger.LogInformation("Received request for /api/dashboard_data");
 
-        // TODO Sprint 2: Implement full functionality
-        // 1. Load filtered opportunities (_get_filtered_opportunities)
-        // 2. For each opportunity, load and process pair data
-        // 3. Stream as NDJSON
+        // Load filtered opportunities
+        var opportunities = _opportunityFilter.GetFilteredOpportunities();
+        _logger.LogInformation($"Streaming data for {opportunities.Count} opportunities");
 
-        await Task.CompletedTask;
+        int processedCount = 0;
 
-        // Placeholder - return empty for now
-        yield break;
+        // Stream each chart
+        foreach (var opp in opportunities)
+        {
+            ChartData? chartData = null;
+
+            try
+            {
+                chartData = await _parquetReader.LoadAndProcessPairAsync(
+                    opp.Symbol, opp.Exchange1, opp.Exchange2);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error processing pair {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
+            }
+
+            if (chartData != null)
+            {
+                processedCount++;
+                yield return new ChartDataDto
+                {
+                    Symbol = chartData.Symbol,
+                    Exchange1 = chartData.Exchange1,
+                    Exchange2 = chartData.Exchange2,
+                    Timestamps = chartData.Timestamps,
+                    Spreads = chartData.Spreads,
+                    UpperBand = chartData.UpperBand,
+                    LowerBand = chartData.LowerBand
+                };
+            }
+        }
+
+        _logger.LogInformation($"Finished streaming. Successfully sent {processedCount} chart objects");
     }
 
     /// <summary>

@@ -31,7 +31,9 @@
       "Bash(nul)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(dotnet add:*)"
+      "Bash(dotnet add:*)",
+      "Bash(copy:*)",
+      "Bash(del \"c:\\visual projects\\arb1\\collections\\wwwroot\\index.html\")"
     ],
     "deny": [],
     "ask": []

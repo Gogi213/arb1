@@ -21,4 +21,9 @@ public class SpreadData : MarketData
     public decimal SpreadPercentage { get; set; }
     public decimal MinVolume { get; set; }
     public decimal MaxVolume { get; set; }
+
+    /// <summary>
+    /// Server-side timestamp from exchange (if available).
+    /// </summary>
+    public DateTime? ServerTimestamp { get; set; }
 }

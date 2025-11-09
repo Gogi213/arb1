@@ -23,6 +23,7 @@ public class OrchestrationService
     private readonly Channel<MarketData> _rawDataChannel;
     private readonly Channel<MarketData> _rollingWindowChannel;
     private readonly IDataWriter? _dataWriter;
+    private readonly IBidAskLogger? _bidAskLogger;
 
     private readonly List<SymbolInfo> _allSymbolInfo = new();
     private readonly List<Task> _exchangeTasks = new();
@@ -39,7 +40,8 @@ public class OrchestrationService
         IEnumerable<IExchangeClient> exchangeClients,
         Channel<MarketData> rawDataChannel,
         Channel<MarketData> rollingWindowChannel,
-        IDataWriter? dataWriter = null)
+        IDataWriter? dataWriter = null,
+        IBidAskLogger? bidAskLogger = null)
     {
         _webSocketServer = webSocketServer;
         _spreadCalculator = spreadCalculator;
@@ -49,6 +51,7 @@ public class OrchestrationService
         _rawDataChannel = rawDataChannel;
         _rollingWindowChannel = rollingWindowChannel;
         _dataWriter = dataWriter;
+        _bidAskLogger = bidAskLogger;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -120,6 +123,7 @@ public class OrchestrationService
             {
                 if (spreadData.BestAsk == 0) return;
 
+                var localTimestamp = DateTime.UtcNow;
                 var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
                 var normalizedSpreadData = new SpreadData
                 {
@@ -130,8 +134,13 @@ public class OrchestrationService
                     SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk),
                     MinVolume = minVolume,
                     MaxVolume = maxVolume,
-                    Timestamp = DateTime.UtcNow
+                    Timestamp = localTimestamp,
+                    ServerTimestamp = spreadData.ServerTimestamp
                 };
+
+                // Log bid/ask with both server and local timestamps (non-blocking)
+                _bidAskLogger?.LogAsync(normalizedSpreadData, localTimestamp);
+
                 await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
                 await _rollingWindowChannel.Writer.WriteAsync(normalizedSpreadData);
                 var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };

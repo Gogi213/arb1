@@ -59,6 +59,8 @@ class Program
         var app = builder.Build();
 
         // Configure middleware
+        app.UseStaticFiles(); // Serve static files from wwwroot
+        app.UseWebSockets();
         app.UseCors();
         app.MapControllers();
 
@@ -83,7 +85,7 @@ class Program
 
         var channelOptions = new BoundedChannelOptions(100_000)
         {
-            FullMode = BoundedChannelFullMode.Wait
+            FullMode = BoundedChannelFullMode.DropOldest
         };
         services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateBounded<MarketData>(channelOptions)));
         services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateBounded<MarketData>(channelOptions)));
@@ -109,10 +111,33 @@ class Program
             return new ParquetDataWriter(rawChannel, config);
         });
 
+        // BidAsk Logger
+        services.AddSingleton<IBidAskLogger>(sp =>
+        {
+            var logDirectory = configuration.GetValue<string>("Logging:BidAskLogDirectory")
+                ?? Path.Combine("..", "..", "logs");
+            return new BidAskLogger(
+                sp.GetRequiredService<ILogger<BidAskLogger>>(),
+                logDirectory
+            );
+        });
+
+        // BidBid Logger (chart data logger)
+        services.AddSingleton<IBidBidLogger>(sp =>
+        {
+            var logDirectory = configuration.GetValue<string>("Logging:BidAskLogDirectory")
+                ?? Path.Combine("..", "..", "logs");
+            return new BidBidLogger(
+                sp.GetRequiredService<ILogger<BidBidLogger>>(),
+                logDirectory
+            );
+        });
+
         services.AddSingleton<RollingWindowService>(sp =>
         {
             var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
-            return new RollingWindowService(rollingChannel);
+            var bidBidLogger = sp.GetRequiredService<IBidBidLogger>();
+            return new RollingWindowService(rollingChannel, bidBidLogger);
         });
 
         services.AddSingleton<OrchestrationService>(sp =>
@@ -127,7 +152,29 @@ class Program
                 sp.GetRequiredService<IEnumerable<IExchangeClient>>(),
                 rawChannel,
                 rollingChannel,
-                sp.GetRequiredService<IDataWriter>()
+                sp.GetRequiredService<IDataWriter>(),
+                sp.GetRequiredService<IBidAskLogger>()
+            );
+        });
+
+        // Chart API Services
+        services.AddSingleton<SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService>(sp =>
+        {
+            var dataLakePath = configuration.GetValue<string>("DataLake:Path")
+                ?? @"C:\visual projects\arb1\data\market_data";
+            return new SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService(
+                dataLakePath,
+                sp.GetRequiredService<ILogger<SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService>>()
+            );
+        });
+
+        services.AddSingleton<SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService>(sp =>
+        {
+            var analyzerStatsPath = configuration.GetValue<string>("Analyzer:StatsPath")
+                ?? @"C:\visual projects\arb1\analyzer\summary_stats";
+            return new SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService(
+                analyzerStatsPath,
+                sp.GetRequiredService<ILogger<SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService>>()
             );
         });
 

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Test</title>
+</head>
+<body>
+    <h1>WebSocket Test for Collections</h1>
+    <button onclick="connect()">Connect to WebSocket</button>
+    <button onclick="disconnect()">Disconnect</button>
+    <div id="status">Not connected</div>
+    <div id="messages"></div>
+
+    <script>
+        let socket = null;
+
+        function connect() {
+            socket = new WebSocket('ws://localhost:5000/ws/realtime_charts');
+
+            socket.onopen = function(event) {
+                document.getElementById('status').textContent = 'Connected';
+                document.getElementById('messages').innerHTML = '';
+            };
+
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                const msgDiv = document.createElement('div');
+                msgDiv.innerHTML = `
+                    <strong>${new Date().toLocaleTimeString()}</strong><br>
+                    Symbol: ${data.symbol}<br>
+                    Timestamps count: ${data.timestamps ? data.timestamps.length : 'N/A'}<br>
+                    Spreads count: ${data.spreads ? data.spreads.length : 'N/A'}<br>
+                    First timestamp: ${data.timestamps && data.timestamps.length > 0 ? data.timestamps[0] : 'N/A'}<br>
+                    First spread: ${data.spreads && data.spreads.length > 0 ? data.spreads[0] : 'N/A'}<br>
+                    <hr>
+                `;
+                document.getElementById('messages').appendChild(msgDiv);
+
+                // Keep only last 10 messages
+                const messages = document.getElementById('messages');
+                while (messages.children.length > 10) {
+                    messages.removeChild(messages.firstChild);
+                }
+            };
+
+            socket.onclose = function(event) {
+                document.getElementById('status').textContent = 'Disconnected';
+            };
+
+            socket.onerror = function(error) {
+                document.getElementById('status').textContent = 'Error: ' + error;
+            };
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.close();
+                socket = null;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {}
+    "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {}
   },
   "projects": {
-    "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
+    "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
+        "projectUniqueName": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
         "projectName": "SpreadAggregator.Application",
-        "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
+        "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\obj\\",
+        "outputPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -26,8 +26,8 @@
           "net9.0": {
             "targetAlias": "net9.0",
             "projectReferences": {
-              "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
-                "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj"
+              "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
+                "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj"
               }
             }
           }
@@ -81,14 +81,14 @@
         }
       }
     },
-    "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
+    "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj",
+        "projectUniqueName": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj",
         "projectName": "SpreadAggregator.Domain",
-        "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj",
+        "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj",
         "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-        "outputPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\obj\\",
+        "outputPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"

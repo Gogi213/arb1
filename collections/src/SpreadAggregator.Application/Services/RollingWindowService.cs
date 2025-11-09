@@ -107,6 +107,7 @@ public class RollingWindowService : IDisposable
 
     /// <summary>
     /// Join real-time windows for two exchanges and calculate spread
+    /// Returns recent points for chart display, latest point for real-time updates
     /// Replaces Python _join_realtime_windows()
     /// </summary>
     public RealtimeChartData? JoinRealtimeWindows(string symbol, string exchange1, string exchange2)
@@ -129,44 +130,53 @@ public class RollingWindowService : IDisposable
             .Select(s => (ts: s.Timestamp, bid: s.BestAsk)) // Use BestAsk for second exchange
             .ToList();
 
-        // AsOf join with 2s tolerance
+        // AsOf join with 2s tolerance - keep full history for quantile calculations
         var joined = AsOfJoin(data1, data2, TimeSpan.FromSeconds(2));
 
         if (joined.Count == 0)
             return null;
 
-        // Calculate spread: (bid_a / bid_b - 1) * 100
+        // Calculate spreads for the entire history (needed for quantiles)
         var spreads = joined.Select(x =>
         {
             if (x.bid2 == 0) return (double?)null;
             return (double)(((x.bid1 / x.bid2) - 1) * 100);
         }).ToList();
 
-        // Log bid/bid chart data (joined points)
-        if (_bidBidLogger != null)
+        // Log ONLY the latest bid/bid point - but only once per unique exchange pair
+        // Use a static cache to prevent duplicate logging across multiple opportunity calls
+        var pairKey = $"{exchange1}_{exchange2}_{symbol}";
+        if (_bidBidLogger != null && ShouldLogBidBid(pairKey))
         {
-            _ = Task.Run(async () =>
+            var lastPoint = joined.Last();
+            var lastSpread = spreads.Last();
+            if (lastSpread.HasValue)
             {
-                for (int i = 0; i < joined.Count; i++)
+                _ = Task.Run(async () =>
                 {
-                    var point = joined[i];
-                    var spread = spreads[i];
-                    if (spread.HasValue)
-                    {
-                        await _bidBidLogger.LogAsync(symbol, exchange1, exchange2,
-                                                     point.timestamp, point.bid1, point.bid2, spread.Value);
-                    }
-                }
-            });
+                    await _bidBidLogger.LogAsync(symbol, exchange1, exchange2,
+                                                 lastPoint.timestamp, lastPoint.bid1, lastPoint.bid2, lastSpread.Value);
+                });
+            }
         }
 
-        // Calculate rolling quantiles (window size 200)
+        // Calculate rolling quantiles using FULL history (for accurate bands)
         var upperBands = CalculateRollingQuantile(spreads, 0.97, 200);
         var lowerBands = CalculateRollingQuantile(spreads, 0.03, 200);
 
-        // Convert to epoch timestamps (millisecond precision)
-        var epochTimestamps = joined.Select(x =>
-            ((DateTimeOffset)x.timestamp).ToUnixTimeMilliseconds() / 1000.0  // Milliseconds → seconds with fraction
+        // Return RECENT points for chart display (last 100 points to show trend)
+        // This gives enough points for uPlot to draw a proper line chart
+        const int maxChartPoints = 100;
+        var startIndex = Math.Max(0, joined.Count - maxChartPoints);
+
+        var chartPoints = joined.Skip(startIndex).ToList();
+        var chartSpreads = spreads.Skip(startIndex).ToList();
+        var chartUpperBands = upperBands.Skip(startIndex).ToList();
+        var chartLowerBands = lowerBands.Skip(startIndex).ToList();
+
+        // Convert to epoch timestamps
+        var epochTimestamps = chartPoints.Select(x =>
+            ((DateTimeOffset)x.timestamp).ToUnixTimeMilliseconds() / 1000.0
         ).ToList();
 
         return new RealtimeChartData
@@ -175,10 +185,28 @@ public class RollingWindowService : IDisposable
             Exchange1 = exchange1,
             Exchange2 = exchange2,
             Timestamps = epochTimestamps,
-            Spreads = spreads,
-            UpperBand = upperBands,
-            LowerBand = lowerBands
+            Spreads = chartSpreads,
+            UpperBand = chartUpperBands,
+            LowerBand = chartLowerBands
         };
+    }
+
+    // Cache to prevent duplicate logging across multiple opportunity calls
+    private static readonly ConcurrentDictionary<string, DateTime> _lastLogTimes = new();
+    private static readonly TimeSpan _logCooldown = TimeSpan.FromSeconds(1); // Minimum 1 second between logs
+
+    private bool ShouldLogBidBid(string pairKey)
+    {
+        var now = DateTime.UtcNow;
+        var lastLogTime = _lastLogTimes.GetOrAdd(pairKey, _ => DateTime.MinValue);
+
+        if ((now - lastLogTime) >= _logCooldown)
+        {
+            _lastLogTimes[pairKey] = now;
+            return true;
+        }
+
+        return false;
     }
 
     private List<(DateTime timestamp, decimal bid1, decimal bid2)> AsOfJoin(

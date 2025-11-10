@@ -78,8 +78,6 @@
 
 **Goal:** A comprehensive review and refactoring of the existing codebase to eliminate unnecessary layers of abstraction, remove redundant code, and improve overall code clarity and maintainability.
 
-**Details:** See [Sprint 3 Plan](sprint3_refactoring_plan.md).
-
 
 ---
 
@@ -88,5 +86,3 @@
 **Status:** Not Started
 
 **Goal:** Implement a "supervisor" component that dynamically decides which arbitrage leg to execute based on real-time market conditions.
-
-**Details:** See [Sprint 4 Plan](sprint4_dynamic_leg_switching.md).

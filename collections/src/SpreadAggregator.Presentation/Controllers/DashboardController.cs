@@ -46,6 +46,7 @@ public class DashboardController : ControllerBase
         // Stream each chart
         foreach (var opp in opportunities)
         {
+            // opp.Symbol is already normalized by OpportunityFilterService
             ChartData? chartData = null;
 
             try

@@ -17,11 +17,11 @@ Collections нормализует символы удаляя ВСЕ разде
 **Текущий код Collections:**
 ```csharp
 var normalizedSymbol = spreadData.Symbol
-    .Replace("/", "")
-    .Replace("-", "")
-    .Replace("_", "")
+    .Replace("/", "_")
+    .Replace("-", "_")
     .Replace(" ", "");
-// VIRTUAL/USDT → VIRTUALUSDT
+// VIRTUAL/USDT → VIRTUAL_USDT
+// BTC-USDT → BTC_USDT
 ```
 
 **Текущий код Trader:**
@@ -30,16 +30,7 @@ _baseAsset = symbol.Split('_')[0];  // Ожидает VIRTUAL_USDT
 _quoteAsset = symbol.Split('_')[1]; // Падает если нет '_'
 ```
 
-**Решение:**
-Изменить Collections нормализацию на:
-```csharp
-var normalizedSymbol = spreadData.Symbol
-    .Replace("/", "_")
-    .Replace("-", "_")
-    .Replace(" ", "");
-// VIRTUAL/USDT → VIRTUAL_USDT
-// BTC-USDT → BTC_USDT
-```
+**Статус:** ✅ **ИСПРАВЛЕНО** - Collections теперь использует унифицированный формат с подчеркиванием
 
 **Приоритет:** КРИТИЧНЫЙ
 **Estimate:** 10 минут

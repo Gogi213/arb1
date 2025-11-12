@@ -61,9 +61,21 @@ public class RealTimeController : ControllerBase
             var opportunities = _opportunityFilter.GetFilteredOpportunities();
             _logger.LogInformation($"Starting event-driven streaming for {opportunities.Count} opportunities");
 
+            // Log first 10 opportunities for debugging
+            for (int i = 0; i < Math.Min(10, opportunities.Count); i++)
+            {
+                var opp = opportunities[i];
+                _logger.LogInformation($"Opportunity {i+1}: {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2}) cycles={opp.OpportunityCycles}");
+            }
+            if (opportunities.Count > 10)
+            {
+                _logger.LogInformation($"... and {opportunities.Count - 10} more opportunities");
+            }
+
             // Subscribe to window updates for each opportunity
             foreach (var opp in opportunities)
             {
+                // opp.Symbol is already normalized by OpportunityFilterService
                 var key = $"{opp.Symbol}_{opp.Exchange1}_{opp.Exchange2}";
 
                 EventHandler<Application.Services.WindowDataUpdatedEventArgs> handler = async (sender, e) =>
@@ -126,7 +138,18 @@ public class RealTimeController : ControllerBase
 
                 subscriptions[key] = handler;
                 _rollingWindow.WindowDataUpdated += handler;
-                _logger.LogDebug($"Subscribed to {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
+                _logger.LogInformation($"[RealTime] Subscribed to {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2}) - key: {key}");
+
+                // Test if RollingWindow has data for this pair
+                var testData = _rollingWindow.JoinRealtimeWindows(opp.Symbol, opp.Exchange1, opp.Exchange2);
+                if (testData != null)
+                {
+                    _logger.LogInformation($"[RealTime] RollingWindow has data for {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2}) - {testData.Timestamps.Count} points");
+                }
+                else
+                {
+                    _logger.LogWarning($"[RealTime] RollingWindow has NO data for {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
+                }
             }
 
             // Keep connection alive until WebSocket closes

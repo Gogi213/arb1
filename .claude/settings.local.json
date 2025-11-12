@@ -34,7 +34,10 @@
       "Bash(dotnet add:*)",
       "Bash(copy:*)",
       "Bash(del \"c:\\visual projects\\arb1\\collections\\wwwroot\\index.html\")",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(curl:*)",
+      "Bash(timeout 30 curl:*)",
+      "Bash(timeout 45 dotnet run:*)"
     ],
     "deny": [],
     "ask": []

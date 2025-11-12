@@ -26,7 +26,7 @@ public class OpportunityFilterService
 
     /// <summary>
     /// Get filtered opportunities from latest stats file
-    /// Filters by opportunity_cycles_040bp > 40
+    /// Filters by opportunity_cycles_040bp >= 1
     /// Cached for 10 seconds
     /// </summary>
     public List<Opportunity> GetFilteredOpportunities()
@@ -97,11 +97,16 @@ public class OpportunityFilterService
             if (oppCyclesValue == null) continue;
 
             var oppCycles = Convert.ToInt32(oppCyclesValue);
-            if (oppCycles > 40)
+            if (oppCycles >= 1)
             {
+                // IMPORTANT: Normalize symbol here to match OrchestrationService format
+                // CSV contains "VIRTUAL/USDT", but entire system uses "VIRTUAL_USDT"
+                var rawSymbol = df.Rows[i]["symbol"]?.ToString() ?? "";
+                var normalizedSymbol = rawSymbol.Replace("/", "_").Replace("-", "_").Replace(" ", "");
+
                 opportunities.Add(new Opportunity
                 {
-                    Symbol = df.Rows[i]["symbol"]?.ToString() ?? "",
+                    Symbol = normalizedSymbol,  // Store normalized symbol (VIRTUAL_USDT)
                     Exchange1 = df.Rows[i]["exchange1"]?.ToString() ?? "",
                     Exchange2 = df.Rows[i]["exchange2"]?.ToString() ?? "",
                     OpportunityCycles = oppCycles
@@ -115,7 +120,7 @@ public class OpportunityFilterService
             .ThenBy(o => o.Exchange1)
             .ToList();
 
-        _logger.LogInformation($"Found {opportunities.Count} opportunities with cycles > 40");
+        _logger.LogInformation($"Found {opportunities.Count} opportunities with cycles >= 1");
 
         return opportunities;
     }

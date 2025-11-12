@@ -120,10 +120,20 @@ def load_exchange_symbol_data(data_path: str, exchange: str, symbol: str, start_
     if not exchange_path.exists():
         return None
 
-    symbol_path_str = symbol.replace('/', '#')
-    symbol_path = exchange_path / f"symbol={symbol_path_str}"
+    # Try both symbol formats: with underscore and without
+    symbol_formats = [
+        symbol.replace('/', '#'),  # VIRTUAL#USDT
+        symbol.replace('/', '').replace('_', '')  # VIRTUALUSDT
+    ]
 
-    if not symbol_path.exists():
+    symbol_path = None
+    for fmt in symbol_formats:
+        candidate = exchange_path / f"symbol={fmt}"
+        if candidate.exists():
+            symbol_path = candidate
+            break
+
+    if symbol_path is None:
         return None
 
     # OPTIMIZATION #8: Single parquet scan for ALL dates (2-4x faster I/O)
@@ -442,6 +452,15 @@ def run_ultra_fast_analysis(data_path, exchanges_filter=None, n_workers=None, st
 
     # Discover symbols
     symbols_to_analyze = discover_data(DATA_PATH)
+
+    # DEBUG: Print some symbols to check formats
+    print("\n--- Sample symbols found ---")
+    for i, (symbol, exchanges) in enumerate(symbols_to_analyze.items()):
+        if i < 5:  # Show first 5
+            print(f"{symbol}: {list(exchanges)}")
+        elif i == 5:
+            print("...")
+            break
 
     if not symbols_to_analyze:
         return

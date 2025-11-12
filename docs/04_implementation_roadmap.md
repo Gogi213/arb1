@@ -18,11 +18,13 @@
 **Изменение:**
 ```csharp
 // Было:
-var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("_", "");
+var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
 
-// Должно быть:
+// Стало:
 var normalizedSymbol = spreadData.Symbol.Replace("/", "_").Replace("-", "_").Replace(" ", "");
 ```
+
+**Статус:** ✅ **ИСПРАВЛЕНО**
 
 **Тест:**
 1. Запустить Collections

@@ -27,12 +27,29 @@ public class ParquetReaderService
     /// </summary>
     public async Task<(List<DateTime> timestamps, List<decimal> bids)?> LoadExchangeDataAsync(string exchange, string symbol)
     {
-        var symbolPathStr = symbol.Replace('/', '#');
-        var symbolPath = Path.Combine(_dataLakePath, $"exchange={exchange}", $"symbol={symbolPathStr}");
+        // IMPORTANT: Must match OrchestrationService symbol normalization logic
+        // Symbol is already normalized to SYMBOL_USDT format (e.g., VIRTUAL_USDT)
+        // Also try legacy formats for backward compatibility
+        var symbolFormats = new[] {
+            symbol,                                                        // VIRTUAL_USDT (current normalized format)
+            symbol.Replace("_", ""),                                       // VIRTUALUSDT (old format from Bybit/Binance)
+            symbol.Replace("/", "#")                                       // VIRTUAL#USDT (legacy format)
+        };
 
-        if (!Directory.Exists(symbolPath))
+        string? symbolPath = null;
+        foreach (var fmt in symbolFormats)
         {
-            _logger.LogWarning($"Symbol path not found for {exchange}/{symbol}");
+            var candidate = Path.Combine(_dataLakePath, $"exchange={exchange}", $"symbol={fmt}");
+            if (Directory.Exists(candidate))
+            {
+                symbolPath = candidate;
+                break;
+            }
+        }
+
+        if (symbolPath == null)
+        {
+            _logger.LogWarning($"Symbol path not found for {exchange}/{symbol} (tried formats: {string.Join(", ", symbolFormats)})");
             return null;
         }
 
@@ -121,10 +138,10 @@ public class ParquetReaderService
             return null;
         }
 
-        // AsOf join with backward strategy, 2s tolerance
+        // AsOf join with backward strategy, 50ms tolerance for HFT
         var joined = AsOfJoin(data1.Value.timestamps, data1.Value.bids,
                               data2.Value.timestamps, data2.Value.bids,
-                              TimeSpan.FromSeconds(2));
+                              TimeSpan.FromMilliseconds(50));
 
         if (joined.Count == 0)
         {
@@ -162,6 +179,8 @@ public class ParquetReaderService
 
     /// <summary>
     /// AsOf join - найти ближайшее значение из второго списка для каждого timestamp из первого
+    /// HFT-оптимизация: бинарный поиск O(log n) вместо линейного O(n)
+    /// Tracks detailed loss metrics for HFT optimization
     /// </summary>
     private List<(DateTime timestamp, decimal bid1, decimal bid2)> AsOfJoin(
         List<DateTime> ts1, List<decimal> bids1,
@@ -169,24 +188,82 @@ public class ParquetReaderService
         TimeSpan tolerance)
     {
         var result = new List<(DateTime, decimal, decimal)>();
-        int j = 0;
+
+        // HFT Metrics: track losses
+        int noBackwardMatch = 0;
+        int outsideTolerance = 0;
+        var delays = new List<double>(); // Track actual delays in ms
 
         for (int i = 0; i < ts1.Count; i++)
         {
             var targetTs = ts1[i];
 
-            // Find closest backward match within tolerance
-            while (j < ts2.Count && ts2[j] <= targetTs)
+            // Binary search for largest timestamp <= targetTs in ts2
+            int idx = BinarySearchFloor(ts2, targetTs);
+
+            if (idx == -1)
             {
-                j++;
+                noBackwardMatch++;
+                continue; // No backward match
             }
 
-            if (j == 0) continue; // No backward match
+            var matchTs = ts2[idx];
+            var delay = (targetTs - matchTs).TotalMilliseconds;
 
-            var matchTs = ts2[j - 1];
-            if ((targetTs - matchTs) > tolerance) continue; // Outside tolerance
+            if ((targetTs - matchTs) > tolerance)
+            {
+                outsideTolerance++;
+                continue; // Outside tolerance
+            }
 
-            result.Add((targetTs, bids1[i], bids2[j - 1]));
+            delays.Add(delay);
+            result.Add((targetTs, bids1[i], bids2[idx]));
+        }
+
+        // Log detailed statistics for HFT monitoring
+        if (ts1.Count > 0)
+        {
+            var successRate = (result.Count * 100.0) / ts1.Count;
+            var lossRate = 100.0 - successRate;
+
+            var avgDelay = delays.Any() ? delays.Average() : 0;
+            var maxDelay = delays.Any() ? delays.Max() : 0;
+
+            _logger.LogInformation(
+                $"[HFT AsOfJoin Historical] Tolerance={tolerance.TotalMilliseconds}ms | " +
+                $"Input={ts1.Count}x{ts2.Count} | " +
+                $"Joined={result.Count} ({successRate:F1}%) | " +
+                $"Lost={ts1.Count - result.Count} ({lossRate:F1}%): " +
+                $"NoMatch={noBackwardMatch}, OutsideTolerance={outsideTolerance} | " +
+                $"AvgDelay={avgDelay:F2}ms, MaxDelay={maxDelay:F2}ms"
+            );
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Binary search: найти наибольший индекс где sorted[idx] <= target
+    /// Для HFT: O(log n) вместо O(n) linear scan
+    /// </summary>
+    private int BinarySearchFloor(List<DateTime> sorted, DateTime target)
+    {
+        int left = 0, right = sorted.Count - 1;
+        int result = -1;
+
+        while (left <= right)
+        {
+            int mid = left + (right - left) / 2;
+
+            if (sorted[mid] <= target)
+            {
+                result = mid;
+                left = mid + 1;
+            }
+            else
+            {
+                right = mid - 1;
+            }
         }
 
         return result;

@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SpreadAggregator.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b7c878f3ce46d6e25b96148e899ba4cf0cf7f527")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cb7c547cf3d6ef6b18f15e4c95476536f46b65e5")]
 [assembly: System.Reflection.AssemblyProductAttribute("SpreadAggregator.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SpreadAggregator.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

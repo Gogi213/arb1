@@ -87,8 +87,9 @@ class Program
         {
             FullMode = BoundedChannelFullMode.DropOldest
         };
-        services.AddSingleton<RawDataChannel>(new RawDataChannel(Channel.CreateBounded<MarketData>(channelOptions)));
-        services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(Channel.CreateBounded<MarketData>(channelOptions)));
+        var sharedChannel = Channel.CreateBounded<MarketData>(channelOptions);
+        services.AddSingleton<RawDataChannel>(new RawDataChannel(sharedChannel));
+        services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(sharedChannel));
         services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
 
         // Register all exchange clients
@@ -137,7 +138,8 @@ class Program
         {
             var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
             var bidBidLogger = sp.GetRequiredService<IBidBidLogger>();
-            return new RollingWindowService(rollingChannel, bidBidLogger);
+            var logger = sp.GetRequiredService<ILogger<RollingWindowService>>();
+            return new RollingWindowService(rollingChannel, bidBidLogger, logger);
         });
 
         services.AddSingleton<OrchestrationService>(sp =>

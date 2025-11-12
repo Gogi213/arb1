@@ -118,13 +118,34 @@ public class OrchestrationService
 
         if (enableTickers)
         {
-            Console.WriteLine($"[{exchangeName}] Adding ticker subscription task...");
+            Console.WriteLine($"[{exchangeName}] Adding ticker subscription task for {filteredSymbolNames.Count} symbols...");
             tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbolNames, async spreadData =>
             {
                 if (spreadData.BestAsk == 0) return;
 
                 var localTimestamp = DateTime.UtcNow;
-                var normalizedSymbol = spreadData.Symbol.Replace("/", "").Replace("-", "").Replace("_", "").Replace(" ", "");
+
+                // HFT: Use server timestamp from exchange (more accurate for cross-exchange timing)
+                // Fallback to local timestamp only if exchange doesn't provide it
+                var timestamp = spreadData.ServerTimestamp ?? localTimestamp;
+
+                // Унифицированная нормализация: удаляем все разделители и преобразуем к формату SYMBOL_QUOTE
+                var normalizedSymbol = spreadData.Symbol
+                    .Replace("/", "")
+                    .Replace("-", "")
+                    .Replace("_", "")
+                    .Replace(" ", "");
+
+                // Добавляем подчеркивание перед USDT/USDC для единообразия
+                if (normalizedSymbol.EndsWith("USDT"))
+                {
+                    normalizedSymbol = normalizedSymbol.Substring(0, normalizedSymbol.Length - 4) + "_USDT";
+                }
+                else if (normalizedSymbol.EndsWith("USDC"))
+                {
+                    normalizedSymbol = normalizedSymbol.Substring(0, normalizedSymbol.Length - 4) + "_USDC";
+                }
+
                 var normalizedSpreadData = new SpreadData
                 {
                     Exchange = spreadData.Exchange,
@@ -134,7 +155,7 @@ public class OrchestrationService
                     SpreadPercentage = _spreadCalculator.Calculate(spreadData.BestBid, spreadData.BestAsk),
                     MinVolume = minVolume,
                     MaxVolume = maxVolume,
-                    Timestamp = localTimestamp,
+                    Timestamp = timestamp,  // Use server timestamp for HFT accuracy
                     ServerTimestamp = spreadData.ServerTimestamp
                 };
 

@@ -1,4 +1,5 @@
 using SpreadAggregator.Domain.Entities;
+using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -15,20 +16,26 @@ public class RollingWindowService : IDisposable
     private readonly ConcurrentDictionary<string, RollingWindowData> _windows = new();
     private readonly Timer _cleanupTimer;
     private readonly Abstractions.IBidBidLogger? _bidBidLogger;
+    private readonly ILogger<RollingWindowService> _logger;
     private bool _disposed;
 
     // Event-driven: raised when window data is updated
     public event EventHandler<WindowDataUpdatedEventArgs>? WindowDataUpdated;
 
-    public RollingWindowService(Channel<MarketData> channel, Abstractions.IBidBidLogger? bidBidLogger = null)
+    public RollingWindowService(
+        Channel<MarketData> channel,
+        Abstractions.IBidBidLogger? bidBidLogger = null,
+        ILogger<RollingWindowService>? logger = null)
     {
         _channelReader = channel.Reader;
         _bidBidLogger = bidBidLogger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RollingWindowService>.Instance;
         _cleanupTimer = new Timer(CleanupOldData, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        _logger.LogInformation("RollingWindowService started, waiting for data...");
         await foreach (var data in _channelReader.ReadAllAsync(cancellationToken))
         {
             ProcessData(data);
@@ -37,6 +44,8 @@ public class RollingWindowService : IDisposable
 
     private void ProcessData(MarketData data)
     {
+        _logger.LogDebug($"RollingWindow received: {data.GetType().Name} {data.Exchange}/{data.Symbol}");
+
         var key = $"{data.Exchange}_{data.Symbol}";
         var window = _windows.GetOrAdd(key, _ => new RollingWindowData
         {
@@ -75,6 +84,7 @@ public class RollingWindowService : IDisposable
 
     private void OnWindowDataUpdated(string exchange, string symbol)
     {
+        _logger.LogDebug($"RollingWindow event: {exchange}/{symbol}");
         WindowDataUpdated?.Invoke(this, new WindowDataUpdatedEventArgs
         {
             Exchange = exchange,
@@ -126,6 +136,17 @@ public class RollingWindowService : IDisposable
         var window1 = GetWindowData(exchange1, symbol);
         var window2 = GetWindowData(exchange2, symbol);
 
+        // DEBUG: Log why returning NULL
+        if (window1 == null)
+            _logger.LogDebug($"JoinRealtimeWindows NULL: window1 ({exchange1}/{symbol}) not found");
+        else if (window1.Spreads.Count == 0)
+            _logger.LogDebug($"JoinRealtimeWindows NULL: window1 ({exchange1}/{symbol}) has 0 spreads");
+
+        if (window2 == null)
+            _logger.LogDebug($"JoinRealtimeWindows NULL: window2 ({exchange2}/{symbol}) not found");
+        else if (window2.Spreads.Count == 0)
+            _logger.LogDebug($"JoinRealtimeWindows NULL: window2 ({exchange2}/{symbol}) has 0 spreads");
+
         if (window1 == null || window2 == null ||
             window1.Spreads.Count == 0 || window2.Spreads.Count == 0)
             return null;
@@ -141,8 +162,8 @@ public class RollingWindowService : IDisposable
             .Select(s => (ts: s.Timestamp, bid: s.BestAsk)) // Use BestAsk for second exchange
             .ToList();
 
-        // AsOf join with 1000ms tolerance - reduced to minimize timestamp duplicates
-        var joined = AsOfJoin(data1, data2, TimeSpan.FromMilliseconds(1000));
+        // AsOf join with 20ms tolerance for HFT real-time trading
+        var joined = AsOfJoin(data1, data2, TimeSpan.FromMilliseconds(20));
 
         if (joined.Count == 0)
             return null;
@@ -151,7 +172,7 @@ public class RollingWindowService : IDisposable
         const int maxJoinedPoints = 10000;
         if (joined.Count > maxJoinedPoints)
         {
-            Console.WriteLine($"[RollingWindow] Warning: {joined.Count} joined points exceeds limit {maxJoinedPoints}, truncating to recent {maxJoinedPoints}");
+            _logger.LogWarning($"RollingWindow Warning: {joined.Count} joined points exceeds limit {maxJoinedPoints}, truncating to recent {maxJoinedPoints}");
             joined = joined.Skip(joined.Count - maxJoinedPoints).ToList();
         }
 
@@ -242,36 +263,92 @@ public class RollingWindowService : IDisposable
         return false;
     }
 
+    /// <summary>
+    /// AsOf join with binary search for HFT performance: O(n log n) instead of O(n²)
+    /// Tracks detailed loss metrics for HFT optimization
+    /// </summary>
     private List<(DateTime timestamp, decimal bid1, decimal bid2)> AsOfJoin(
         List<(DateTime ts, decimal bid)> data1,
         List<(DateTime ts, decimal bid)> data2,
         TimeSpan tolerance)
     {
         var result = new List<(DateTime, decimal, decimal)>();
-        int j = 0;
+
+        // HFT Metrics: track losses
+        int noBackwardMatch = 0;
+        int outsideTolerance = 0;
+        var delays = new List<double>(); // Track actual delays in ms
 
         for (int i = 0; i < data1.Count; i++)
         {
             var targetTs = data1[i].ts;
 
-            // Find closest backward match within tolerance
-            while (j < data2.Count && data2[j].ts <= targetTs)
+            // Binary search for largest timestamp <= targetTs in data2
+            int idx = BinarySearchFloor(data2, targetTs);
+
+            if (idx == -1)
             {
-                j++;
+                noBackwardMatch++;
+                continue; // No backward match
             }
 
-            if (j == 0) continue; // No backward match
+            var matchTs = data2[idx].ts;
+            var delay = (targetTs - matchTs).TotalMilliseconds;
 
-            var matchTs = data2[j - 1].ts;
-            if ((targetTs - matchTs) > tolerance) continue; // Outside tolerance
+            if ((targetTs - matchTs) > tolerance)
+            {
+                outsideTolerance++;
+                continue; // Outside tolerance
+            }
 
-            result.Add((targetTs, data1[i].bid, data2[j - 1].bid));
+            delays.Add(delay);
+            result.Add((targetTs, data1[i].bid, data2[idx].bid));
         }
 
-        // TEMP: Log join statistics for testing tolerance impact
-        if (result.Count > 0)
+        // Log detailed statistics for HFT monitoring
+        if (data1.Count > 0)
         {
-            Console.WriteLine($"[AsOfJoin] Tolerance {tolerance.TotalMilliseconds}ms: {result.Count} joins from {data1.Count}x{data2.Count} points");
+            var successRate = (result.Count * 100.0) / data1.Count;
+            var lossRate = 100.0 - successRate;
+
+            var avgDelay = delays.Any() ? delays.Average() : 0;
+            var maxDelay = delays.Any() ? delays.Max() : 0;
+
+            _logger.LogInformation(
+                $"[HFT AsOfJoin] Tolerance={tolerance.TotalMilliseconds}ms | " +
+                $"Input={data1.Count}x{data2.Count} | " +
+                $"Joined={result.Count} ({successRate:F1}%) | " +
+                $"Lost={data1.Count - result.Count} ({lossRate:F1}%): " +
+                $"NoMatch={noBackwardMatch}, OutsideTolerance={outsideTolerance} | " +
+                $"AvgDelay={avgDelay:F2}ms, MaxDelay={maxDelay:F2}ms"
+            );
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Binary search: найти наибольший индекс где data[idx].ts <= target
+    /// HFT optimization: O(log n) вместо O(n) linear scan
+    /// </summary>
+    private int BinarySearchFloor(List<(DateTime ts, decimal bid)> data, DateTime target)
+    {
+        int left = 0, right = data.Count - 1;
+        int result = -1;
+
+        while (left <= right)
+        {
+            int mid = left + (right - left) / 2;
+
+            if (data[mid].ts <= target)
+            {
+                result = mid;
+                left = mid + 1;
+            }
+            else
+            {
+                right = mid - 1;
+            }
         }
 
         return result;

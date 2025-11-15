@@ -37,7 +37,8 @@
       "Bash(tree:*)",
       "Bash(curl:*)",
       "Bash(timeout 30 curl:*)",
-      "Bash(timeout 45 dotnet run:*)"
+      "Bash(timeout 45 dotnet run:*)",
+      "Bash(pip install:*)"
     ],
     "deny": [],
     "ask": []

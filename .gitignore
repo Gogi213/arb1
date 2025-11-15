@@ -72,3 +72,8 @@ desktop.ini
 *.log
 logs/
 data/
+collections/docs/jkorf/
+libs/
+
+.gemini/
+gha-creds-*.json

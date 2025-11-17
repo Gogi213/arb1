@@ -6,15 +6,16 @@ namespace TraderBot.Core
 {
     public static class FileLogger
     {
-        private static readonly string WebsocketLogPath = Path.Combine("trader", "logs", "websocket.txt");
-        private static readonly string OtherLogPath = Path.Combine("trader", "logs", "other.txt");
-        private static readonly string SpreadLogPath = Path.Combine("trader", "logs", "spread.txt");
+        private static readonly string LogsDir = Path.Combine(AppContext.BaseDirectory, "../../../../logs");
+        private static readonly string WebsocketLogPath = Path.Combine(LogsDir, "websocket.txt");
+        private static readonly string OtherLogPath = Path.Combine(LogsDir, "other.txt");
+        private static readonly string SpreadLogPath = Path.Combine(LogsDir, "spread.txt");
         private static readonly object _lock = new object();
 
         static FileLogger()
         {
             // Ensure log directory exists
-            Directory.CreateDirectory(Path.Combine("trader", "logs"));
+            Directory.CreateDirectory(LogsDir);
             // Clear logs on start
             File.WriteAllText(WebsocketLogPath, string.Empty);
             File.WriteAllText(OtherLogPath, string.Empty);
@@ -29,6 +30,7 @@ namespace TraderBot.Core
         public static void LogOther(string message)
         {
             Log(OtherLogPath, message);
+            Console.WriteLine($"[{DateTime.UtcNow:HH:mm:ss.fff}] OTHER: {message}");
         }
 
         public static void LogSpread(string message)

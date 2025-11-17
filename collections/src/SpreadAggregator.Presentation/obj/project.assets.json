@@ -2566,11 +2566,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
+      "projectUniqueName": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
       "projectName": "SpreadAggregator.Presentation",
-      "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
+      "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\SpreadAggregator.Presentation.csproj",
       "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
-      "outputPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\obj\\",
+      "outputPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Presentation\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
         "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -2585,11 +2585,11 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "projectReferences": {
-            "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
+            "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Application\\SpreadAggregator.Application.csproj"
             },
-            "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
-              "projectPath": "c:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
+            "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
             }
           }
         }

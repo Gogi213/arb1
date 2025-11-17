@@ -195,7 +195,8 @@ namespace TraderBot.Core
                     FileLogger.LogOther($"[Latency] Order fill time: {fillLatency:F0}ms");
                 }
 
-                if (order.OrderId == _orderId && order.Status == "Finish")
+                // Bybit uses Status="Filled", Gate.io uses Status="Finish"
+                if (order.OrderId == _orderId && (order.Status == "Finish" || order.Status == "Filled"))
                 {
                     if (order.FinishType == "Filled")
                     {

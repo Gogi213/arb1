@@ -23,6 +23,7 @@ namespace TraderBot.Core
         long OrderId { get; }
         decimal Price { get; }
         decimal Quantity { get; }
+        decimal CumulativeQuantityFilled { get; }
         decimal QuoteQuantity { get; }
         decimal CumulativeQuoteQuantity { get; }
         string Status { get; }

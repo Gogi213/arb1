@@ -36,10 +36,14 @@ namespace TraderBot.Exchanges.Bybit
         private readonly SortedDictionary<decimal, decimal> _asks = new(); // Asks are ascending
         private readonly object _bookLock = new object();
 
+        // Balance cache - updated via WebSocket
+        private readonly Dictionary<string, decimal> _balanceCache = new();
+        private readonly object _balanceLock = new object();
+
         // Callbacks for subscriptions
         private Action<IOrderBook>? _orderBookCallback;
         private Action<IOrder>? _orderUpdateCallback;
-        private Action<IBalance>? _balanceUpdateCallback;
+        private readonly List<Action<IBalance>> _balanceUpdateCallbacks = new();
 
         // Mapping reqId -> real OrderId from Bybit response
         private readonly Dictionary<string, TaskCompletionSource<string>> _orderIdMapping = new();
@@ -95,6 +99,35 @@ namespace TraderBot.Exchanges.Bybit
             return Task.FromResult((tickSize, basePrecision));
         }
 
+        public Task<decimal> GetBalanceAsync(string asset)
+        {
+            lock (_balanceLock)
+            {
+                if (_balanceCache.TryGetValue(asset, out var balance))
+                {
+                    FileLogger.LogOther($"[Bybit WS] Balance from cache for {asset}: {balance}");
+                    return Task.FromResult(balance);
+                }
+                else
+                {
+                    FileLogger.LogOther($"[Bybit WS] No balance found in cache for {asset}. Use REST API to initialize cache.");
+                    return Task.FromResult(0m);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Manually update balance cache. Used to initialize cache from REST API.
+        /// </summary>
+        public void UpdateBalanceCache(string asset, decimal amount)
+        {
+            lock (_balanceLock)
+            {
+                _balanceCache[asset] = amount;
+                FileLogger.LogWebsocket($"[WS-BALANCE-CACHE] Manually updated {asset}: {amount}");
+            }
+        }
+
         private async Task AuthenticateAsync(ClientWebSocket ws, string name)
         {
             FileLogger.LogWebsocket($"[WS-{name}] Attempting authentication...");
@@ -130,8 +163,13 @@ namespace TraderBot.Exchanges.Bybit
     
         public async Task<string?> PlaceMarketOrderAsync(string symbol, string side, decimal quantity)
         {
+            FileLogger.LogOther($"[WS-TRADE] PlaceMarketOrderAsync called. Authenticated: {_isTradeAuthenticated}");
+
             if (!_isTradeAuthenticated)
+            {
+                FileLogger.LogOther($"[WS-TRADE-ERROR] Cannot place market order: Trade WebSocket is not authenticated!");
                 throw new InvalidOperationException("Trade WebSocket is not authenticated");
+            }
 
             var reqId = Guid.NewGuid().ToString("N");
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds().ToString();
@@ -142,7 +180,7 @@ namespace TraderBot.Exchanges.Bybit
             try
             {
                 _orderIdMapping[reqId] = tcs;
-                FileLogger.LogWebsocket($"[WS-PRIVATE] OrderId mapping created for reqId: {reqId}");
+                FileLogger.LogOther($"[WS-TRADE] OrderId mapping created for reqId: {reqId}");
             }
             finally
             {
@@ -155,19 +193,21 @@ namespace TraderBot.Exchanges.Bybit
             // Build JSON with proper Bybit v5 format
             var orderMessage = $@"{{""reqId"":""{reqId}"",""header"":{{""X-BAPI-TIMESTAMP"":""{timestamp}"",""X-BAPI-RECV-WINDOW"":""5000""}},""op"":""order.create"",""args"":[{{""category"":""spot"",""symbol"":""{symbol}"",""side"":""{side}"",""orderType"":""Market"",""qty"":""{qtyStr}""}}]}}";
 
+            FileLogger.LogOther($"[WS-TRADE] Sending order message: {orderMessage}");
             var t0 = DateTime.UtcNow;
             await SendMessageAsync(_tradeWs, _tradeSendLock, orderMessage, "TRADE");
             var t1 = DateTime.UtcNow;
 
             var sendLatency = (t1 - t0).TotalMilliseconds;
-            FileLogger.LogWebsocket($"[WS-PRIVATE] Market order sent in {sendLatency:F2}ms. ReqId: {reqId}");
+            FileLogger.LogOther($"[WS-TRADE] Market order sent in {sendLatency:F2}ms. ReqId: {reqId}");
 
             // Wait for real OrderId from WS response (timeout 5 seconds)
+            FileLogger.LogOther($"[WS-TRADE] Waiting for response (timeout 5s)...");
             var realOrderIdTask = tcs.Task;
             if (await Task.WhenAny(realOrderIdTask, Task.Delay(5000)) == realOrderIdTask)
             {
                 var realId = await realOrderIdTask;
-                FileLogger.LogWebsocket($"[WS-PRIVATE] Received real OrderId '{realId}' for reqId '{reqId}'.");
+                FileLogger.LogOther($"[WS-TRADE] Received real OrderId '{realId}' for reqId '{reqId}'.");
                 return realId;
             }
 
@@ -276,20 +316,32 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task SubscribeToBalanceUpdatesAsync(Action<IBalance> onBalanceUpdate)
         {
-            _balanceUpdateCallback = onBalanceUpdate;
-            var subscribeMessage = @"{""op"":""subscribe"",""args"":[""wallet""]}";
-            await SendMessageAsync(_privateWs, _privateSendLock, subscribeMessage, "PRIVATE");
-            FileLogger.LogWebsocket("[WS-PRIVATE] Sent subscription request for 'wallet' topic.");
+            lock (_balanceLock)
+            {
+                _balanceUpdateCallbacks.Add(onBalanceUpdate);
+            }
+
+            // Only subscribe to WebSocket if this is the first callback
+            if (_balanceUpdateCallbacks.Count == 1)
+            {
+                var subscribeMessage = @"{""op"":""subscribe"",""args"":[""wallet""]}";
+                await SendMessageAsync(_privateWs, _privateSendLock, subscribeMessage, "PRIVATE");
+                FileLogger.LogWebsocket("[WS-PRIVATE] Sent subscription request for 'wallet' topic.");
+                FileLogger.LogWebsocket("[WS-PRIVATE] Note: Bybit wallet WebSocket does NOT send initial snapshot. Only updates on balance changes.");
+            }
         }
 
         public async Task SubscribeToOrderBookAsync(string symbol, Action<IOrderBook> onOrderBookUpdate)
         {
             _orderBookCallback = onOrderBookUpdate;
 
+            // Bybit uses symbol format without underscore (ASTERUSDT, not ASTER_USDT)
+            var bybitSymbol = symbol.Replace("_", "");
+
             // Subscribe to 50-level orderbook on public WebSocket
-            var subscribeMessage = $@"{{""op"":""subscribe"",""args"":[""orderbook.50.{symbol}""]}}";
+            var subscribeMessage = $@"{{""op"":""subscribe"",""args"":[""orderbook.50.{bybitSymbol}""]}}";
             await SendMessageAsync(_publicWs, _publicSendLock, subscribeMessage, "PUBLIC");
-            FileLogger.LogWebsocket($"[WS-PUBLIC] Sent subscription request for 'orderbook.50.{symbol}' topic.");
+            FileLogger.LogWebsocket($"[WS-PUBLIC] Sent subscription request for 'orderbook.50.{bybitSymbol}' topic.");
     
             // Start a background task to send pings every 20 seconds to keep the connection alive
             _ = Task.Run(async () =>
@@ -323,7 +375,10 @@ namespace TraderBot.Exchanges.Bybit
         {
             _orderBookCallback = null;
             _orderUpdateCallback = null;
-            _balanceUpdateCallback = null;
+            lock (_balanceLock)
+            {
+                _balanceUpdateCallbacks.Clear();
+            }
             await Task.CompletedTask;
         }
 
@@ -516,8 +571,6 @@ namespace TraderBot.Exchanges.Bybit
 
         private void HandleBalanceUpdate(JsonElement root)
         {
-            if (_balanceUpdateCallback == null) return;
-
             try
             {
                 if (root.TryGetProperty("data", out var dataArray) && dataArray.GetArrayLength() > 0)
@@ -529,7 +582,22 @@ namespace TraderBot.Exchanges.Bybit
                         {
                             var balanceUpdate = new BybitBalanceUpdate(coinData);
                             var adapter = new BybitBalanceAdapter(balanceUpdate);
-                            _balanceUpdateCallback(adapter);
+
+                            // Update balance cache
+                            lock (_balanceLock)
+                            {
+                                _balanceCache[adapter.Asset] = adapter.Available;
+                                FileLogger.LogWebsocket($"[WS-BALANCE-CACHE] Updated {adapter.Asset}: {adapter.Available}");
+                            }
+
+                            // Call all registered callbacks
+                            lock (_balanceLock)
+                            {
+                                foreach (var callback in _balanceUpdateCallbacks)
+                                {
+                                    callback(adapter);
+                                }
+                            }
                         }
                     }
                 }

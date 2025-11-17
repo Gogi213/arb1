@@ -41,7 +41,7 @@ namespace TraderBot.Exchanges.GateIo
         public async Task<(decimal tickSize, decimal basePrecision)> GetSymbolFiltersAsync(string symbol)
         {
             if (_restClient == null) throw new InvalidOperationException("Client not initialized");
-            var symbolDataResult = await _restClient.SpotApi.ExchangeData.GetSymbolAsync(symbol);
+            var symbolDataResult = await _restClient.SpotApi.ExchangeData.GetSymbolAsync(symbol.Split('_')[0] + "_" + symbol.Split('_')[1]);
             if (!symbolDataResult.Success)
             {
                 throw new Exception($"Symbol {symbol} not found on Gate.io. Error: {symbolDataResult.Error}");
@@ -95,7 +95,7 @@ namespace TraderBot.Exchanges.GateIo
             }
             else
             {
-                FileLogger.LogWebsocket($"[Gate API ERROR] Failed to place order. Error: {result.Error}");
+                FileLogger.LogOther($"[Gate API ERROR] Failed to place order for {symbol} {side} {type} qty:{orderQuantity} price:{price} : {result.Error}");
                 return null;
             }
         }
@@ -134,6 +134,10 @@ namespace TraderBot.Exchanges.GateIo
             if (subscriptionResult.Success)
             {
                 _subscriptions.Add(subscriptionResult.Data);
+            }
+            else
+            {
+                FileLogger.LogWebsocket($"[Gate WS] Book subscription FAILED for {symbol}: {subscriptionResult.Error}");
             }
         }
 

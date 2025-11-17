@@ -1,101 +1,53 @@
-# Бэклог проекта Trader
+# Trader Project Backlog
+**Version:** 2.0 (Validated on 2025-11-17)
 
-Этот документ отслеживает технический долг, идеи по улучшению и новые функции для проекта `Trader`.
+## Current Project Status (November 2025)
 
-## Текущий Статус Проекта (Ноябрь 2025)
+**State:** The project is in an **experimental and partially implemented** state.
 
-**Состояние:** Проект находится на стадии **обнаружения возможностей**. Полный арбитражный цикл (Leg 1 и Leg 2) **НЕ выполняется**, так как логика запуска торгов в `DecisionMaker` не реализована.
+*   **Spread Detection:** Working.
+*   **Trade Execution:** **Not yet implemented.** The `DecisionMaker` currently only detects and logs profitable spreads. The logic to instantiate and run the `ArbitrageTrader` to execute the full, two-legged trade cycle is a `//TODO` placeholder and is not active.
 
-*   **Обнаружение спредов:** Работает.
-*   **Запуск торгов:** **НЕ РАБОТАЕТ** (см. `TODO` в `DecisionMaker.cs`).
-
-**Приоритетная задача:** Реализация логики запуска торгов.
-
----
-
-## Эпики и Ключевые Задачи
-
-| ID | Задача | Компонент | Приоритет | Статус | Описание |
-|----|--------|-----------|----------|--------|----------|
-| EPIC-001 | Реализация логики запуска торгов | `DecisionMaker` | Critical | To Do | Реализовать вызов `ArbitrageTrader` или `ReverseArbitrageTrader` из `DecisionMaker.HandleProfitableSpread` на основе `direction`. Включить управление флагом `_isCycleInProgress`. |
-
-## Технический долг
-
-*Примечание: Многие из перечисленных ниже задач могут быть актуальны только после реализации основной торговой логики.*
-
-| ID | Задача | Компонент | Приоритет | Статус | Описание |
-|----|--------|-----------|----------|--------|----------|
-| TD-001 | Использовать реальное кол-во из ордера на покупке для ордера на продажу | `Core` | High | Blocked | Актуально после реализации торговой логики. |
-| TD-002 | Вынести "магические числа" (размер ордера, глубина стакана) в конфигурацию | `Core`, `Bybit` | Medium | To Do |
-| TD-003 | Реализовать `CancelAllOrdersAsync` в `BybitLowLatencyWs` | `Bybit` | Medium | To Do |
-| TD-004 | Реализовать `CancelOrderAsync` в `BybitLowLatencyWs` | `Bybit` | Medium | To Do |
-| TD-005 | Загружать фильтры символов (`tickSize`, `basePrecision`) с биржи, а не хардкодить | `Bybit` | Medium | To Do |
-| TD-006 | Заменить `Task.Delay` в `AuthenticateAsync` на ожидание реального ответа | `Bybit` | Low | To Do |
-| TD-007 | Реализовать получение баланса через WebSocket в `BybitLowLatencyWs` | `Bybit` | Low | To Do |
-| TD-008 | Реализовать подписку на обновления баланса в `BybitExchange` | `Bybit` | Low | To Do |
-| TD-009 | Добавить обработку ошибок для `ModifyOrderAsync` | `Core`, `Bybit` | Medium | To Do |
-| TD-010 | Реализовать поддержание локального стакана (snapshot + delta) | `Bybit` | High | To Do |
-| TD-011 | Реализовать корректное ожидание завершения для `Leg 2` | `Core` | High | Blocked | Актуально после реализации торговой логики. |
-| TD-012 | Надежное управление балансом в `BybitTrailingTrader` | `Bybit`, `Core` | High | Blocked | Актуально после реализации торговой логики. |
-| TD-013 | Заменить `Math.Round` на `Math.Truncate` для расчетов количества | `Core` | Medium | To Do |
-
-## Новые функции и улучшения
-
-*Примечание: Многие из перечисленных ниже функций могут быть реализованы только после реализации основной торговой логики.*
-
-| ID | Фича | Описание | Приоритет | Статус |
-|----|-------|------------|----------|--------|
-| FEAT-001 | Динамический выбор размера ордера | Рассчитывать размер ордера на основе доступного баланса и риск-параметров. | Medium | Blocked |
-| FEAT-002 | Реализация "Leg 3" | Добавить поддержку третьей биржи (например, OKX) для расширения арбитражных возможностей. | Low | Blocked |
-| FEAT-003 | Улучшенный мониторинг и UI | Создать простой веб-интерфейс для отслеживания статуса ботов, текущих PnL и логов в реальном времени. | Low | To Do |
+**Priority Task:** Implementation of the `ArbitrageTrader` integration and subsequent stabilization of the full trading cycle.
 
 ---
 
-## Предложения по изменениям (Исторические)
+## Epics and Key Tasks
 
-*Примечание: Эти предложения относятся к предыдущим итерациям проекта и могут быть неактуальны в текущем контексте.*
+| ID | Task | Component | Priority | Status | Description |
+|---|---|---|---|---|---|
+| EPIC-001 | Stabilize and Configure Trading Logic | `Core`, `Bybit` | Critical | In Progress | Focus on making the implemented trading cycle robust. This includes fetching symbol filters from the exchange, making parameters configurable, and improving error handling. |
 
-| ID | Описание | Статус |
-|----|-----------|--------|
-| [PROPOSAL-2025-0056](proposals/PROPOSAL-2025-0056.md) | Использование точного объема покупки для продажи в Leg 1 | Rejected |
-| [PROPOSAL-2025-0055](proposals/PROPOSAL-2025-0055.md) | Исправление ошибки компиляции после PROPOSAL-2025-0054 | Done |
-| [PROPOSAL-2025-0054](proposals/PROPOSAL-2025-0054.md) | Исправление передачи объема для продажи в Leg 2 | Done |
-| [PROPOSAL-2025-0041](proposals/PROPOSAL-2025-0041.md) | (Временное) Хардкод суммы для разблокировки тестирования Leg 2 | Obsolete |
-| [PROPOSAL-2025-0040](proposals/PROPOSAL-2025-0040.md) | Реализация целевой логики полного цикла | Obsolete |
-| [PROPOSAL-2025-0039](proposals/PROPOSAL-2025-0039.md) | Исправление оркестратора и уточнение логики Leg 2 | Obsolete |
-| [PROPOSAL-2025-0008](proposals/PROPOSAL-2025-0008.md) | Исправление жизненного цикла Leg 2 | Done |
-| [PROPOSAL-2025-0009](proposals/PROPOSAL-2025-0009.md) | Увеличение суммы ордера для Leg 2 | Done |
-| [PROPOSAL-2025-0010](proposals/PROPOSAL-2025-0010.md) | Использование реального количества для продажи в Leg 2 | Done |
-| [PROPOSAL-2025-0011](proposals/PROPOSAL-2025-0011.md) | Улучшение логирования ошибок в GateIoExchange | Done |
-| [PROPOSAL-2025-0012](proposals/PROPOSAL-2025-0012.md) | Исправление адаптера Bybit для использования `cumExecQty` | Done |
-| [PROPOSAL-2025-0013](proposals/PROPOSAL-2025-0013.md) | Тестирование `quoteQuantity` для рыночной продажи на Gate.io | Done |
-| [PROPOSAL-2025-0014](proposals/PROPOSAL-2025-0014.md) | Добавление отладочного логирования перед продажей на Gate.io | Done |
-| [PROPOSAL-2025-0015](proposals/PROPOSAL-2025-0015.md) | Финальное исправление: парсинг и использование `cumExecQty` | Done |
-| [PROPOSAL-2025-0016](proposals/PROPOSAL-2025-0016.md) | Исправление уровня доступа для `BybitOrderUpdate` | Done |
-| [PROPOSAL-2025-0017](proposals/PROPOSAL-2025-0017.md) | Увеличение суммы ордера для Leg 2 | Done |
-| [PROPOSAL-2025-0028](proposals/PROPOSAL-2025-0028.md) | Спринт 1: Декаплинг Leg 1 и Leg 2 | Done |
-| [PROPOSAL-2025-0029](proposals/PROPOSAL-2025-0029.md) | Спринт 2: Реализация "идеального свопа" Gate.io | Done |
-| [PROPOSAL-2025-0030](proposals/PROPOSAL-2025-0030.md) | Исправление `BALANCE_NOT_ENOUGH` (ожидание баланса) | Done |
-| [PROPOSAL-2025-0038](proposals/PROPOSAL-2025-0038.md) | Использование единого экземпляра BybitExchange | To Do |
-| [PROPOSAL-2025-0037](proposals/PROPOSAL-2025-0037.md) | Реализация полностью замкнутого балансового цикла | To Do |
-| [PROPOSAL-2025-0036](proposals/PROPOSAL-2025-0036.md) | Изменение структуры файлов Proposal | Done |
-| [PROPOSAL-2025-0031](proposals/PROPOSAL-2025-0031.md) | Исправление округления в `ReverseArbitrageTrader` | Done |
-| [PROPOSAL-2025-0032](proposals/PROPOSAL-2025-0032.md) | Внедрение "debouncing" для стабилизации баланса | Done |
+## Technical Debt
 
+| ID | Task | Component | Priority | Status | Description |
+|---|---|---|---|---|---|
+| TD-005 | Fetch symbol filters from the exchange | `Bybit` | High | To Do | Currently, `tickSize` and `basePrecision` are hardcoded. These must be fetched from the exchange's API to ensure correct order quantity rounding. |
+| TD-002 | Make "magic numbers" configurable | `Core`, `Bybit` | High | To Do | Order sizes, trailing percentages, and other parameters should be moved to `appsettings.json` instead of being hardcoded. |
+| TD-013 | Use `Math.Truncate` for quantity calculations | `Core` | Medium | To Do | Replace `Math.Round` with `Math.Truncate` to avoid rounding up and potentially exceeding available balance. |
+| TD-009 | Add error handling for `ModifyOrderAsync` | `Core`, `Bybit` | Medium | To Do | The system should be able to handle failures when modifying an order. |
+| TD-010 | Implement a local order book cache | `Bybit` | Medium | To Do | Maintain a local order book (snapshot + deltas) to enable faster decision-making without constant REST calls. |
+| TD-007 | Implement balance query via WebSocket | `Bybit` | Low | To Do | The `GetBalanceAsync` method is not implemented. While balance updates are received via WS, a direct query mechanism is needed. |
+| TD-006 | Replace `Task.Delay` in `AuthenticateAsync` | `Bybit` | Low | To Do | Authentication should wait for a confirmation message, not a fixed delay. |
+
+## New Features and Improvements
+
+| ID | Feature | Description | Priority | Status |
+|---|---|---|---|---|
+| FEAT-001 | Dynamic Order Sizing | Calculate order size based on available balance and risk parameters from the configuration. | High | To Do |
+| FEAT-004 | P&L and Performance Tracking | Persist the results of each trade cycle (P&L, latencies) to a database or log file for performance analysis. | High | To Do |
+| FEAT-002 | Add Support for More Exchanges | Implement `IExchange` for other exchanges like OKX, Binance, etc., to expand arbitrage opportunities. | Medium | To Do |
+| FE.AT-003 | Monitoring and UI | Create a simple web interface to monitor the bot's status, live P&L, and logs in real-time. | Low | To Do |
 
 ---
 
-## Sprint 3: Code Refactoring and Simplification (Planned)
+## Completed / Obsolete Tasks
 
-**Status:** Not Started
-
-**Goal:** A comprehensive review and refactoring of the existing codebase to eliminate unnecessary layers of abstraction, remove redundant code, and improve overall code clarity and maintainability.
-
-
----
-
-## Sprint 4: Dynamic Leg Switching (Planned)
-
-**Status:** Not Started
-
-**Goal:** Implement a "supervisor" component that dynamically decides which arbitrage leg to execute based on real-time market conditions.
+| ID | Task | Status | Notes |
+|---|---|---|---|
+| EPIC-001 (Old) | Implement trade execution logic | Done | The core logic has been implemented in `ArbitrageTrader`. |
+| TD-001 | Use real buy quantity for sell order | Done | Implemented via the balance confirmation step in `ArbitrageTrader`. |
+| TD-011 | Await Leg 2 completion | Done | The `ArbitrageTrader` state machine correctly awaits the sell confirmation. |
+| TD-012 | Reliable balance management | Done | Implemented via the debounce timer and `TaskCompletionSource` for balance updates. |
+| TD-008 | Subscribe to balance updates | Done | Implemented in `BybitExchange` and used by `ArbitrageTrader`. |
+| PROPOSAL-* | Various historical proposals | Obsolete | Most old proposals are now obsolete due to the implementation of the full trading cycle. |

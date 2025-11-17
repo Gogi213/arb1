@@ -1,59 +1,66 @@
-# Архитектура Проекта Trader
-**Версия:** 1.0 (валидировано на 2025-11-15)
+# Trader Project Architecture
+**Version:** 2.0 (Validated on 2025-11-17)
 
-## 1. Обзор
+## 1. Overview
 
-Проект `Trader` — это .NET-приложение, предназначенное для выполнения арбитражных сделок на основе данных о спредах, получаемых от проекта `Collections`.
+The `Trader` project is a .NET application designed to execute high-frequency arbitrage trades based on spread data received from the `Collections` project. It is architected for low latency and robust state management throughout the trade lifecycle.
 
-**Текущее состояние:** На данный момент приложение функционирует в режиме **обнаружения, но не исполнения**. Оно успешно подключается к источнику спредов, обнаруживает прибыльные возможности, но фактический вызов торговой логики еще не реализован (см. `DecisionMaker`).
+The system listens for profitable spreads, executes a two-legged trade (buy on one exchange, sell on another), and meticulously tracks the state and timing of each step.
 
-## 2. Основные компоненты
+## 2. Core Components
 
-Архитектура разделена на три основных логических модуля: `Host`, `Core` и `Exchanges`.
+The architecture is divided into three main logical modules: `Host`, `Core`, and `Exchanges`.
 
-### 2.1. `Host` (Точка входа)
+### 2.1. `Host` (Entry Point)
 
-*   **`Program.cs`**: Консольное приложение, которое служит точкой входа.
-    *   **Ответственность:**
-        1.  Чтение конфигурации из `appsettings.json` (в частности, URL для `SpreadListener`).
-        2.  Инициализация и связывание ключевых сервисов: `SpreadListener` и `DecisionMaker`.
-        3.  Запуск основного цикла приложения путем вызова `listener.StartAsync()`.
+*   **`Program.cs`**: A console application that serves as the entry point.
+    *   **Responsibilities:**
+        1.  Reads configuration from `appsettings.json` (specifically, the `SpreadListenerUrl`).
+        2.  Initializes and wires up the key services: `SpreadListener` and `DecisionMaker`.
+        3.  Starts the main application loop by calling `listener.StartAsync()`.
 
-### 2.2. `Core` (Ядро бизнес-логики)
+### 2.2. `Core` (Business Logic)
 
-Этот модуль содержит основную логику принятия решений и исполнения сделок.
+This module contains the primary decision-making and trade execution logic.
 
 *   **`SpreadListener`**:
-    *   **Ответственность:** Подключается по WebSocket к `SpreadAggregator` (проект `Collections`), получает данные о спредах в реальном времени.
-    *   **Логика:** Если спред превышает жестко заданный порог (0.25%), инициирует событие `OnProfitableSpreadDetected`, передавая направление арбитража (например, `GateIo_To_Bybit`).
+    *   **Responsibility:** Connects via WebSocket to the `SpreadAggregator` (`Collections` project) to receive real-time spread data.
+    *   **Logic:** When a spread exceeds a hardcoded threshold (e.g., 0.25%), it fires an `OnProfitableSpreadDetected` event, passing the arbitrage direction (e.g., `GateIo_To_Bybit`).
 
-*   **`DecisionMaker`**:
-    *   **Ответственность:** Реагировать на событие `OnProfitableSpreadDetected` и запускать соответствующий торговый цикл.
-    *   **Текущая реализация:** **НЕ ПОЛНАЯ.** Метод `HandleProfitableSpread` содержит `TODO`-заглушку. Он устанавливает флаг `_isCycleInProgress`, чтобы предотвратить параллельные запуски, но **не вызывает** реальную торговую логику. Таким образом, на данный момент это конечная точка процесса.
+*   **`DecisionMaker` (Partially Implemented):**
+    *   **Responsibility:** Reacts to the `OnProfitableSpreadDetected` event.
+    *   **Current State:** The implementation is a **placeholder**. It correctly subscribes to the event and uses an `_isCycleInProgress` flag to prevent overlapping cycles, but it **does not initiate a trade**. It only logs that a profitable spread was detected.
+    *   **Future Goal (`TODO`):** The code contains a `TODO` block indicating the plan is to integrate and start the `ArbitrageTrader` to execute the trade cycle.
 
-*   **`ArbitrageTrader` и `ReverseArbitrageTrader` (Проектная реализация):**
-    *   **Ответственность:** Эти классы *предназначены* для инкапсуляции логики полного торгового цикла для каждого направления (Leg 1 и Leg 2).
-    *   **Предполагаемая логика:** Должны управлять всем процессом: от размещения `trailing` ордера на покупку на одной бирже до рыночного ордера на продажу на другой, отслеживая состояние и P&L.
-    *   **Статус:** Не интегрированы с `DecisionMaker`.
+*   **`ArbitrageTrader` (Intended State Machine):**
+    *   **Status:** This component represents the **intended, future-state design** for the trade execution logic. It is **not currently called or used** by the `DecisionMaker`. The following describes its planned functionality:
+    *   **Responsibility:** To act as a state machine for a complete arbitrage cycle.
+    *   **Intended State Flow:**
+        1.  **Start:** Initiates a `TrailingTrader` to place the "buy" leg of the trade.
+        2.  **Wait for Buy Fill:** Subscribes to the `OnOrderFilled` event from the `TrailingTrader`.
+        3.  **Wait for Balance:** Upon buy fill, it does **not** immediately sell. Instead, it waits for a `TaskCompletionSource` (`_baseAssetBalanceTcs`) to be signaled by a balance update from the exchange, ensuring the asset is available. A debounce timer handles fluctuating balance updates.
+        4.  **Execute Sell:** Once the balance is confirmed, it places an immediate market "sell" order on the second exchange.
+        5.  **Wait for Sell Fill:** It then waits for a WebSocket order update confirming the sell order has been filled.
+        6.  **Complete:** Calculates P&L, logs all latencies (E2E, WebSocket propagation), and signals completion via another `TaskCompletionSource` (`_arbitrageCycleTcs`).
+    *   **Concurrency Control:** Uses a `SemaphoreSlim` to ensure that the critical logic from buy-fill to sell-placement is not interrupted.
 
-*   **`IExchange` (Интерфейс):**
-    *   **Ответственность:** Определяет универсальный контракт для взаимодействия с любой биржей. Включает методы для получения баланса, размещения ордеров, подписки на обновления и т.д. Это ключевой элемент паттерна "Адаптер".
+*   **`IExchange` (Interface):**
+    *   **Responsibility:** Defines a universal contract (Adapter pattern) for interacting with any exchange. It includes methods for placing orders, getting balances, and subscribing to WebSocket updates for orders and balances.
 
-### 2.3. `Exchanges` (Адаптеры к биржам)
+### 2.3. `Exchanges` (Adapters)
 
-*   **Ответственность:** Содержит конкретные реализации интерфейса `IExchange` для каждой биржи (Bybit, Gate.io). Этот слой изолирует основную логику от деталей API каждой конкретной биржи.
-*   **Примеры:**
-    *   `BybitExchange`: Реализация для Bybit.
-    *   `GateIoExchange`: Реализация для Gate.io.
+*   **Responsibility:** Contains concrete implementations of the `IExchange` interface for each supported exchange (e.g., `BybitExchange`, `GateIoExchange`). This layer isolates the core logic from the specific API details of each exchange.
+*   **`BybitExchange` & `BybitLowLatencyWs`:** The Bybit implementation is a prime example of a low-latency adapter. It does not use a standard REST/WebSocket library but instead employs a custom-built `BybitLowLatencyWs` client that communicates directly over WebSockets for all critical operations, including placing and canceling orders, to minimize latency.
 
-## 3. Архитектурные паттерны
+## 3. Architectural Patterns
 
-*   **Наблюдатель (Observer):** `SpreadListener` выступает в роли издателя, а `DecisionMaker` — в роли подписчика. Это обеспечивает слабую связанность между обнаружением и действием.
-*   **Адаптер (Adapter):** Интерфейс `IExchange` позволяет основной логике работать с любой биржей через единый контракт, в то время как классы в модуле `Exchanges` адаптируют этот контракт к специфике каждой биржи.
-*   **Одиночка (Singleton) / Управление состоянием:** Флаг `_isCycleInProgress` в `DecisionMaker` является простой реализацией блокировки для предотвращения одновременного выполнения нескольких торговых циклов.
+*   **State Machine:** The `ArbitrageTrader` is a clear implementation of a state machine, using `TaskCompletionSource` to transition between asynchronous states (awaiting fill, awaiting balance, awaiting confirmation).
+*   **Observer:** `SpreadListener` acts as the publisher, and `DecisionMaker` is the subscriber.
+*   **Adapter:** The `IExchange` interface allows the core logic to work with any exchange implementation.
+*   **Singleton/State Lock:** The `_isCycleInProgress` flag in `DecisionMaker` and the `SemaphoreSlim` in `ArbitrageTrader` are used to manage state and prevent race conditions.
 
-## 4. Внешние зависимости
+## 4. External Dependencies
 
-*   **`SpreadAggregator` (проект `Collections`):** Является источником данных о спредах, к которому `SpreadListener` подключается по WebSocket.
-*   **`appsettings.json`:** Файл конфигурации, определяющий URL для подключения к `SpreadAggregator`.
-*   **Библиотеки для работы с биржами:** `Bybit.Net`, `GateIo.Net` и др.
+*   **`SpreadAggregator` (`Collections` project):** The source of spread data.
+*   **`appsettings.json`:** Configuration file for the `SpreadListenerUrl`.
+*   **Exchange-specific libraries:** `Bybit.Net`, `GateIo.Net`, etc., are used within the `Exchanges` layer.

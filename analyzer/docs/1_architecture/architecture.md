@@ -49,11 +49,11 @@ This is the core of the system, where the actual analysis for a single pair of e
 *   **Responsibilities:**
     *   Synchronizing the time-series data of two exchanges.
     *   Calculating metrics for deviation, mean reversion, and trading opportunities.
-*   **Technology:** Exclusively uses `polars` for all computations. This avoids the overhead of zero-copy data transfers between libraries (like `pandas` and `numpy`) and leverages the highly optimized Polars core, written in Rust.
+*   **Technology:** Primarily uses `polars` for all computations to leverage its performance. A key algorithm, `count_complete_cycles`, currently uses a `numpy` conversion for iterative processing, representing a known area for future optimization.
 *   **Algorithms:**
     *   `join_asof`: For fast and efficient time-series synchronization.
     *   Vectorized `polars` operations for calculating `ratio` and `deviation`.
-    *   A custom `count_complete_cycles` algorithm for counting realistic trading opportunities.
+    *   A custom `count_complete_cycles` algorithm (using a `numpy` loop) for counting realistic trading opportunities.
 
 ## 3. Data Flow
 

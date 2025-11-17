@@ -1,32 +1,52 @@
 graph TD
-    subgraph "Инициализация (Program.cs)"
-        A[Start] --> B(Загрузка appsettings.json);
-        B --> C(Инициализация SpreadListener);
-        C --> D(Инициализация DecisionMaker);
-        D --> E[DecisionMaker.Subscribe(SpreadListener)];
-        E --> F[listener.StartAsync()];
+    subgraph "Step 1: Initialization & Detection"
+        A[Start] --> B(Load Config);
+        B --> C(Init SpreadListener & DecisionMaker);
+        C --> D[Subscribe: DecisionMaker to Listener];
+        D --> E[Start Listener];
+        E --> F{Connect to SpreadAggregator};
+        F --> G{Spread > Threshold?};
+        G -- No --> F;
+        G -- Yes --> H[Fire OnProfitableSpreadDetected];
     end
 
-    subgraph "Обнаружение спредов (SpreadListener)"
-        F --> G{Подключение к SpreadAggregator (WebSocket)};
-        G --> H[Получение данных о спредах];
-        H --> I{Спред > 0.25%?};
-        I -- Да --> J[Инициировать событие OnProfitableSpreadDetected];
-        I -- Нет --> H;
+    subgraph "Step 2: Trade Initiation (DecisionMaker)"
+        H --> I(HandleProfitableSpread);
+        I --> J{Is Cycle In Progress?};
+        J -- Yes --> K[Ignore Signal];
+        J -- No --> L[Set isCycleInProgress = true];
+        L --> M[Log Opportunity & HALT];
+        style M fill:#d63031,stroke:#333,stroke-width:2px
     end
 
-    subgraph "Принятие решений (DecisionMaker)"
-        J --> K(HandleProfitableSpread);
-        K --> L{_isCycleInProgress?};
-        L -- Да --> M[Лог: Цикл уже в процессе. Игнорировать.];
-        L -- Нет --> N[Установить _isCycleInProgress = true];
-        N --> O[Лог: Прибыльный спред обнаружен.];
-        O --> P(TODO: Запустить ArbitrageTrader);
-        P --> Q[Конец текущего потока];
+    subgraph "FUTURE IMPLEMENTATION: Arbitrage Cycle"
+        direction LR
+        subgraph "Step 3: Arbitrage Cycle State Machine (ArbitrageTrader)"
+            N[Start ArbitrageTrader.StartAsync] --> O(Start TrailingTrader for Buy Leg);
+            O --> P((State: Awaiting Buy Fill));
+            P -- OnOrderFilled event --> Q(HandleBuyOrderFilled);
+            
+            Q --> R{Wait for Balance Confirmation};
+            style R fill:#f9f,stroke:#333,stroke-width:2px
+            R -- Balance Update + Debounce Timer --> S(Balance Confirmed);
+    
+            S --> T[Place Market Sell Order];
+            T --> U((State: Awaiting Sell Confirmation));
+            U -- Order Update event --> V(HandleSellOrderUpdate);
+            
+            V --> W{Order Filled?};
+            W -- No --> U;
+            W -- Yes --> X[Log Latency & P&L];
+        end
+    
+        subgraph "Step 4: Cycle Completion"
+            X --> Y[Cleanup: Unsubscribe streams];
+            Y --> Z(Signal Cycle Completion);
+            Z --> AA[DecisionMaker: Reset isCycleInProgress = false];
+        end
     end
+    
+    M -.-> N;
 
-    style A fill:#f9f,stroke:#333,stroke-width:2px
-    style F fill:#f9f,stroke:#333,stroke-width:2px
-    style J fill:#f9f,stroke:#333,stroke-width:2px
-    style P fill:#f00,stroke:#333,stroke-width:2px
-    style Q fill:#f9f,stroke:#333,stroke-width:2px
+    style P fill:#bbf,stroke:#333,stroke-width:2px
+    style U fill:#bbf,stroke:#333,stroke-width:2px

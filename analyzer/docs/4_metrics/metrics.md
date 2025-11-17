@@ -1,61 +1,32 @@
-# Детальное описание метрик и алгоритмов (`analyze_pair_fast`)
+# Analyzer Metrics and Algorithms
 
-Этот документ подробно описывает, как вычисляются ключевые метрики в функции `analyze_pair_fast`, которая является ядром анализатора.
+This document provides a detailed explanation of the key metrics calculated by the `analyzer` and the algorithms used within the `analyze_pair_fast` function.
 
-## 1. Синхронизация и базовое отклонение
+## 1. Core Concepts: Synchronization and Deviation
 
-1.  **Синхронизация (`join_asof`):**
-    *   Данные из двух бирж (`data1`, `data2`) синхронизируются по времени. Для каждой строки в `data1` находится ближайшая по времени (но не позднее) строка в `data2`. Это создает единый `DataFrame` с колонками `bid_ex1`, `ask_ex1`, `bid_ex2`, `ask_ex2`.
+The analysis starts by synchronizing time-series data and calculating the fundamental price deviation.
 
-2.  **Расчет `ratio` (соотношение):**
-    *   Создается новая колонка `ratio`, которая вычисляется как `bid_ex1 / bid_ex2`. Это показывает, во сколько раз цена на одной бирже отличается от цены на другой.
+1.  **Synchronization (`join_asof`):**
+    *   Data from two exchanges (`data1`, `data2`) is synchronized by time. For each row in `data1`, the nearest preceding row from `data2` is found. This creates a unified `DataFrame` containing `bid_ex1`, `ask_ex1`, `bid_ex2`, and `ask_ex2`.
 
-3.  **Расчет `deviation` (отклонение):**
-    *   **Формула:** `(ratio - 1.0) * 100`.
-    *   **Обоснование:** Это ключевой шаг. Отклонение измеряется от `1.0` (паритет цен), а не от среднего значения `ratio`. Это гарантирует, что `deviation = 0` означает равенство цен, то есть возможность закрыть арбитражную сделку без потерь. Результат выражается в процентах.
+2.  **Ratio Calculation:**
+    *   A `ratio` column is computed as `bid_ex1 / bid_ex2`. This shows how the price on one exchange differs from the other.
 
-## 2. Метрики возврата к среднему
+3.  **Deviation Calculation:**
+    *   **Formula:** `((ratio - 1.0) / 1.0) * 100`
+    *   **Rationale:** This is a critical step. Deviation is measured from `1.0` (price parity), not from the mean of the ratio. This ensures that a `deviation` of `0` signifies that prices are equal, representing a break-even point for an arbitrage trade. The result is expressed as a percentage.
 
-Эти метрики оценивают, насколько часто и стабильно цена возвращается к состоянию равновесия (`deviation = 0`).
+## 2. Key Performance Metrics
 
-### `zero_crossings` (Пересечения нуля)
+These metrics are designed to identify pairs with strong mean-reverting characteristics and frequent, tradeable opportunities.
 
-*   **Цель:** Посчитать, сколько раз `deviation` переходит из положительной зоны в отрицательную и наоборот.
-*   **Алгоритм:**
-    1.  Вычисляется знак отклонения для каждой точки: `pl.col('deviation').sign()`.
-    2.  Этот ряд сдвигается на одну позицию: `deviation_sign.shift(1)`.
-    3.  Два ряда перемножаются. Если результат отрицательный (`< 0`), это означает, что знаки были разными (например, `+1` и `-1`), то есть произошло пересечение нуля.
-    4.  Суммируется количество таких пересечений.
-*   **Метрики:** `zero_crossings_per_hour` и `zero_crossings_per_minute` — общее количество пересечений, нормализованное на длительность временного ряда.
-
-### `deviation_asymmetry` (Асимметрия отклонения)
-
-*   **Цель:** Определить, есть ли постоянный перекос цены одной биржи относительно другой.
-*   **Алгоритм:** Рассчитывается как среднее значение `deviation` (`mean_deviation_pct`).
-*   **Интерпретация:**
-    *   Если `asymmetry` близка к `0`, это означает, что отклонение симметрично колеблется вокруг нуля (идеальный случай для mean-reversion).
-    *   Если `asymmetry` значительно отличается от нуля (например, `> 0.2`), это говорит о том, что цена на одной бирже систематически выше, чем на другой.
-
-## 3. Метрики торговых возможностей
-
-Эти метрики оценивают количество и качество потенциально прибыльных сделок.
-
-### `opportunity_cycles` (Циклы возможностей)
-
-*   **Цель:** Посчитать количество *полных, торгуемых* арбитражных циклов.
-*   **Определение "полного цикла":**
-    1.  Абсолютное значение `deviation` превышает заданный порог (например, `0.4%`). Это точка *потенциального* входа в сделку.
-    2.  После этого `deviation` возвращается в "нейтральную зону" (например, `abs(deviation) < 0.05%`). Это точка, где сделку можно закрыть без потерь или с минимальной прибылью.
-*   **Алгоритм (`count_complete_cycles`):**
-    1.  Создаются два булевых массива: `above` (истина, если `abs(deviation) > threshold`) и `neutral` (истина, если `abs(deviation) < ZERO_THRESHOLD`).
-    2.  Алгоритм итерирует по этим массивам, используя флаг `was_above`.
-    3.  Если `above[i]` истинно, флаг `was_above` устанавливается в `True`.
-    4.  Если `neutral[i]` истинно **и** флаг `was_above` уже установлен, это означает завершение цикла. Счетчик циклов увеличивается, а флаг `was_above` сбрасывается в `False`, чтобы ждать следующего выхода за порог.
-*   **Обоснование:** Такой подход позволяет отфильтровать "ложные" возможности, где цена вышла за порог, но так и не вернулась к паритету, не дав возможности закрыть сделку.
-
-### Дополнительные метрики циклов
-
-*   `cycles_..._per_hour`: Количество циклов, нормализованное на час.
-*   `pct_time_above_...`: Процент времени, которое `deviation` проводит за пределами порога.
-*   `avg_cycle_duration_..._sec`: Средняя продолжительность нахождения цены за порогом в рамках одного цикла.
-*   `pattern_break_...`: Булев флаг, который становится `True`, если на момент окончания данных `deviation` все еще находится за пределами порога. Это может указывать на смену рыночного режима ("слом паттерна").
+| Metric | Formula & Explanation | Why It's Important |
+|---|---|---|
+| **Deviation (%)** | `((ratio - 1.0) / 1.0) * 100` <br> Measures deviation from price parity (1.0). A value of 0 means prices are equal. | This is the core indicator of an arbitrage opportunity. It directly shows the potential profit margin before fees. |
+| **Complete Opportunity Cycles** | A cycle is counted only when the deviation: <br> 1. Was above a threshold (e.g., 0.4%) <br> 2. And then **returned to the neutral zone** (`abs(deviation) < 0.05%`). <br><br> **Algorithm:** The `count_complete_cycles` function iterates through the data with a `was_above` flag. A cycle is counted when the `deviation` enters the neutral zone *after* the flag was set, preventing false positives from spreads that never close. | This is the most critical metric for traders as it counts **real, closeable opportunities**, filtering out periods where the price spread gets stuck. |
+| **Zero Crossings per Minute** | `(sign(dev) * sign(dev.shift(1)) < 0).sum() / duration_minutes` <br> Counts how often the deviation crosses the 0% mark, indicating a true sign flip. | A high value signifies strong, symmetric mean-reversion, which is the ideal characteristic of a stable arbitrage pair. |
+| **Deviation Asymmetry** | `mean(deviation)` <br> The average deviation over the period. | A value near 0 indicates symmetric oscillation. A high positive or negative value reveals a **directional bias**, making it risky to trade as the price may not return to zero. |
+| **`cycles_..._per_hour`** | `opportunity_cycles / duration_hours` <br> Normalizes the cycle count over time. | Allows for fair comparison of opportunity frequency between pairs, regardless of the analysis duration. |
+| **`pct_time_above_...`** | `mean(abs(deviation) > threshold) * 100` <br> Percentage of time the deviation was wider than the threshold. | Must be analyzed **together with cycle count**. High `pct_time` with low `cycles` indicates a stuck, untradeable spread. |
+| **`avg_cycle_duration_..._sec`** | `(total_time_above_threshold_sec) / opportunity_cycles` <br> Average duration of a single opportunity in seconds. | Helps estimate how quickly a position needs to be opened and closed. Short durations (<60s) are for bots; longer durations (1-5min) can be handled manually. |
+| **`pattern_break_...`** | A boolean flag that is `True` if the data series ends while the deviation is still above the threshold. | This can indicate a "regime change" or pattern breakdown, suggesting that the historical mean-reverting behavior may no longer hold. |

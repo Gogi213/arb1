@@ -1,31 +1,32 @@
-# Общий поток данных в системе ARB1
+# Overall System Data Flow
+**Version:** 2.0 (Validated on 2025-11-17)
 
-Этот документ описывает сквозной поток данных между тремя основными компонентами системы: `collections`, `analyzer` и `trader`.
+This document describes the end-to-end data flow between the three main system components: `collections`, `analyzer`, and `trader`.
 
-## 1. Поток данных в реальном времени (Real-time Flow)
+## 1. Real-Time Flow (Arbitrage Detection)
 
-Этот поток предназначен для обнаружения и исполнения арбитражных сделок с минимальной задержкой.
+This flow is designed for detecting and executing arbitrage trades with minimal latency.
 
-1.  **Сбор данных:** `collections` (`SpreadAggregator`) подключается к WebSocket-потокам данных нескольких бирж.
-2.  **Расчет спредов:** Внутри `collections` происходит непрерывный расчет арбитражных спредов.
-3.  **Трансляция спредов:** `collections` немедленно транслирует каждый вычисленный спред через свой собственный WebSocket-сервер.
-4.  **Получение сигнала:** `trader` (`SpreadListener`) подключается к WebSocket-серверу `collections` и получает поток данных о спредах.
-5.  **Принятие решения:** `trader` (`DecisionMaker`) анализирует полученный спред. Если он превышает заданный порог, принимается решение о начале торгового цикла.
-6.  **Исполнение (НЕ РЕАЛИЗОВАНО):** `trader` **не инициирует** торговые операции. Его логика заканчивается на `TODO`-заглушке.
+1.  **Data Ingestion:** `collections` (`SpreadAggregator`) connects to the WebSocket streams of multiple exchanges.
+2.  **Spread Calculation:** `collections` continuously calculates arbitrage spreads.
+3.  **Spread Broadcasting:** `collections` immediately broadcasts each calculated spread via its own WebSocket server.
+4.  **Signal Reception:** `trader` (`SpreadListener`) connects to the `collections` WebSocket server and receives the stream of spread data.
+5.  **Decision:** `trader` (`DecisionMaker`) analyzes the incoming spread. If it exceeds a configured threshold, it logs the opportunity.
+6.  **Process Halts:** The `trader`'s `DecisionMaker` **does not execute a trade**. The logic is a `//TODO` placeholder, and the process for this real-time signal stops here.
 
-## 2. Поток исторических данных (Historical/Batch Flow)
+## 2. Historical/Batch Flow (Strategy & Analysis)
 
-Этот поток предназначен для оффлайн-анализа и поиска статистических закономерностей.
+This flow is designed for offline analysis to find and validate trading strategies.
 
-1.  **Сбор и сохранение:** `collections` (`ParquetDataWriter`) асинхронно сохраняет все сырые рыночные данные в Parquet-файлы.
-    *   **ВАЖНО:** Из-за архитектурной ошибки (конкурирующие потребители), `ParquetDataWriter` получает только **часть** общего потока данных, что делает сохраняемые данные неполными.
-2.  **Чтение и анализ:** `analyzer` (`run_all_ultra.py`) запускается как отдельный процесс, сканирует директорию с Parquet-файлами.
-3.  **Параллельная обработка:** `analyzer` в несколько процессов и потоков обрабатывает исторические данные, вычисляя статистические метрики.
-4.  **Генерация отчета:** `analyzer` создает CSV-отчет с рейтингом наиболее перспективных для арбитража торговых пар.
-5.  **Принятие стратегических решений:** Разработчики используют этот отчет для принятия решений о том, какие торговые пары следует добавить в конфигурацию `trader`.
+1.  **Data Collection and Persistence:** `collections` (`ParquetDataWriter`) asynchronously saves all raw market data into Parquet files.
+    *   **IMPORTANT:** Due to a known architectural flaw (competing consumers), the `ParquetDataWriter` currently receives only a **fraction** of the total data stream, making the persisted data incomplete.
+2.  **Reading and Analysis:** `analyzer` (`run_all_ultra.py`) is run as a separate batch process. It scans the directory of Parquet files.
+3.  **Parallel Processing:** `analyzer` uses multiple processes and threads to analyze the historical data, calculating statistical metrics like mean-reversion frequency.
+4.  **Report Generation:** `analyzer` creates a CSV report ranking the most promising trading pairs for arbitrage.
+5.  **Strategic Decision:** Developers and strategists use this report to decide which trading pairs to enable in the `trader`'s configuration.
 
-## Сводная схема
+## Summary Diagram
 
-*   **`collections`** -> (WebSocket) -> **`trader`** (Real-time)
-*   **`collections`** -> (Неполные Parquet-файлы из-за ошибки) -> **`analyzer`** (Historical)
-*   **`analyzer`** -> (Отчет) -> **Человек** -> (Конфигурация) -> **`trader`** (Стратегическое управление)
+*   **`collections`** -> (WebSocket) -> **`trader`** (Real-time Execution)
+*   **`collections`** -> (Incomplete Parquet files due to bug) -> **`analyzer`** (Historical Analysis)
+*   **`analyzer`** -> (CSV Report) -> **Human** -> (Configuration) -> **`trader`** (Strategic Management)

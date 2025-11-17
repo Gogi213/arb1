@@ -163,7 +163,7 @@ class Program
         services.AddSingleton<SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService>(sp =>
         {
             var dataLakePath = configuration.GetValue<string>("DataLake:Path")
-                ?? @"C:\visual projects\arb1\data\market_data";
+                ?? @"data/market_data";
             return new SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService(
                 dataLakePath,
                 sp.GetRequiredService<ILogger<SpreadAggregator.Infrastructure.Services.Charts.ParquetReaderService>>()
@@ -173,7 +173,7 @@ class Program
         services.AddSingleton<SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService>(sp =>
         {
             var analyzerStatsPath = configuration.GetValue<string>("Analyzer:StatsPath")
-                ?? @"C:\visual projects\arb1\analyzer\summary_stats";
+                ?? @"analyzer/summary_stats";
             return new SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService(
                 analyzerStatsPath,
                 sp.GetRequiredService<ILogger<SpreadAggregator.Infrastructure.Services.Charts.OpportunityFilterService>>()

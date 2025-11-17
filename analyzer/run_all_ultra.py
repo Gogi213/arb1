@@ -624,7 +624,7 @@ Examples:
   python run_all_ultra.py --workers 16 --date 2025-11-03
         """
     )
-    parser.add_argument("--data-path", type=str, default="C:/visual projects/arb1/data/market_data",
+    parser.add_argument("--data-path", type=str, default="data/market_data",
                         help="Path to the market data directory.")
     parser.add_argument("--exchanges", type=str, nargs='+', default=None,
                         help="List of exchanges to analyze (e.g., Binance Bybit OKX)")

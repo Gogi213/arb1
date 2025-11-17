@@ -1,50 +1,52 @@
-# Высокоуровневая архитектура
+# High-Level System Architecture
+**Version:** 2.0 (Validated on 2025-11-17)
 
-Эта система предназначена для арбитражной торговли криптовалютами и состоит из трех основных компонентов: `collections`, `trader` и `analyzer`. Каждый компонент выполняет свою четко определенную роль и взаимодействует с другими через ясные контракты.
+This system is designed for cryptocurrency arbitrage and consists of three primary, decoupled components: `collections`, `trader`, and `analyzer`. Each component has a distinct role and interacts with the others through well-defined contracts.
 
-## Компоненты
+## 1. Components
 
-### 1. `collections` (Сборщик данных)
+### 1.1. `collections` (The Data Hub)
 
-- **Проект:** `SpreadAggregator` (C#)
-- **Роль:** Является центральным хабом системы, ответственным за сбор, обработку и распространение рыночных данных.
-- **Основные задачи:**
-    - **Подключение к биржам:** Устанавливает соединения с несколькими криптовалютными биржами (Binance, Bybit, GateIo и др.) для получения данных в реальном времени.
-    - **Сбор данных:** Подписывается на потоки тикеров (цены) и сделок.
-    - **Распространение в реальном времени:** Запускает WebSocket-сервер, который транслирует полученные рыночные данные всем подключенным клиентам. Это основной источник данных для `trader`.
-    - **Сохранение исторических данных:** Асинхронно записывает все полученные данные в структурированное хранилище (data lake) в формате Parquet. Эти файлы сохраняются в директорию `data/market_data` и служат источником данных для `analyzer`.
-    - **Предоставление обогащенных данных:** Имеет REST API, который может считывать результаты анализа из `analyzer` для предоставления обогащенных данных, например, для UI.
+*   **Project:** `SpreadAggregator` (C#)
+*   **Role:** The central nervous system, responsible for acquiring, processing, and distributing all market data.
+*   **Key Responsibilities:**
+    *   **Exchange Connection:** Establishes and maintains real-time WebSocket connections to multiple cryptocurrency exchanges (e.g., Binance, Bybit, Gate.io).
+    *   **Data Ingestion:** Subscribes to ticker (price) and trade streams.
+    *   **Real-time Broadcasting:** Runs a WebSocket server that streams processed market data (spreads, trades) to any connected client. This is the primary data source for the `trader`.
+    *   **Historical Persistence:** Asynchronously writes all raw market data to a structured data lake (`/data/market_data`) in Parquet format. This data is consumed by the `analyzer`.
+*   **Architectural Note:** The project follows Clean Architecture. It contains a known architectural flaw where data is written to its internal channel twice and consumed by competing consumers, leading to incomplete data in the persisted Parquet files.
 
-### 2. `trader` (Торговый бот)
+### 1.2. `trader` (The Execution Engine)
 
-- **Проект:** `TraderBot` (C#)
-- **Роль:** Ответственен за принятие торговых решений и исполнение сделок в реальном времени.
-- **Основные задачи:**
-    - **Получение данных:** Подключается к WebSocket-серверу, предоставляемому `collections`, для получения потока рыночных данных в реальном времени.
-    - **Принятие решений:** На основе полученных данных `DecisionMaker` реализует торговую логику и определяет возможности для арбитража.
-    - **Исполнение сделок:** Взаимодействует с API бирж для размещения и отмены ордеров.
+*   **Project:** `TraderBot` (C#)
+*   **Role:** Responsible for making and executing trading decisions in real-time.
+*   **Key Responsibilities:**
+    *   **Signal Reception:** Connects to the `collections` WebSocket server to receive the live feed of market data.
+    *   **Decision Making:** The `DecisionMaker` component listens for profitable spread opportunities based on a predefined threshold.
+    *   **Trade Execution:** **(Not Yet Implemented)** The `ArbitrageTrader` component is designed to execute the full arbitrage cycle. However, the logic to initiate it from the `DecisionMaker` is currently a `//TODO` placeholder. **As of now, the trader does not execute trades.**
+*   **Architectural Note:** The `trader` is designed for high performance, using low-latency WebSocket clients and a stateful, event-driven model to manage the trade lifecycle. This design is documented but not fully implemented.
 
-### 3. `analyzer` (Анализатор)
+### 1.3. `analyzer` (The Offline Brain)
 
-- **Проект:** Python-скрипты
-- **Роль:** Выполняет оффлайн-анализ исторических данных.
-- **Основные задачи:**
-    - **Чтение данных:** Обрабатывает Parquet-файлы из директории `data/market_data`, созданные `collections`.
-    - **Анализ:** Проводит расчеты, выявляет статистические закономерности, тренды и другие метрики, которые не требуются в реальном времени.
-    - **Сохранение результатов:** Записывает результаты своего анализа (например, в `analyzer/summary_stats`), которые затем могут быть использованы `collections`.
+*   **Project:** Python scripts (`run_all_ultra.py`)
+*   **Role:** Performs offline, batch analysis of historical data to find statistical patterns and opportunities.
+*   **Key Responsibilities:**
+    *   **Data Reading:** Processes the Parquet files from the data lake generated by `collections`.
+    *   **High-Performance Analysis:** Uses `polars` and `multiprocessing` to run high-speed parallel analysis on large datasets, calculating metrics like mean-reversion frequency and complete opportunity cycles.
+    *   **Reporting:** Generates CSV reports (`summary_stats`) that rank trading pairs by their arbitrage potential. These reports are used to inform the trading strategy.
 
-## Потоки данных и зависимости
+## 2. Data Flows and Dependencies
 
 ```
-+----------------+       (1) WebSocket        +----------+
-|                | -------------------------> |          |
-|  collections   |                            |  trader  |
-| (C#/.NET)      | <------------------------- | (C#/.NET)|
-|                |        (3) REST API        |          |
-+-------+--------+       (Enriched Data)      +----------+
++----------------+       (1) Real-time Data       +----------+
+|                | -----------------------------> |          |
+|  collections   |      (WebSocket Stream)        |  trader  |
+| (C#/.NET)      |                                | (C#/.NET)|
+|                | <----------------------------- |          |
++-------+--------+       (Future Control API)      +----------+
         |
-        | (2) Parquet Files
-        | (data/market_data)
+        | (2) Historical Data
+        | (Incomplete Parquet Files)
         v
 +-------+--------+
 |                |
@@ -54,6 +56,6 @@
 +----------------+
 ```
 
-1.  **Real-Time Flow (`collections` -> `trader`):** `collections` непрерывно транслирует тикеры через WebSocket. `trader` подписывается на этот поток и немедленно реагирует на рыночные изменения.
-2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` сохраняет все данные на диск. `analyzer` периодически или по запросу считывает эти данные для глубокого анализа.
-3.  **Analysis Results Flow (`analyzer` -> `collections`):** `collections` может обращаться к результатам работы `analyzer`, чтобы обогатить данные, отдаваемые по своему REST API (например, для фронтенда или системы мониторинга).
+1.  **Real-Time Flow (`collections` -> `trader`):** `collections` streams market data via WebSockets. `trader` consumes this stream to make immediate trading decisions. This is the HFT (High-Frequency Trading) path.
+2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` persists all data to disk. `analyzer` periodically reads this data for deep, statistical analysis. Due to the flaw in `collections`, this data is currently incomplete.
+3.  **Strategic Flow (`analyzer` -> Human -> `trader`):** The output from `analyzer` (CSV reports) is consumed by a human operator, who uses the insights to configure and guide the trading strategies employed by the `trader`.

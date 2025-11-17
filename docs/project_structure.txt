@@ -133,6 +133,7 @@
 | |   | `- index.html
 | |   |- Program.cs
 | |   |- SpreadAggregator.Presentation.csproj
+| |   |- appsettings.example.json
 | |   `- appsettings.json
 | |- tests
 | | `- SpreadAggregator.Tests
@@ -145,6 +146,7 @@
 | |   |   `- VolumeFilterTests.cs
 | |   |- SpreadAggregator.Tests.csproj
 | |   `- UnitTest1.cs
+| |- README.md
 | `- SpreadAggregator.sln
 |- docs
 | |- issues
@@ -279,6 +281,8 @@
 | |   `- appsettings.json
 | `- TraderBot.sln
 |- GEMINI.md
+|- README.md
 |- gemini_exclude.txt
 |- get_structure.py
-`- test_websocket.html
+|- test_websocket.html
+`- комментарии

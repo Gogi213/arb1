@@ -1,52 +1,13 @@
 graph TD
-    subgraph "Step 1: Initialization & Detection"
-        A[Start] --> B(Load Config);
-        B --> C(Init SpreadListener & DecisionMaker);
-        C --> D[Subscribe: DecisionMaker to Listener];
-        D --> E[Start Listener];
-        E --> F{Connect to SpreadAggregator};
-        F --> G{Spread > Threshold?};
-        G -- No --> F;
-        G -- Yes --> H[Fire OnProfitableSpreadDetected];
+    A[Trader Project Process Flows Overview] --> B{Choose a Process Flow};
+
+    subgraph "Legacy (Deprecated) Process Flow"
+        B -- Legacy Arbitrage --> C(See legacy_arbitrage_flow.mmd)
     end
 
-    subgraph "Step 2: Trade Initiation (DecisionMaker)"
-        H --> I(HandleProfitableSpread);
-        I --> J{Is Cycle In Progress?};
-        J -- Yes --> K[Ignore Signal];
-        J -- No --> L[Set isCycleInProgress = true];
-        L --> M[Log Opportunity & HALT];
-        style M fill:#d63031,stroke:#333,stroke-width:2px
+    subgraph "Current (Active) Process Flow"
+        B -- Convergent Trader --> D(See convergent_trader_flow.mmd)
     end
 
-    subgraph "FUTURE IMPLEMENTATION: Arbitrage Cycle"
-        direction LR
-        subgraph "Step 3: Arbitrage Cycle State Machine (ArbitrageTrader)"
-            N[Start ArbitrageTrader.StartAsync] --> O(Start TrailingTrader for Buy Leg);
-            O --> P((State: Awaiting Buy Fill));
-            P -- OnOrderFilled event --> Q(HandleBuyOrderFilled);
-            
-            Q --> R{Wait for Balance Confirmation};
-            style R fill:#f9f,stroke:#333,stroke-width:2px
-            R -- Balance Update + Debounce Timer --> S(Balance Confirmed);
-    
-            S --> T[Place Market Sell Order];
-            T --> U((State: Awaiting Sell Confirmation));
-            U -- Order Update event --> V(HandleSellOrderUpdate);
-            
-            V --> W{Order Filled?};
-            W -- No --> U;
-            W -- Yes --> X[Log Latency & P&L];
-        end
-    
-        subgraph "Step 4: Cycle Completion"
-            X --> Y[Cleanup: Unsubscribe streams];
-            Y --> Z(Signal Cycle Completion);
-            Z --> AA[DecisionMaker: Reset isCycleInProgress = false];
-        end
-    end
-    
-    M -.-> N;
-
-    style P fill:#bbf,stroke:#333,stroke-width:2px
-    style U fill:#bbf,stroke:#333,stroke-width:2px
+    C --> E[End];
+    D --> E[End];

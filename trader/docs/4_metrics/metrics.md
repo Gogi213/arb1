@@ -1,48 +1,100 @@
 # Trader Project: Key Performance Metrics
-**Version:** 2.0 (Validated on 2025-11-17)
+**Version:** 3.0 (Validated on 2025-11-18)
 
-This document describes the key performance and diagnostic metrics for the `Trader` project. Given its high-frequency nature, latency measurement is critical.
+This document describes the key performance and diagnostic metrics for the `Trader` project. It covers both the intended metrics for the now-deprecated two-legged arbitrage strategy and the actively collected metrics for the `ConvergentTrader` MVP.
 
-## 1. Core Detection Metric
+## 1. Legacy Metrics (Deprecated Arbitrage Strategy)
+
+These metrics were intended for the two-legged arbitrage strategy (`ArbitrageTrader`), which is **no longer actively used or generating these metrics**. They are documented here for historical context and to illustrate the focus on low-latency, cross-exchange operations of the original design.
+
+### 1.1. Core Detection Metric (Legacy)
 
 *   **Name:** Profitable Spread Threshold
 *   **Location:** `SpreadListener.cs`
 *   **Value:** Hardcoded as `0.25%`.
-*   **Description:** The `OnProfitableSpreadDetected` event is fired if the spread percentage received from the `SpreadAggregator` exceeds this value. This is the entry trigger for the entire trading cycle.
+*   **Description:** The `OnProfitableSpreadDetected` event was fired if the spread percentage received from the `SpreadAggregator` exceeded this value. This was the entry trigger for the intended two-legged trading cycle.
 
----
+### 1.2. Legacy Latency and Performance Metrics (Intended for Deprecated ArbitrageTrader)
 
-## Metrics for Future Implementation
-
-The following metrics are part of the **intended future design** centered around the `ArbitrageTrader` component, which is not yet integrated. They are **not currently being generated** by the application.
-
-## 2. Latency and Performance Metrics
-
-These metrics are planned to be logged throughout the `ArbitrageTrader` lifecycle and are essential for evaluating the system's performance. They would be logged via `FileLogger.LogOther()` and `FileLogger.LogWebsocket()`.
+These metrics were planned to be logged throughout the `ArbitrageTrader` lifecycle and were essential for evaluating the system's performance in a high-frequency arbitrage context. They were intended to be logged via `FileLogger.LogOther()` and `FileLogger.LogWebsocket()`, but are **not currently being generated** by the application's active `ConvergentTrader`.
 
 *   **WebSocket Propagation Delay (WS Latency):**
     *   **Description:** The time elapsed between an event occurring on the exchange's server and the event being received and processed by the application's handler.
     *   **Calculation:** `(Local_Event_Handler_Entry_Time - Server_Side_Event_Timestamp)`
-    *   **Importance:** Measures the speed of the WebSocket connection and the exchange's infrastructure. High values can indicate network issues or slow processing by the client library.
+    *   **Importance:** Measured the speed of the WebSocket connection and the exchange's infrastructure, critical for cross-exchange arbitrage.
 
 *   **API Command Latency:**
-    *   **Description:** The time taken to execute a specific low-latency WebSocket command, such as `PlaceMarketOrderAsync`.
-    *   **Calculation:** Time measured immediately before and after the `await` call for the specific command.
-    *   **Importance:** Measures the round-trip time for a command to be sent to the exchange and a confirmation to be received. This is a direct measure of the exchange's API performance.
+    *   **Description:** The time taken to execute a specific low-latency WebSocket command (e.g., `PlaceMarketOrderAsync`).
+    *   **Calculation:** Time measured immediately before and after the `await` call.
+    *   **Importance:** Measured the round-trip time for commands, crucial for fast order execution across exchanges.
 
 *   **End-to-End (E2E) Server Latency:**
     *   **Description:** The total time elapsed from the server-side confirmation of the "buy" leg fill to the server-side confirmation of the "sell" leg fill.
     *   **Calculation:** `(Sell_Fill_Server_Timestamp - Buy_Fill_Server_Timestamp)`
-    *   **Importance:** This is the **most critical metric** for arbitrage. It represents the "pure" time the strategy was exposed to market risk, independent of any local application or network delays.
+    *   **Importance:** The most critical metric for arbitrage, representing market exposure time.
 
 *   **End-to-End (E2E) Local Latency:**
-    *   **Description:** The total time elapsed from the moment the application's "buy" fill handler is entered to the moment the "sell" fill confirmation handler is entered.
+    *   **Description:** The total time elapsed from the moment the application's "buy" fill handler was entered to the moment the "sell" fill confirmation handler was entered.
     *   **Calculation:** `(Sell_Confirmation_Handler_Entry_Time - Buy_Fill_Handler_Entry_Time)`
-    *   **Importance:** Measures the total processing time of the application's state machine, including all internal logic, waits, and latencies. It helps identify bottlenecks within the `ArbitrageTrader` itself.
+    *   **Importance:** Measured the total processing time of the application's internal state machine.
 
-## 3. Financial Metrics (Post-Cycle)
+### 1.3. Legacy Financial Metrics (Post-Cycle)
 
 *   **USDT Proceeds:**
     *   **Description:** The total amount of quote currency (e.g., USDT) received from the "sell" leg of the trade.
     *   **Source:** Extracted from the `CumulativeQuoteQuantity` field of the filled sell order update.
-    *   **Importance:** This is the primary output of a successful trade cycle, used for calculating the final Profit and Loss (P&L).
+    *   **Importance:** Primary output of a successful trade cycle, used for calculating final Profit and Loss (P&L) in the arbitrage context.
+
+---
+
+## 2. Current Metrics (Convergent Trader)
+
+These metrics are actively collected and relevant to the performance and analysis of the `ConvergentTrader` strategy.
+
+### 2.1. Trade Cycle Performance Metrics
+
+*   **Profit and Loss (P&L) per Cycle (Estimated):**
+    *   **Description:** The net profit or loss generated by a single complete buy-then-sell cycle of the `ConvergentTrader`. **Currently, this is an internal estimate** (`sellQuantity * 0.98m`) and does not reflect actual exchange fill prices or fees.
+    *   **Calculation (Current Estimate):** `(Estimated_Sell_Proceeds - Estimated_Buy_Cost)`
+    *   **Importance:** The fundamental measure of strategy profitability, **but currently serves as a preliminary indicator due to its estimated nature.**
+
+*   **Win Rate (Based on Estimated P&L):**
+    *   **Description:** The percentage of `ConvergentTrader` cycles that result in a positive P&L. **This is currently based on the estimated P&L.**
+    *   **Calculation:** `(Number_of_Profitable_Cycles / Total_Number_of_Cycles) * 100`
+    *   **Importance:** Indicates the consistency and reliability of the strategy, **with the caveat of relying on estimated P&L.**
+
+*   **Average Trade Duration:**
+    *   **Description:** The average time taken from the initiation of a buy order to the completion of the corresponding sell order.
+    *   **Calculation:** `Average(Sell_Timestamp - Buy_Timestamp) for all cycles`
+    *   **Importance:** Helps understand the speed of execution and the time assets are held.
+
+*   **Entry Price:**
+    *   **Description:** The average price at which the asset was acquired in a `ConvergentTrader` buy order.
+    *   **Importance:** Crucial for P&L calculation and analyzing entry point effectiveness.
+
+*   **Exit Price:**
+    *   **Description:** The average price at which the asset was sold in a `ConvergentTrader` sell order.
+    *   **Importance:** Crucial for P&L calculation and analyzing exit point effectiveness.
+
+*   **Slippage (Buy/Sell):**
+    *   **Description:** The difference between the expected price of a trade and the actual executed price. Can be measured for both buy and sell orders.
+    *   **Calculation:** `(Expected_Price - Actual_Executed_Price)`
+    *   **Importance:** High slippage can significantly erode profitability, especially for market orders.
+
+*   **Total Fees:**
+    *   **Description:** The sum of all trading fees incurred (maker/taker) for a complete buy-then-sell cycle.
+    *   **Importance:** Directly impacts net P&L.
+
+### 2.2. Operational Metrics
+
+*   **Cycle Completion Rate:**
+    *   **Description:** The percentage of initiated `ConvergentTrader` cycles that complete successfully without errors or partial fills.
+    *   **Importance:** Indicates the robustness and error handling of the trader.
+
+*   **Error Rate:**
+    *   **Description:** The frequency of errors encountered during `ConvergentTrader` operations (e.g., order placement failures, API disconnections).
+    *   **Importance:** Critical for system stability and reliability.
+
+*   **Uptime:**
+    *   **Description:** The total time the `ConvergentTrader` application is running without interruption.
+    *   **Importance:** Essential for any continuous trading operation.

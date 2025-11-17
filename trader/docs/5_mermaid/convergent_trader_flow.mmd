@@ -1,0 +1,17 @@
+graph TD
+    A[Start Application Program.cs] --> B(Load Configuration appsettings.json)
+    B --> C(Initialize IExchange Implementation)
+    C --> D(Initialize ConvergentTrader with Exchange & Parameters)
+    D --> E[Call RunManualConvergentTrader() for Execution Loop]
+
+    E --> F[ConvergentTrader Loop]
+    F --> G(Initiate Buy Order)
+    G --> H{Wait for Buy Order Fill}
+    H --> I(Handle Buy Fill: Record Quantity & Price)
+    I --> J{Wait for Configured Sell Delay}
+    J --> K(Initiate Market Sell Order for Entire Quantity)
+    K --> L{Wait for Sell Order Fill}
+    L --> M(Handle Sell Fill: Record Quantity & Price, Calculate P&L)
+    M --> N{Repeat Cycle or Stop?}
+    N -- Repeat --> F
+    N -- Stop --> O[End Application]

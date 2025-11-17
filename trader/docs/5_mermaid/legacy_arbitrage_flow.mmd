@@ -1,0 +1,31 @@
+graph TD
+    A[Start Application Program.cs] --> B(Load Configuration appsettings.json)
+    B --> C(Initialize SpreadListener & DecisionMaker)
+    C --> D(DecisionMaker Subscribes to SpreadListener Event)
+    D --> E[Start SpreadListener]
+
+    E --> F(SpreadListener Connects to SpreadAggregator via WebSocket)
+    F --> G{Receive Real-time Spread Data}
+    G --> H{Spread > Threshold?}
+    H -- Yes --> I(Fire OnProfitableSpreadDetected Event)
+    I -- No --> G
+
+    I --> J(DecisionMaker HandleProfitableSpread Triggered)
+    J --> K{Is _isCycleInProgress = true?}
+    K -- Yes --> L(Log: Cycle In Progress, Ignore Signal)
+    K -- No --> M(Set _isCycleInProgress = true)
+    M --> N(Log: Profitable Spread Detected)
+    N --> O[[Process Halts - TODO: Start ArbitrageTrader]]
+
+    subgraph Intended Arbitrage Cycle (ArbitrageTrader - Never Fully Active)
+        O --> P(Leg 1: Start Trailing Buy Order)
+        P --> Q{Waiting for Buy Order Fill}
+        Q --> R(Handle Buy Order Filled)
+        R --> S{Waiting for Balance Confirmation via _baseAssetBalanceTcs & Debounce Timer}
+        S --> T(Leg 2: Place Market Sell Order on Second Exchange)
+        T --> U{Waiting for Sell Order Fill}
+        U --> V(Handle Sell Order Filled)
+        V --> W(Log Metrics & Calculate P&L)
+        W --> X(Cleanup & Signal Completion via _arbitrageCycleTcs)
+        X --> M
+    end

@@ -157,6 +157,7 @@
 | | `- system_diagram.mmd
 | |- overall_process_flow
 | | `- process_flow.md
+| |- completion_report.md
 | `- project_structure.txt
 |- trader
 | |- docs
@@ -252,6 +253,7 @@
 | | |- Core
 | | | |- ArbitrageCycleState.cs
 | | | |- ArbitrageTrader.cs
+| | | |- ConvergentTrader.cs
 | | | |- DecisionMaker.cs
 | | | |- FileLogger.cs
 | | | |- IExchange.cs
@@ -275,14 +277,31 @@
 | | |   |- GateIoExchange.cs
 | | |   `- TraderBot.Exchanges.GateIo.csproj
 | | `- Host
+| |   |- trader
 | |   |- ExchangeConfig.cs
 | |   |- Program.cs
 | |   |- TraderBot.Host.csproj
 | |   `- appsettings.json
+| |- tests
+| | `- TestResults
+| |   |- Deploy_Georgiy 2025-11-17 18_39_25
+| |   | `- In
+| |   |   `- DESKTOP-E9IC9QV
+| |   |- Deploy_Georgiy 20251117T204200
+| |   | |- In
+| |   | | `- DESKTOP-E9IC9QV
+| |   | `- Out
+| |   |- Deploy_Georgiy 20251117T210439
+| |   | |- In
+| |   | | `- DESKTOP-E9IC9QV
+| |   | `- Out
+| |   `- Deploy_Georgiy 20251117T222712
+| |     |- In
+| |     | `- DESKTOP-E9IC9QV
+| |     `- Out
 | `- TraderBot.sln
 |- GEMINI.md
 |- README.md
 |- gemini_exclude.txt
 |- get_structure.py
-|- test_websocket.html
-`- комментарии
+`- test_websocket.html

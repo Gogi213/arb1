@@ -1,0 +1,17 @@
+data
+logs
+libs
+jkorf
+bin
+obj
+__pycache__
+node_modules
+.git
+.vscode
+.idea
+.vs
+.sln
+.csproj
+.pyc
+appsettings.json
+.gitignore

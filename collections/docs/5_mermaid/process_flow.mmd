@@ -1,0 +1,41 @@
+```mermaid
+graph TD
+    subgraph "Input: Exchange WebSockets"
+        A[Exchange WS Streams]
+    end
+
+    subgraph "Layer: Infrastructure (Clients)"
+        B(Exchange Clients)
+        A --> B
+    end
+
+    subgraph "Layer: Application (Orchestration)"
+        B -- "Callback with raw data" --> C{OrchestrationService};
+        C -- "Calculates Spread" --> C;
+    end
+
+    subgraph "Output 1: Real-time Broadcast"
+        C -- "Direct Call: Send(data)" --> D[WebSocket Server];
+        D --> E[Connected Clients];
+    end
+
+    subgraph "Output 2: Flawed Background Processing"
+        C -- "Channel.Writer.Write(data) x2" --> F((Shared BoundedChannel));
+        F -- "Competing Consumer 1" --> G[DataCollectorService];
+        F -- "Competing Consumer 2" --> H[RollingWindowService];
+        G --> I[Parquet Files on Disk];
+        H --> J[In-Memory Window Analysis];
+    end
+
+    subgraph "Legend"
+        direction LR
+        L1[Flaw 1: OrchestrationService writes every message twice to the same channel.]
+        L2[Flaw 2: DataCollectorService and RollingWindowService compete for messages, each getting an incomplete stream.]
+    end
+
+
+    style C fill:#bbf,stroke:#333,stroke-width:2px
+    style F fill:#d63031,stroke:#333,stroke-width:2px
+    style L1 fill:#ffadad,stroke:#333,stroke-width:1px
+    style L2 fill:#ffadad,stroke:#333,stroke-width:1px
+```

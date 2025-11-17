@@ -1,0 +1,32 @@
+graph TD
+    subgraph "Инициализация (Program.cs)"
+        A[Start] --> B(Загрузка appsettings.json);
+        B --> C(Инициализация SpreadListener);
+        C --> D(Инициализация DecisionMaker);
+        D --> E[DecisionMaker.Subscribe(SpreadListener)];
+        E --> F[listener.StartAsync()];
+    end
+
+    subgraph "Обнаружение спредов (SpreadListener)"
+        F --> G{Подключение к SpreadAggregator (WebSocket)};
+        G --> H[Получение данных о спредах];
+        H --> I{Спред > 0.25%?};
+        I -- Да --> J[Инициировать событие OnProfitableSpreadDetected];
+        I -- Нет --> H;
+    end
+
+    subgraph "Принятие решений (DecisionMaker)"
+        J --> K(HandleProfitableSpread);
+        K --> L{_isCycleInProgress?};
+        L -- Да --> M[Лог: Цикл уже в процессе. Игнорировать.];
+        L -- Нет --> N[Установить _isCycleInProgress = true];
+        N --> O[Лог: Прибыльный спред обнаружен.];
+        O --> P(TODO: Запустить ArbitrageTrader);
+        P --> Q[Конец текущего потока];
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+    style J fill:#f9f,stroke:#333,stroke-width:2px
+    style P fill:#f00,stroke:#333,stroke-width:2px
+    style Q fill:#f9f,stroke:#333,stroke-width:2px

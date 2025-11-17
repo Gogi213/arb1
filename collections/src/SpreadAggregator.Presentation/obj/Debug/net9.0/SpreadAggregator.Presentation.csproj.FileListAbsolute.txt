@@ -157,7 +157,6 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\rjsmrazor.dswa.cache.json
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\rjsmcshtml.dswa.cache.json
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\scopedcss\bundle\SpreadAggregator.Presentation.styles.css
-C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\compressed\qlyp1mggis-gsbv5ph6q2.gz
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\staticwebassets.build.json
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\staticwebassets.build.json.cache
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\staticwebassets.development.json
@@ -168,3 +167,4 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.genruntimeconfig.cache
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\ref\SpreadAggregator.Presentation.dll
+c:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\compressed\qlyp1mggis-r65xg582v5.gz

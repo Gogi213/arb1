@@ -1,0 +1,47 @@
+```mermaid
+graph TD
+    subgraph "Step 1: Initialization"
+        A[Start: run_all_ultra.py] --> B{Parse CLI Arguments};
+    end
+
+    subgraph "Step 2: Orchestration (`run_ultra_fast_analysis`)"
+        B --> C[discover_data];
+        C --> D{Symbols with >= 2 Exchanges?};
+        D -- Yes --> E[Create Symbol Tasks];
+        D -- No --> Z[End];
+        E --> F[Create multiprocessing.Pool];
+    end
+
+    subgraph "Step 3: Parallel Batch Processing"
+        F --"imap_unordered(analyze_symbol_batch, tasks)"--> G((Process Pool));
+        G --> H["analyze_symbol_batch (Worker Process)"];
+    end
+
+    subgraph "Step 4: Inside a Worker Process (`analyze_symbol_batch`)"
+        H --> I[Create ThreadPoolExecutor];
+        I --"submit(load_exchange_symbol_data)"--> J((Thread Pool));
+        J --> K["load_exchange_symbol_data (I/O Thread)"];
+        K --> L[Read Parquet Files];
+        L --> J;
+        J -- futures.as_completed --> M{Collect DataFrames};
+        M --> N[Create Exchange Pairs];
+        N -- Loop --> O["analyze_pair_fast(data1, data2)"];
+        O --> P[Calculate Metrics];
+        P --> N;
+        N -- Done --> Q[Return List of Stats];
+    end
+
+    subgraph "Step 5: Aggregation & Output"
+        Q --> G;
+        G -- All Batches Done --> R[Aggregate All Stats];
+        R --> S[Sort and Create Top 10];
+        S --> T[Save to CSV];
+        T --> U[Print to Console];
+        U --> Z;
+    end
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style Z fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#bbf,stroke:#333,stroke-width:2px
+    style J fill:#bbf,stroke:#333,stroke-width:2px
+```

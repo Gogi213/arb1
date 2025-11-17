@@ -1,0 +1,284 @@
+.
+|- analyzer
+| |- docs
+| | |- 1_architecture
+| | | `- architecture.md
+| | |- 2_backlog
+| | | `- backlog.md
+| | |- 3_main_process_flow
+| | | `- process_flow.md
+| | |- 4_metrics
+| | | `- metrics.md
+| | |- 5_mermaid
+| | | `- process_flow.mmd
+| | |- issues
+| | | `- issue.md
+| | |- proposals
+| | | |- PROPOSAL-2025-0076-FixAnalyzerSavePath.md
+| | | `- PROPOSAL-2025-0085-FixAnalyzerDefaultPath.md
+| | |- roadmap.md
+| | `- role_definition.md
+| |- README.md
+| |- requirements.txt
+| |- run_all_ultra.py
+| `- test_date_filter.py
+|- collections
+| |- docs
+| | |- 1_architecture
+| | | `- architecture.md
+| | |- 2_backlog
+| | | `- backlog.md
+| | |- 3_main_process_flow
+| | | `- process_flow.md
+| | |- 4_metrics
+| | | `- metrics.md
+| | |- 5_mermaid
+| | | `- process_flow.mmd
+| | |- audit
+| | | |- AUDIT-2025-11-01-collections-architecture.md
+| | | |- AUDIT-SUMMARY.md
+| | | |- REFACTORING-LOG.md
+| | | |- REFACTORING-PLAN.md
+| | | |- changelog.md
+| | | |- critical-fixes.md
+| | | |- executive-summary.md
+| | | `- migration-report.md
+| | |- issues
+| | | `- ISSUE-001-find_opportunities_debug.md
+| | |- planning
+| | | `- backlog.md
+| | |- proposals
+| | | |- PROPOSAL-2025-0001-AddFileLogging.md
+| | | |- PROPOSAL-2025-0002-FixWebSocketRaceCondition.md
+| | | |- PROPOSAL-2025-0003-FixWebSocketRaceCondition-Simple.md
+| | | |- PROPOSAL-2025-0004-AddTradesStream.md
+| | | |- PROPOSAL-2025-0005-ConfigurableStreams.md
+| | | |- PROPOSAL-2025-0006-UnifiedDataChannel.md
+| | | |- PROPOSAL-2025-0007-LazyRefactoring.md
+| | | |- PROPOSAL-2025-0008-FixSubscriptionLogic.md
+| | | |- PROPOSAL-2025-0009-FixBybitReconnection.md
+| | | |- PROPOSAL-2025-0010-AddPriceStep.md
+| | | |- PROPOSAL-2025-0011-SimplifyRollingWindow.md
+| | | |- PROPOSAL-2025-0012-AddRollingWindowAPI.md
+| | | |- PROPOSAL-2025-0083-ConfigureCollectionsExchanges.md
+| | | |- PROPOSAL-2025-0084-ConfigurableSavePath.md
+| | | |- PROPOSAL-2025-0091-FixUnboundedChannels.md
+| | | `- PROPOSAL-2025-0092-FixSymbolDeduplication.md
+| | |- README.md
+| | |- metrics.md
+| | `- role_definition.md
+| |- src
+| | |- SpreadAggregator.Analyzer
+| | |- SpreadAggregator.Application
+| | | |- Abstractions
+| | | | |- IBidAskLogger.cs
+| | | | |- IBidBidLogger.cs
+| | | | |- IDataWriter.cs
+| | | | |- IExchangeClient.cs
+| | | | |- IWebSocketServer.cs
+| | | | `- TickerData.cs
+| | | |- Services
+| | | | |- DataCollectorService.cs
+| | | | |- OrchestrationService.cs
+| | | | `- RollingWindowService.cs
+| | | |- Class1.cs
+| | | `- SpreadAggregator.Application.csproj
+| | |- SpreadAggregator.Domain
+| | | |- Entities
+| | | | |- MarketData.cs
+| | | | |- SpreadData.cs
+| | | | |- SymbolInfo.cs
+| | | | |- TradeData.cs
+| | | | `- WebSocketMessage.cs
+| | | |- Services
+| | | | |- SpreadCalculator.cs
+| | | | `- VolumeFilter.cs
+| | | |- Class1.cs
+| | | `- SpreadAggregator.Domain.csproj
+| | |- SpreadAggregator.Infrastructure
+| | | |- Services
+| | | | |- Charts
+| | | | | |- OpportunityFilterService.cs
+| | | | | `- ParquetReaderService.cs
+| | | | |- Exchanges
+| | | | | |- Base
+| | | | | | |- ExchangeClientBase.cs
+| | | | | | `- IExchangeSocketApi.cs
+| | | | | |- BinanceExchangeClient.cs
+| | | | | |- BinanceExchangeClient.cs.backup
+| | | | | |- BinanceExchangeClient.cs.backup_works
+| | | | | |- BinanceExchangeClient.cs.old_working
+| | | | | |- BingXExchangeClient.cs
+| | | | | |- BitgetExchangeClient.cs
+| | | | | |- BybitExchangeClient.cs
+| | | | | |- GateIoExchangeClient.cs
+| | | | | |- KucoinExchangeClient.cs
+| | | | | |- MexcExchangeClient.cs
+| | | | | `- OkxExchangeClient.cs
+| | | | |- BidAskLogger.cs
+| | | | |- BidBidLogger.cs
+| | | | |- FleckWebSocketServer.cs
+| | | | |- ParquetDataWriter.cs
+| | | | `- WebSocketLogger.cs
+| | | |- Class1.cs
+| | | `- SpreadAggregator.Infrastructure.csproj
+| | `- SpreadAggregator.Presentation
+| |   |- Controllers
+| |   | |- DashboardController.cs
+| |   | `- RealTimeController.cs
+| |   |- Models
+| |   | |- ChartDataDto.cs
+| |   | `- OpportunityDto.cs
+| |   |- wwwroot
+| |   | `- index.html
+| |   |- Program.cs
+| |   |- SpreadAggregator.Presentation.csproj
+| |   `- appsettings.json
+| |- tests
+| | `- SpreadAggregator.Tests
+| |   |- Application
+| |   | `- Services
+| |   |   `- OrchestrationServiceTests.cs
+| |   |- Domain
+| |   | `- Services
+| |   |   |- SpreadCalculatorTests.cs
+| |   |   `- VolumeFilterTests.cs
+| |   |- SpreadAggregator.Tests.csproj
+| |   `- UnitTest1.cs
+| `- SpreadAggregator.sln
+|- docs
+| |- issues
+| | `- ISSUE-001-realtime-charts-not-showing.md
+| |- overall_architecture
+| | `- architecture.md
+| |- overall_mermaid
+| | `- system_diagram.mmd
+| |- overall_process_flow
+| | `- process_flow.md
+| `- project_structure.txt
+|- trader
+| |- docs
+| | |- 1_architecture
+| | | `- architecture.md
+| | |- 2_backlog
+| | | `- backlog.md
+| | |- 3_main_process_flow
+| | | |- main_process_flow.md
+| | | `- process_flow.md
+| | |- 4_metrics
+| | | |- balance_cycle_metrics_flow.md
+| | | `- metrics.md
+| | |- 5_mermaid
+| | | `- process_flow.mmd
+| | |- audit
+| | | `- audit_report.md
+| | |- issues
+| | | |- ISSUE-001-bybit-order-value.md
+| | | |- ISSUE-002-gateio-market-sell-fail.md
+| | | |- ISSUE-003-gateio-market-sell-debug.md
+| | | |- ISSUE-004-leg1-usdt-balance-debug.md
+| | | |- ISSUE-005-leg2-logic-flaw.md
+| | | |- leg2_orderbook_issue_status.md
+| | | `- quantity_flow_analysis.md
+| | |- proposals
+| | | |- archive
+| | | | |- PROPOSAL-2025-0039.md
+| | | | |- PROPOSAL-2025-0040.md
+| | | | `- PROPOSAL-2025-0041.md
+| | | |- PROPOSAL-2025-0008.md
+| | | |- PROPOSAL-2025-0009.md
+| | | |- PROPOSAL-2025-0010.md
+| | | |- PROPOSAL-2025-0011.md
+| | | |- PROPOSAL-2025-0012.md
+| | | |- PROPOSAL-2025-0013.md
+| | | |- PROPOSAL-2025-0014.md
+| | | |- PROPOSAL-2025-0015.md
+| | | |- PROPOSAL-2025-0016.md
+| | | |- PROPOSAL-2025-0017.md
+| | | |- PROPOSAL-2025-0018.md
+| | | |- PROPOSAL-2025-0019.md
+| | | |- PROPOSAL-2025-0020.md
+| | | |- PROPOSAL-2025-0021.md
+| | | |- PROPOSAL-2025-0022.md
+| | | |- PROPOSAL-2025-0023.md
+| | | |- PROPOSAL-2025-0024.md
+| | | |- PROPOSAL-2025-0026.md
+| | | |- PROPOSAL-2025-0027.md
+| | | |- PROPOSAL-2025-0028.md
+| | | |- PROPOSAL-2025-0029.md
+| | | |- PROPOSAL-2025-0030.md
+| | | |- PROPOSAL-2025-0031.md
+| | | |- PROPOSAL-2025-0032.md
+| | | |- PROPOSAL-2025-0036.md
+| | | |- PROPOSAL-2025-0037.md
+| | | |- PROPOSAL-2025-0038.md
+| | | |- PROPOSAL-2025-0042.md
+| | | |- PROPOSAL-2025-0043.md
+| | | |- PROPOSAL-2025-0044.md
+| | | |- PROPOSAL-2025-0045.md
+| | | |- PROPOSAL-2025-0046.md
+| | | |- PROPOSAL-2025-0047.md
+| | | |- PROPOSAL-2025-0048.md
+| | | |- PROPOSAL-2025-0049.md
+| | | |- PROPOSAL-2025-0050.md
+| | | |- PROPOSAL-2025-0051-revised.md
+| | | |- PROPOSAL-2025-0051.md
+| | | |- PROPOSAL-2025-0052.md
+| | | |- PROPOSAL-2025-0053.md
+| | | |- PROPOSAL-2025-0054.md
+| | | |- PROPOSAL-2025-0055.md
+| | | |- PROPOSAL-2025-0056.md
+| | | |- PROPOSAL-2025-0057.md
+| | | |- PROPOSAL-2025-0058-FixWebSocketServerStart.md
+| | | |- PROPOSAL-2025-0059-FixLongRunningTasks.md
+| | | |- PROPOSAL-2025-0060-ImplementOrPartitioningLogic.md
+| | | |- PROPOSAL-2025-0061-FixMemoryLeakInDataCollector.md
+| | | |- PROPOSAL-2025-0062-ReplaceParquetWithCsvForLowMemory.md
+| | | |- PROPOSAL-2025-0063-FixChartLookaheadBias-final.md
+| | | |- PROPOSAL-2025-0063-FixChartLookaheadBias-revised.md
+| | | |- PROPOSAL-2025-0063-FixChartLookaheadBias.md
+| | | |- PROPOSAL-2025-0095-FixUnboundedChannels.md
+| | | |- PROPOSAL-2025-0096-ReduceRollingWindowSize.md
+| | | `- PROPOSAL-2025-0097-FixEventHandlersLeak.md
+| | |- sprints
+| | | |- sprint5_spread_trading_plan.md
+| | | `- sprint6_oom_hotfix_plan.md
+| | |- backlog.md
+| | |- roadmap.md
+| | `- role_definition.md
+| |- src
+| | |- Core
+| | | |- ArbitrageCycleState.cs
+| | | |- ArbitrageTrader.cs
+| | | |- DecisionMaker.cs
+| | | |- FileLogger.cs
+| | | |- IExchange.cs
+| | | |- ITrader.cs
+| | | |- NewOrderType.cs
+| | | |- OrderSide.cs
+| | | |- SpreadData.cs
+| | | |- SpreadListener.cs
+| | | |- TraderBot.Core.csproj
+| | | `- TrailingTrader.cs
+| | |- Exchanges
+| | | |- Bybit
+| | | | |- Adapters.cs
+| | | | |- BybitExchange.cs
+| | | | |- BybitLowLatencyWs.cs
+| | | | |- BybitTrailingTrader.cs
+| | | | |- ReverseArbitrageTrader.cs
+| | | | `- TraderBot.Exchanges.Bybit.csproj
+| | | `- GateIo
+| | |   |- Adapters.cs
+| | |   |- GateIoExchange.cs
+| | |   `- TraderBot.Exchanges.GateIo.csproj
+| | `- Host
+| |   |- ExchangeConfig.cs
+| |   |- Program.cs
+| |   |- TraderBot.Host.csproj
+| |   `- appsettings.json
+| `- TraderBot.sln
+|- GEMINI.md
+|- gemini_exclude.txt
+|- get_structure.py
+`- test_websocket.html

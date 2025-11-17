@@ -1,0 +1,29 @@
+graph TD
+    subgraph System
+        direction LR
+
+        subgraph "Data Acquisition & Serving"
+            A_Collections["<b>collections</b><br>(C#/.NET Data Hub)"]
+        end
+
+        subgraph "Real-Time Consumer"
+            B_Trader["<b>trader</b><br>(C#/.NET Trading Bot)"]
+        end
+
+        subgraph "Offline Analysis"
+            C_Analyzer["<b>analyzer</b><br>(Python Analytics)"]
+        end
+
+        subgraph "Data Storage"
+            D_DataLake["<b>Data Lake</b><br>(Parquet Files in <code>/data</code>)"]
+        end
+    end
+
+    A_Collections -- "1. Real-time Market Data<br>(WebSocket Stream)" --> B_Trader
+    A_Collections -- "2. Historical Market Data<br>(Writes to Disk)" --> D_DataLake
+    D_DataLake -- "3. Reads Historical Data" --> C_Analyzer
+    C_Analyzer -- "4. Writes Analysis Results<br>(e.g., summary files)" --> A_Collections
+
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px;
+    classDef data fill:#dae8fc,stroke:#6c8ebf,stroke-width:2px;
+    class D_DataLake data;

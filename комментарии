@@ -1,0 +1,20 @@
+__Оставить (достоверно недостает):__
+
+1. Setup instructions — collections имеет базовый README, но нет environment reqs, hardware specs для HFT.
+2. API specs — есть базовые примеры в docs/1_architecture, но неполные specs (error codes, schemas).
+3. Configuration examples — mentions в коде (appsettings.json), но нет sample файлов с placeholders.
+4. Troubleshooting — issues есть, но нена систематизирован guide с codes/resolutions.
+5. Deployment — нет production setup, Docker, scaling.
+6. Arbitrage theory — формулы только в комментариях analyzer, нет separate math docs.
+7. Trader implementation — по docs и TODO в коде, executions отсутствуют.
+8. QA docs — tests есть, но нет benchmarks по performance/coverage.
+9. Maintenance — role_definition trader, но не guidelines для добавления exchanges/features.
+
+__Убрать (дублируется или преувеличено):__ 4. Data schema — частично в architecture.md описана диаграмма flow, entities в коде. Но всё же нужно полное schema docs, так что оставить.
+
+__Дополнить:__
+
+- Testing section: добавить benchmark requirements для HFT (latency, throughput).
+- Security: API keys handling, audit logs для trades (critical for HFT).
+
+Summary: список точный, ничего сильно преувеличенного не было.

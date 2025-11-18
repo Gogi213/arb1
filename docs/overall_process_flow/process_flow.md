@@ -36,6 +36,43 @@ This flow is designed for offline analysis to find and validate trading strategi
 
 ## Summary Diagram
 
-*   **Active Trading:** Human -> (Config) -> `trader` (Convergent Mode) -> Exchange API
-*   **Passive Listening:** Exchange APIs -> `collections` -> (WebSocket) -> `trader` (Legacy Mode) -> (No Action)
-*   **Offline Analysis:** `collections` -> (Parquet Files) -> `analyzer` -> (CSV Report) -> Human
+```mermaid
+graph TD
+    subgraph "Human Interaction"
+        A(Human Operator)
+    end
+    
+    subgraph "Real-time (Active Trading)"
+        B(trader - Convergent Mode)
+        C[Exchange APIs]
+    end
+
+    subgraph "Real-time (Passive Listening)"
+        D(collections)
+        E(trader - Legacy Mode)
+    end
+
+    subgraph "Offline Analysis"
+        F(analyzer)
+        G[Parquet Data Lake]
+        H[CSV Reports]
+    end
+
+    A -- "1. Configures & Runs" --> B;
+    B -- "2. Trades with" --> C;
+    
+    C -- "3. Feeds data to" --> D;
+    D -- "4. Broadcasts to" --> E;
+    D -- "5. Writes to" --> G;
+
+    G -- "6. Is read by" --> F;
+    F -- "7. Produces" --> H;
+    H -- "8. Informs" --> A;
+
+    style B fill:#9cf,stroke:#333,stroke-width:2px
+    style F fill:#f9f,stroke:#333,stroke-width:2px
+```
+
+1.  **Active Trading:** A `Human Operator` configures and runs the `trader` in `Convergent Mode`, which interacts directly with `Exchange APIs`.
+2.  **Passive Listening & Data Collection:** `Exchange APIs` feed data into `collections`. It broadcasts real-time data to the `trader`'s `Legacy Mode` (which takes no action) and simultaneously writes historical data to the `Parquet Data Lake`.
+3.  **Offline Analysis:** The `analyzer` reads from the `Parquet Data Lake`, produces `CSV Reports`, which are then used by the `Human Operator` to inform future trading decisions, thus completing the loop.

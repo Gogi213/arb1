@@ -1,32 +1,96 @@
-# Analyzer Metrics and Algorithms
+# Метрики, вычисляемые в проекте Analyzer
 
-This document provides a detailed explanation of the key metrics calculated by the `analyzer` and the algorithms used within the `analyze_pair_fast` function.
+Этот документ описывает все ключевые метрики, которые генерируются скриптом `run_all_ultra.py` для оценки арбитражных возможностей.
 
-## 1. Core Concepts: Synchronization and Deviation
+## 1. Метрики среднего реверсирования (Mean Reversion)
 
-The analysis starts by synchronizing time-series data and calculating the fundamental price deviation.
+Эти метрики оценивают, как часто и насколько сильно цена отклоняется от своего среднего значения и возвращается обратно.
 
-1.  **Synchronization (`join_asof`):**
-    *   Data from two exchanges (`data1`, `data2`) is synchronized by time. For each row in `data1`, the nearest preceding row from `data2` is found. This creates a unified `DataFrame` containing `bid_ex1`, `ask_ex1`, `bid_ex2`, and `ask_ex2`.
+### 1.1. `zero_crossings_per_minute`
+- **Описание:** Частота, с которой отклонение (`deviation`) пересекает нулевой уровень в минуту. Это ключевой показатель интенсивности среднего реверсирования. Чем выше значение, тем чаще цена колеблется вокруг точки равновесия.
+- **Вычисление:** [`run_all_ultra.py:265`](analyzer/run_all_ultra.py:265)
+- **Логика:**
+  ```python
+  zero_crossings = # количество смен знака в deviation
+  duration_hours = # общая длительность данных в часах
+  zero_crossings_per_minute = (zero_crossings / duration_hours) / 60
+  ```
 
-2.  **Ratio Calculation:**
-    *   A `ratio` column is computed as `bid_ex1 / bid_ex2`. This shows how the price on one exchange differs from the other.
+### 1.2. `deviation_asymmetry`
+- **Описание:** Среднее значение отклонения (`deviation`). Показывает, есть ли у спреда постоянный уклон в одну сторону.
+  - Значение близкое к `0` указывает на симметричные колебания вокруг ценового паритета.
+  - Значительное положительное или отрицательное значение (`> 0.2`) указывает на постоянное смещение, что может снижать вероятность возврата к нулю.
+- **Вычисление:** [`run_all_ultra.py:245`](analyzer/run_all_ultra.py:245)
+- **Логика:**
+  ```python
+  asymmetry = mean_deviation_pct
+  ```
 
-3.  **Deviation Calculation:**
-    *   **Formula:** `((ratio - 1.0) / 1.0) * 100`
-    *   **Rationale:** This is a critical step. Deviation is measured from `1.0` (price parity), not from the mean of the ratio. This ensures that a `deviation` of `0` signifies that prices are equal, representing a break-even point for an arbitrage trade. The result is expressed as a percentage.
+## 2. Метрики торговых возможностей (Opportunity Metrics)
 
-## 2. Key Performance Metrics
+Эти метрики подсчитывают количество и характеристики потенциально прибыльных торговых циклов.
 
-These metrics are designed to identify pairs with strong mean-reverting characteristics and frequent, tradeable opportunities.
+### 2.1. `opportunity_cycles_*`
+- **Описание:** Количество **полных** торговых циклов для заданного порога (например, `030bp` для 0.3%). Полный цикл — это ситуация, когда отклонение превышает порог, а затем возвращается в "нейтральную зону" (определяется `ZERO_THRESHOLD`). Это гарантирует, что мы считаем только те возможности, где позицию можно было бы открыть и закрыть с возвратом к безубытку.
+- **Вычисление:** [`run_all_ultra.py:321-332`](analyzer/run_all_ultra.py:321-332) с использованием функции `count_complete_cycles`.
+- **Логика:**
+  ```python
+  # Псевдокод для count_complete_cycles
+  was_above = False
+  for deviation_value in deviations:
+      if abs(deviation_value) > threshold:
+          was_above = True
+      elif abs(deviation_value) < ZERO_THRESHOLD and was_above:
+          cycles += 1
+          was_above = False
+  ```
 
-| Metric | Formula & Explanation | Why It's Important |
-|---|---|---|
-| **Deviation (%)** | `((ratio - 1.0) / 1.0) * 100` <br> Measures deviation from price parity (1.0). A value of 0 means prices are equal. | This is the core indicator of an arbitrage opportunity. It directly shows the potential profit margin before fees. |
-| **Complete Opportunity Cycles** | A cycle is counted only when the deviation: <br> 1. Was above a threshold (e.g., 0.4%) <br> 2. And then **returned to the neutral zone** (`abs(deviation) < 0.05%`). <br><br> **Algorithm:** The `count_complete_cycles` function iterates through the data with a `was_above` flag. A cycle is counted when the `deviation` enters the neutral zone *after* the flag was set, preventing false positives from spreads that never close. | This is the most critical metric for traders as it counts **real, closeable opportunities**, filtering out periods where the price spread gets stuck. |
-| **Zero Crossings per Minute** | `(sign(dev) * sign(dev.shift(1)) < 0).sum() / duration_minutes` <br> Counts how often the deviation crosses the 0% mark, indicating a true sign flip. | A high value signifies strong, symmetric mean-reversion, which is the ideal characteristic of a stable arbitrage pair. |
-| **Deviation Asymmetry** | `mean(deviation)` <br> The average deviation over the period. | A value near 0 indicates symmetric oscillation. A high positive or negative value reveals a **directional bias**, making it risky to trade as the price may not return to zero. |
-| **`cycles_..._per_hour`** | `opportunity_cycles / duration_hours` <br> Normalizes the cycle count over time. | Allows for fair comparison of opportunity frequency between pairs, regardless of the analysis duration. |
-| **`pct_time_above_...`** | `mean(abs(deviation) > threshold) * 100` <br> Percentage of time the deviation was wider than the threshold. | Must be analyzed **together with cycle count**. High `pct_time` with low `cycles` indicates a stuck, untradeable spread. |
-| **`avg_cycle_duration_..._sec`** | `(total_time_above_threshold_sec) / opportunity_cycles` <br> Average duration of a single opportunity in seconds. | Helps estimate how quickly a position needs to be opened and closed. Short durations (<60s) are for bots; longer durations (1-5min) can be handled manually. |
-| **`pattern_break_...`** | A boolean flag that is `True` if the data series ends while the deviation is still above the threshold. | This can indicate a "regime change" or pattern breakdown, suggesting that the historical mean-reverting behavior may no longer hold. |
+### 2.2. `cycles_*_per_hour`
+- **Описание:** Нормализованное количество полных циклов в час. Позволяет сравнивать инструменты с разной длительностью исторических данных.
+- **Вычисление:** [`run_all_ultra.py:362`](analyzer/run_all_ultra.py:362)
+- **Логика:**
+  ```python
+  cycles_per_hour = opportunity_cycles / duration_hours
+  ```
+
+### 2.3. `pct_time_above_*`
+- **Описание:** Процент времени, в течение которого абсолютное значение отклонения находилось выше заданного порога. Показывает, как долго сохраняются торговые возможности.
+- **Вычисление:** [`run_all_ultra.py:335-339`](analyzer/run_all_ultra.py:335-339)
+- **Логика:**
+  ```python
+  pct_time_above = (pl.col('above_threshold_flag').mean() * 100)
+  ```
+
+### 2.4. `avg_cycle_duration_*_sec`
+- **Описание:** Средняя продолжительность времени (в секундах), в течение которого отклонение находилось выше порога в рамках одного полного цикла.
+- **Вычисление:** [`run_all_ultra.py:349`](analyzer/run_all_ultra.py:349)
+- **Логика:**
+  ```python
+  total_time_above_threshold_sec = duration_hours * (pct_time_above / 100) * 3600
+  avg_duration_sec = total_time_above_threshold_sec / opportunity_cycles
+  ```
+
+## 3. Метрики риска и состояния
+
+### 3.1. `pattern_break_*`
+- **Описание:** Логический флаг, который становится `True`, если на момент окончания данных абсолютное значение отклонения все еще находится выше порога. Это может указывать на "слом паттерна" — ситуацию, когда среднее реверсирование не произошло, и цена ушла в новом направлении.
+- **Вычисление:** [`run_all_ultra.py:356`](analyzer/run_all_ultra.py:356)
+- **Логика:**
+  ```python
+  last_deviation = abs(joined['deviation'][-1])
+  pattern_break = last_deviation > threshold
+  ```
+
+### 3.2. `max_deviation_pct` / `min_deviation_pct`
+- **Описание:** Максимальное и минимальное зафиксированное отклонение в процентах. Показывает экстремумы, достигнутые спредом.
+- **Вычисление:** [`run_all_ultra.py:236-237`](analyzer/run_all_ultra.py:236-237)
+- **Логика:**
+  ```python
+  max_deviation_pct = float(joined['deviation'].max())
+  min_deviation_pct = float(joined['deviation'].min())
+  ```
+
+## 4. Общие метрики
+
+- **`data_points`**: Общее количество точек данных после синхронизации (`join_asof`).
+- **`duration_hours`**: Общая продолжительность анализируемого периода в часах.

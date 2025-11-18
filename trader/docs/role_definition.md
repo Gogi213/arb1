@@ -70,3 +70,21 @@ No code is ever written or modified autonomously. Every change follows this stri
 - **Exchange APIs:**
     - **Bybit:** Intimate knowledge of the custom `BybitLowLatencyWs` client.
     - **Gate.io:** Proficiency with the `jkorf/GateIo.Net` library, particularly its WebSocket client.
+
+## 7. Project-Specific Context
+
+While sharing a common foundation with other HFT projects, the `trader` project has its own unique components and challenges. This role requires specific knowledge of the following:
+
+- **Core Components:**
+    - `TraderBot.Core.csproj`: The heart of the trading logic.
+    - `ConvergentTrader.cs`: Implementation of the primary, single-exchange trading strategy.
+    - `TrailingTrader.cs`: Core logic for placing trailing orders.
+    - `SpreadListener.cs`: Legacy component that listens for spread data from the `collections` project.
+
+- **Exchange Implementations:**
+    - `BybitExchange.cs` & `GateIoExchange.cs`: Concrete implementations of the `IExchange` interface, isolating core logic from exchange-specific details.
+
+- **Known Issues & Focus Areas:**
+    - **Order Value Calculation:** Deep understanding of issues like `ISSUE-001-bybit-order-value.md`, related to correct order value calculation on Bybit.
+    - **Market Sell Failures:** Analysis of problems such as `ISSUE-002-gateio-market-sell-fail.md` on Gate.io.
+    - **Balance Synchronization:** Ensuring accurate tracking and synchronization of asset balances across exchanges is a critical ongoing task.

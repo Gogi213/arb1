@@ -13,7 +13,7 @@ This system is designed for cryptocurrency market analysis and automated trading
     *   **Data Ingestion:** Establishes real-time WebSocket connections to multiple exchanges (e.g., Binance, Bybit, Gate.io) to subscribe to price and trade streams.
     *   **Real-time Broadcasting:** Calculates arbitrage spreads and streams this data via a WebSocket server (`ws://localhost:5000/ws/realtime_charts`). This serves as a data source for other components.
     *   **Historical Persistence:** Asynchronously writes raw market data to a data lake (`/data/market_data`) in Parquet format. This data is intended for offline analysis.
-*   **Architectural Note:** The project contains a known "competing consumers" flaw, which results in the persisted Parquet files being incomplete.
+*   **Architectural Note:** The project **previously** contained a "competing consumers" flaw. This has been **fixed** by creating separate, independent data channels for each consumer, ensuring that both the real-time analysis and the data persistence services receive 100% of the data.
 
 ### 1.2. `trader` (The Execution Engine)
 
@@ -44,28 +44,52 @@ The system has two main data flows that correspond to its real-time and analytic
 
 ```mermaid
 graph TD
-    subgraph Real-Time Analysis & Passive Listening
-        A[Exchange APIs] --> B(collections);
-        B -- (1) Real-time Spreads [WebSocket] --> C(trader - Legacy Mode);
-        C --> D((Listens, No Trades));
+    subgraph "Data Sources"
+        A[Exchange APIs]
     end
 
-    subgraph Active Trading
-        E[Exchange APIs] --> F(trader - Convergent Mode);
-        F --> G((Executes Trades));
+    subgraph "Data Hub: `collections`"
+        B(OrchestrationService)
+        C[WebSocket Server]
+        D[RawDataChannel]
+        E[RollingWindowChannel]
+        F(DataCollectorService)
     end
 
-    subgraph Offline Analysis
-        B -- (2) Historical Data [Incomplete Parquet Files] --> H(analyzer);
-        H -- (3) CSV Reports --> I(Human Operator);
+    subgraph "Execution Engine: `trader`"
+        G(Convergent Trader Mode)
+        H(Legacy Listener Mode)
     end
 
-    I -- Configures --> F;
+    subgraph "Offline Analysis: `analyzer`"
+        I(Python Scripts)
+        J[CSV Reports]
+    end
 
-    style C fill:#f9f,stroke:#333,stroke-width:2px
-    style G fill:#9cf,stroke:#333,stroke-width:2px
+    subgraph "End User/Operator"
+        K(Human Operator)
+        L(Dashboard UI)
+    end
+
+    A --> B;
+    B -- Real-time Spreads --> C;
+    C --> L;
+    C --> H;
+    B --> D;
+    B --> E;
+    D --> F -- "Writes" --> M[Parquet Data Lake];
+    
+    M -- "Reads" --> I;
+    I --> J;
+    J --> K;
+    K -- "Configures & Runs" --> G;
+    A --> G;
+
+    style F fill:#cde,stroke:#333
+    style I fill:#f9f,stroke:#333
+    style G fill:#9cf,stroke:#333
 ```
 
 1.  **Real-Time Passive Flow (`collections` -> `trader` Legacy Mode):** `collections` streams calculated spreads. The `trader`'s legacy mode can connect to this stream to listen, but it does not act on the data.
-2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` persists historical data to disk. `analyzer` periodically reads this data for deep statistical analysis.
+2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` persists **complete** historical data to disk. `analyzer` periodically reads this data for deep statistical analysis.
 3.  **Strategic Flow (`analyzer` -> Human -> `trader` Active Mode):** The output from `analyzer` (CSV reports) is consumed by a human operator, who uses the insights to configure and run the active `ConvergentTrader` mode of the `trader` project. Note the clear separation: the active trading loop is independent of the `collections` project.

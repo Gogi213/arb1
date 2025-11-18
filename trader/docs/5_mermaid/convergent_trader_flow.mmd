@@ -1,20 +1,21 @@
 graph TD
-    subgraph Initialization
-        A[Start App with 'bybit' or 'gate' arg] --> B(Load ExchangeConfig from appsettings.json)
-        B --> C(Initialize IExchange Implementation e.g., BybitExchange)
-        C --> D(Initialize ConvergentTrader with IExchange)
+    subgraph "1. Startup"
+        A[Start with 'bybit' or 'gate' arg] --> B{RunManualConvergentTrader};
+        B --> C[Instantiate IExchange];
+        C --> D[Instantiate ConvergentTrader];
     end
 
-    subgraph "Execution Loop (RunManualConvergentTrader)"
-        D --> E(Start ConvergentTrader)
-        E --> F(Cancel All Open Orders)
-        F --> G(Delegate to TrailingTrader to place BUY order)
-        G --> H{Wait for Buy Order Fill event}
-        H --> I(Handle Buy Fill: Record Quantity)
-        I --> J(Wait for Balance Update Confirmation via WebSocket)
-        J --> K(Wait for 5-second Hardcoded Delay)
-        K --> L(Place Market SELL Order for entire available balance)
-        L --> M(Assume Sell Order Fills after 1s Delay)
-        M --> N(Estimate P&L)
-        N --> O[Cycle Complete]
+    subgraph "2. Trading Cycle (ConvergentTrader)"
+        D --> E{StartAsync};
+        E --> F[Cancel Open Orders];
+        F --> G[Start TrailingTrader for BUY];
+        G --> H{OnOrderFilled (BUY)};
+        H --> I[Wait for Balance Update];
+        I --> J[Wait 5 seconds];
+        J --> K[Place Market SELL Order];
+        K --> L{Assume Sell Fill};
+        L --> M[Cycle Complete];
     end
+
+    style G fill:#cde,stroke:#333,stroke-width:2px
+    style K fill:#f99,stroke:#333,stroke-width:2px

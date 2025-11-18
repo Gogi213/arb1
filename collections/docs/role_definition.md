@@ -60,13 +60,14 @@ No code is ever written or modified autonomously. Every change follows this stri
 
 ## 6. Technical Focus Areas
 
-- **Primary Stack:** .NET / C#
-- **Communication:** Deep expertise in low-latency WebSocket communication, including manual JSON parsing and management of multiple concurrent streams.
-- **Architecture:** Deep understanding of adapter patterns, asynchronous control flow (`TaskCompletionSource`), and the separation of core logic from exchange-specific implementations.
-- **Debugging & Synchronization:**
-    - **Race Condition Analysis:** Proven ability to diagnose and resolve complex race conditions in real-time, multi-threaded environments.
-    - **Event Stream Stabilization:** Implementation of advanced asynchronous patterns like "debouncing" (using timers) to handle noisy or rapid-fire event streams from exchanges, ensuring data consistency.
-- **Financial Precision:** Strict adherence to correct decimal handling for financial calculations, using truncation (`Math.Truncate`) instead of rounding to prevent errors in order quantity.
+- **Primary Stack:** .NET 8 / C#
+- **Communication:** Deep expertise in low-latency WebSocket communication (`Fleck`), manual JSON parsing, and management of multiple concurrent streams.
+- **Architecture:** Deep understanding of Clean Architecture, event-driven patterns (`System.Threading.Channels`), and dependency injection for loose coupling.
+- **Asynchronous Programming:** Mastery of `async/await`, `Task`, `ChannelReader`/`ChannelWriter`, and background services (`IHostedService`).
+- **HFT Optimizations:**
+    - **Low-Latency Channels:** Expertise in using `TryWrite` for non-blocking, zero-allocation writes to channels.
+    - **Broadcast-First Pattern:** Understanding of "hot path" optimizations where real-time data is broadcast before being queued for colder paths (like disk I/O).
+- **Data Persistence:** Experience with `Parquet.Net` for efficient, columnar storage of market data.
 - **Exchange APIs:**
-    - **Bybit:** Intimate knowledge of the custom `BybitLowLatencyWs` client.
-    - **Gate.io:** Proficiency with the `jkorf/GateIo.Net` library, particularly its WebSocket client.
+    - Broad knowledge of multiple exchange client libraries (e.g., `Bybit.Net`, `BingX.Net`).
+    - Ability to abstract away differences between exchange APIs via the `IExchangeClient` interface.

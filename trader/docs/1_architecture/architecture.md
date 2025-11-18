@@ -13,9 +13,35 @@ The application has two primary modes of operation, determined by command-line a
 
 This section describes the active and operational trading strategy within the `Trader` project. It represents a simplified and more reliable approach, focusing on a single-exchange, buy-then-sell cycle.
 
+### Diagram
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f0f0f0', 'edgeLabelBackground':'#f0f0f0', 'clusterBkg': '#f0f0f0'}}}%%
+graph TD
+    subgraph "1. Startup"
+        A[Start with 'bybit' or 'gate' arg] --> B{RunManualConvergentTrader};
+        B --> C[Instantiate IExchange];
+        C --> D[Instantiate ConvergentTrader];
+    end
+
+    subgraph "2. Trading Cycle (ConvergentTrader)"
+        D --> E{StartAsync};
+        E --> F[Cancel Open Orders];
+        F --> G[Start TrailingTrader for BUY];
+        G --> H{OnOrderFilled (BUY)};
+        H --> I[Wait for Balance Update];
+        I --> J[Wait 5 seconds];
+        J --> K[Place Market SELL Order];
+        K --> L{Assume Sell Fill};
+        L --> M[Cycle Complete];
+    end
+
+    style G fill:#cde,stroke:#333,stroke-width:2px
+    style K fill:#f99,stroke:#333,stroke-width:2px
+```
+
 ### 2.1. Entry Point & Control Flow
 
-*   **`Host/Program.cs`**: The application's entry point. When started with `bybit` or `gate` arguments, it executes the `RunManualConvergentTrader()` method.
+*   **[`Host/Program.cs:14`](trader/src/Host/Program.cs:14)**: The application's entry point. When started with `bybit` or `gate` arguments, it executes the `RunManualConvergentTrader()` method.
 *   **`RunManualConvergentTrader()`**:
     1.  Reads the relevant exchange configuration from `appsettings.json`.
     2.  Instantiates the correct `IExchange` implementation (`BybitExchange` or `GateIoExchange`).
@@ -26,7 +52,7 @@ This section describes the active and operational trading strategy within the `T
 
 The `ConvergentTrader` is the heart of the current strategy.
 
-*   **`Core/ConvergentTrader.cs`**:
+*   **[`Core/ConvergentTrader.cs`](trader/src/Core/ConvergentTrader.cs)**:
     *   **Responsibility:** Manages the entire buy-wait-sell cycle on a single exchange.
     *   **State Flow:**
         1.  **Start:** Cancels any open orders for the target symbol and subscribes to balance updates. It then uses a `TrailingTrader` to execute the initial "buy" order.
@@ -34,7 +60,7 @@ The `ConvergentTrader` is the heart of the current strategy.
         3.  **Wait and Sell:** After a hardcoded 5-second delay, it places a market "sell" order for the entire acquired quantity of the asset.
         4.  **Complete:** Assumes the market sell order fills immediately and completes the cycle.
 
-*   **`Core/IExchange.cs`**:
+*   **[`Core/IExchange.cs`](trader/src/Core/IExchange.cs)**:
     *   **Responsibility:** A key abstraction (Adapter pattern) that defines a universal contract for all exchange-specific implementations. It allows `ConvergentTrader` to interact with different exchanges without knowing their specific API details.
 
 *   **`Exchanges/`**:
@@ -52,13 +78,44 @@ The `ConvergentTrader` is the heart of the current strategy.
 
 This section describes the initial implementation of the `Trader` project, which is no longer the active trading strategy but remains the default execution path if the application is started without arguments.
 
+### Diagram
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f0f0f0', 'edgeLabelBackground':'#f0f0f0', 'clusterBkg': '#f0f0f0'}}}%%
+graph TD
+    subgraph "1. Setup (No CLI Args)"
+        A[Start Application] --> B{Instantiate SpreadListener};
+        B --> C{Instantiate DecisionMaker};
+        C --> D[DecisionMaker subscribes to Listener];
+    end
+
+    subgraph "2. Spread Detection (SpreadListener)"
+        D --> E[Connect to SpreadAggregator WS];
+        E --> F{Receive SpreadData};
+        F -- Spread > Threshold --> G[Fire OnProfitableSpreadDetected];
+    end
+
+    subgraph "3. Decision (DecisionMaker)"
+        G --> H{HandleProfitableSpread};
+        H --> I{Check _isCycleInProgress flag};
+        I -- "false" --> J[Log opportunity];
+        J --> K[Set _isCycleInProgress = true];
+        I -- "true" --> L[Ignore signal];
+    end
+
+    subgraph "4. Execution (Not Implemented)"
+        K --> M(TODO: Start ArbitrageTrader);
+    end
+
+    style M fill:#f00,stroke:#333,stroke-width:4px
+```
+
 ### 3.1. Overview
 
 The legacy system was designed to listen for arbitrage opportunities between two exchanges, as identified by the `SpreadAggregator` project. However, the component responsible for acting on these opportunities (`DecisionMaker`) was never fully implemented to execute trades.
 
 ### 3.2. Entry Point & Control Flow
 
-*   **`Host/Program.cs`**: If no command-line arguments are provided, the application falls back to this mode.
+*   **[`Host/Program.cs:34`](trader/src/Host/Program.cs:34)**: If no command-line arguments are provided, the application falls back to this mode.
     1.  It reads the `SpreadListenerUrl` from `appsettings.json`.
     2.  It initializes the `SpreadListener` and the `DecisionMaker`.
     3.  The `DecisionMaker` subscribes to events from the `SpreadListener`.
@@ -66,11 +123,11 @@ The legacy system was designed to listen for arbitrage opportunities between two
 
 ### 3.3. Core Components
 
-*   **`Core/SpreadListener.cs`**:
+*   **[`Core/SpreadListener.cs`](trader/src/Core/SpreadListener.cs)**:
     *   **Responsibility:** Connects to the `SpreadAggregator` WebSocket server.
     *   **Logic:** It listens for incoming spread data. If a spread exceeds a predefined threshold, it fires an `OnProfitableSpreadDetected` event.
 
-*   **`Core/DecisionMaker.cs`**:
+*   **[`Core/DecisionMaker.cs`](trader/src/Core/DecisionMaker.cs)**:
     *   **Responsibility:** Subscribes to the `OnProfitableSpreadDetected` event.
     *   **State:** This is a **placeholder implementation**. It logs that a profitable spread was detected and uses a simple flag (`_isCycleInProgress`) to avoid logging concurrent events.
     *   **Crucially, it does not contain any logic to start a trader or execute any orders.** The `TODO` comments in the code confirm its incomplete status.

@@ -3,6 +3,32 @@
 
 This document outlines the dependencies between the three main projects: `collections`, `trader`, and `analyzer`.
 
+```mermaid
+graph TD
+    subgraph "trader"
+        A(Convergent Trader)
+        B(Legacy Listener)
+    end
+    subgraph "collections"
+        C(SpreadAggregator)
+    end
+    subgraph "analyzer"
+        D(Python Scripts)
+    end
+    subgraph "Data & Artifacts"
+        E[Parquet Data Lake]
+        F[CSV Reports]
+        G[WebSocket Stream]
+    end
+
+    C -- "Writes to" --> E;
+    C -- "Broadcasts to" --> G;
+    B -- "Listens to" --> G;
+    D -- "Reads from" --> E;
+    D -- "Produces" --> F;
+    A -- "Configured by" --> F;
+```
+
 ## 1. `trader` Dependencies
 
 The `trader` project has conditional dependencies based on its mode of operation.

@@ -1,41 +1,40 @@
-```mermaid
 graph TD
-    subgraph "Input: Exchange WebSockets"
-        A[Exchange WS Streams]
+    subgraph "1. Initialization"
+        A[Start Application] --> B{ConfigureServices};
+        B --> C[Start IHostedServices];
     end
 
-    subgraph "Layer: Infrastructure (Clients)"
-        B(Exchange Clients)
-        A --> B
+    subgraph "2. Orchestration (OrchestrationService)"
+        C --> D{StartAsync};
+        D --> E[Get Exchange Configs];
+        E --> F{Loop through Exchanges};
+        F --> G(ProcessExchange per exchange);
     end
 
-    subgraph "Layer: Application (Orchestration)"
-        B -- "Callback with raw data" --> C{OrchestrationService};
-        C -- "Calculates Spread" --> C;
+    subgraph "3. Exchange Processing (ProcessExchange)"
+        G --> H[Get Symbols & Tickers];
+        H --> I{Filter Symbols by Volume};
+        I --> J[SubscribeToTickersAsync];
+        J --> K[SubscribeToTradesAsync];
     end
 
-    subgraph "Output 1: Real-time Broadcast"
-        C -- "Direct Call: Send(data)" --> D[WebSocket Server];
-        D --> E[Connected Clients];
+    subgraph "4. Real-time Data Handling (Callback)"
+        J --> L{On SpreadData Received};
+        K --> L;
+        L --> M[Normalize Symbol];
+        M --> N[Calculate Spread%];
+        N --> O(HOT PATH: Broadcast to WebSocket);
+        N --> P(COLD PATH: Write to Channels);
     end
 
-    subgraph "Output 2: Flawed Background Processing"
-        C -- "Channel.Writer.Write(data) x2" --> F((Shared BoundedChannel));
-        F -- "Competing Consumer 1" --> G[DataCollectorService];
-        F -- "Competing Consumer 2" --> H[RollingWindowService];
-        G --> I[Parquet Files on Disk];
-        H --> J[In-Memory Window Analysis];
+    subgraph "5. Data Consumption (Parallel)"
+        P -- "RawDataChannel" --> Q[DataCollectorService];
+        Q --> R[ParquetDataWriter];
+        R --> S[Save to .parquet file];
+
+        P -- "RollingWindowChannel" --> T[RollingWindowService];
+        T --> U[Real-time Analysis];
     end
 
-    subgraph "Legend"
-        direction LR
-        L1[Flaw 1: OrchestrationService writes every message twice to the same channel.]
-        L2[Flaw 2: DataCollectorService and RollingWindowService compete for messages, each getting an incomplete stream.]
-    end
-
-
-    style C fill:#bbf,stroke:#333,stroke-width:2px
-    style F fill:#d63031,stroke:#333,stroke-width:2px
-    style L1 fill:#ffadad,stroke:#333,stroke-width:1px
-    style L2 fill:#ffadad,stroke:#333,stroke-width:1px
-```
+    style O fill:#ff9999,stroke:#333,stroke-width:2px
+    style P fill:#99ccff,stroke:#333,stroke-width:2px

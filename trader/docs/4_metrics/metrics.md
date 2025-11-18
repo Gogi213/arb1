@@ -1,100 +1,64 @@
-# Trader Project: Key Performance Metrics
-**Version:** 4.0 (Validated on 2025-11-18)
+# Ключевые метрики и состояния в проекте Trader
 
-This document describes the key performance and diagnostic metrics for the `Trader` project. It covers both the intended metrics for the now-deprecated two-legged arbitrage strategy and the actively collected metrics for the `ConvergentTrader` MVP.
+Этот документ описывает основные состояния и события, которые отслеживаются и логируются в приложении `Trader`, особенно в рамках активной стратегии `ConvergentTrader`.
 
-## 1. Legacy Metrics (Deprecated Arbitrage Strategy)
+## 1. Состояния цикла `ConvergentTrader`
 
-These metrics were intended for the two-legged arbitrage strategy (`ArbitrageTrader`), which is **no longer actively used or generating these metrics**. They are documented here for historical context and to illustrate the focus on low-latency, cross-exchange operations of the original design.
+`ConvergentTrader` представляет собой конечный автомат. Ключевые состояния и переходы между ними логируются для отладки и анализа.
 
-### 1.1. Core Detection Metric (Legacy)
+### 1.1. `ArbitrageCycleState`
+**Файл:** [`ArbitrageCycleState.cs`](trader/src/Core/ArbitrageCycleState.cs)
 
-*   **Name:** Profitable Spread Threshold
-*   **Location:** `SpreadListener.cs`
-*   **Value:** Hardcoded as `0.25%`.
-*   **Description:** The `OnProfitableSpreadDetected` event was fired if the spread percentage received from the `SpreadAggregator` exceeded this value. This was the entry trigger for the intended two-legged trading cycle.
+Это класс, который отслеживает состояние одного полного торгового цикла.
 
-### 1.2. Legacy Latency and Performance Metrics (Intended for Deprecated ArbitrageTrader)
+**Ключевые поля (метрики):**
+- `CurrentState` (Enum): Текущее состояние цикла (например, `WaitingForBuyOrderFill`, `WaitingForSellOrderFill`).
+- `EntryPrice` (decimal): Средняя цена исполненного ордера на покупку.
+- `ExitPrice` (decimal): Средняя цена исполненного ордера на продажу.
+- `BuyOrderQuantity` (decimal): Объем исполненного ордера на покупку.
+- `SellOrderQuantity` (decimal): Объем исполненного ордера на продажу.
+- `InitialBalance` (decimal): Баланс котируемой валюты (например, USDT) до начала цикла.
+- `FinalBalance` (decimal): Баланс котируемой валюты после завершения цикла.
+- `Profit` (decimal): Расчетная прибыль (`FinalBalance - InitialBalance`).
 
-These metrics were planned to be logged throughout the `ArbitrageTrader` lifecycle and were essential for evaluating the system's performance in a high-frequency arbitrage context. They were intended to be logged via `FileLogger.LogOther()` and `FileLogger.LogWebsocket()`, but are **not currently being generated** by the application's active `ConvergentTrader`.
+### 1.2. Логируемые события
+**Файл:** [`FileLogger.cs`](trader/src/Core/FileLogger.cs)
 
-*   **WebSocket Propagation Delay (WS Latency):**
-    *   **Description:** The time elapsed between an event occurring on the exchange's server and the event being received and processed by the application's handler.
-    *   **Calculation:** `(Local_Event_Handler_Entry_Time - Server_Side_Event_Timestamp)`
-    *   **Importance:** Measured the speed of the WebSocket connection and the exchange's infrastructure, critical for cross-exchange arbitrage.
+Все важные события в жизненном цикле трейдера записываются в текстовые логи. Эти логи являются основным источником данных для анализа производительности и отладки.
 
-*   **API Command Latency:**
-    *   **Description:** The time taken to execute a specific low-latency WebSocket command (e.g., `PlaceMarketOrderAsync`).
-    *   **Calculation:** Time measured immediately before and after the `await` call.
-    *   **Importance:** Measured the round-trip time for commands, crucial for fast order execution across exchanges.
+**Примеры ключевых сообщений:**
+- `Initializing {ExchangeName} trader...`
+- `Starting manual ConvergentTrader with amount: {amount} for {symbol}`
+- `Placing trailing BUY order...`
+- `BUY order filled. Avg price: {price}, Quantity: {qty}`
+- `Waiting for balance update...`
+- `Balance confirmed. Waiting 5s before sell.`
+- `Placing market SELL order for quantity: {qty}`
+- `SELL order assumed filled. Estimated proceeds: {proceeds}`
+- `ConvergentTrader completed with result: {result}`
 
-*   **End-to-End (E2E) Server Latency:**
-    *   **Description:** The total time elapsed from the server-side confirmation of the "buy" leg fill to the server-side confirmation of the "sell" leg fill.
-    *   **Calculation:** `(Sell_Fill_Server_Timestamp - Buy_Fill_Server_Timestamp)`
-    *   **Importance:** The most critical metric for arbitrage, representing market exposure time.
+## 2. Метрики `SpreadListener` (Legacy)
 
-*   **End-to-End (E2E) Local Latency:**
-    *   **Description:** The total time elapsed from the moment the application's "buy" fill handler was entered to the moment the "sell" fill confirmation handler was entered.
-    *   **Calculation:** `(Sell_Confirmation_Handler_Entry_Time - Buy_Fill_Handler_Entry_Time)`
-    *   **Importance:** Measured the total processing time of the application's internal state machine.
+Эти метрики относятся к устаревшей части системы, которая только слушает, но не торгует.
 
-### 1.3. Legacy Financial Metrics (Post-Cycle)
+### 2.1. `OnProfitableSpreadDetected`
+**Файл:** [`SpreadListener.cs`](trader/src/Core/SpreadListener.cs)
 
-*   **USDT Proceeds:**
-    *   **Description:** The total amount of quote currency (e.g., USDT) received from the "sell" leg of the trade.
-    *   **Source:** Extracted from the `CumulativeQuoteQuantity` field of the filled sell order update.
-    *   **Importance:** Primary output of a successful trade cycle, used for calculating final Profit and Loss (P&L) in the arbitrage context.
+Это событие генерируется, когда `SpreadListener` обнаруживает спред, превышающий заданный порог.
 
----
+**Ключевые данные события:**
+- `SpreadData` (объект): Содержит полную информацию о спреде, включая:
+  - `Exchange`
+  - `Symbol`
+  - `BestBid`, `BestAsk`
+  - `SpreadPercentage`
 
-## 2. Current Metrics (Convergent Trader)
+### 2.2. Логируемые события `DecisionMaker`
+**Файл:** [`DecisionMaker.cs`](trader/src/Core/DecisionMaker.cs)
 
-These metrics are actively collected and relevant to the performance and analysis of the `ConvergentTrader` strategy.
+`DecisionMaker` логирует обнаружение прибыльного спреда, но не предпринимает никаких действий.
 
-### 2.1. Trade Cycle Performance Metrics
+**Ключевое сообщение:**
+- `Profitable spread detected: {e.Exchange1} -> {e.Exchange2} for {e.Symbol}. Spread: {e.SpreadPercentage:F4}%`
 
-*   **Profit and Loss (P&L) per Cycle (Estimated):**
-    *   **Description:** The net profit or loss generated by a single complete buy-then-sell cycle of the `ConvergentTrader`. **Currently, this is an internal estimate** (`sellQuantity * 0.98m`) and does not reflect actual exchange fill prices or fees.
-    *   **Calculation (Current Estimate):** `(Estimated_Sell_Proceeds - Estimated_Buy_Cost)`
-    *   **Importance:** The fundamental measure of strategy profitability, **but currently serves as a preliminary indicator due to its estimated nature.**
-
-*   **Win Rate (Based on Estimated P&L):**
-    *   **Description:** The percentage of `ConvergentTrader` cycles that result in a positive P&L. **This is currently based on the estimated P&L.**
-    *   **Calculation:** `(Number_of_Profitable_Cycles / Total_Number_of_Cycles) * 100`
-    *   **Importance:** Indicates the consistency and reliability of the strategy, **with the caveat of relying on estimated P&L.**
-
-*   **Average Trade Duration:**
-    *   **Description:** The average time taken from the initiation of a buy order to the completion of the corresponding sell order.
-    *   **Calculation:** `Average(Sell_Timestamp - Buy_Timestamp) for all cycles`
-    *   **Importance:** Helps understand the speed of execution and the time assets are held.
-
-*   **Entry Price:**
-    *   **Description:** The average price at which the asset was acquired in a `ConvergentTrader` buy order.
-    *   **Importance:** Crucial for P&L calculation and analyzing entry point effectiveness.
-
-*   **Exit Price:**
-    *   **Description:** The average price at which the asset was sold in a `ConvergentTrader` sell order.
-    *   **Importance:** Crucial for P&L calculation and analyzing exit point effectiveness.
-
-*   **Slippage (Buy/Sell):**
-    *   **Description:** The difference between the expected price of a trade and the actual executed price. Can be measured for both buy and sell orders.
-    *   **Calculation:** `(Expected_Price - Actual_Executed_Price)`
-    *   **Importance:** High slippage can significantly erode profitability, especially for market orders.
-
-*   **Total Fees:**
-    *   **Description:** The sum of all trading fees incurred (maker/taker) for a complete buy-then-sell cycle.
-    *   **Importance:** Directly impacts net P&L.
-
-### 2.2. Operational Metrics
-
-*   **Cycle Completion Rate:**
-    *   **Description:** The percentage of initiated `ConvergentTrader` cycles that complete successfully without errors or partial fills.
-    *   **Importance:** Indicates the robustness and error handling of the trader.
-
-*   **Error Rate:**
-    *   **Description:** The frequency of errors encountered during `ConvergentTrader` operations (e.g., order placement failures, API disconnections).
-    *   **Importance:** Critical for system stability and reliability.
-
-*   **Uptime:**
-    *   **Description:** The total time the `ConvergentTrader` application is running without interruption.
-    *   **Importance:** Essential for any continuous trading operation.
+Эти логи подтверждают, что система видит возможности, даже если не торгует по ним.

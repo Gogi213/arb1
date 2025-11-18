@@ -1,88 +1,452 @@
-# Detailed Process Flow of the Analyzer (`run_all_ultra.py`)
+# Детальный процесс выполнения Analyzer (`run_all_ultra.py`)
 
-This document describes the step-by-step process flow of the `run_all_ultra.py` script, which is designed for analyzing arbitrage opportunities.
+Этот документ описывает пошаговый процесс выполнения скрипта `run_all_ultra.py`, предназначенного для анализа арбитражных возможностей. Обновлено: 2025-11-19
 
-## Step 1: Initialization and Argument Parsing
+## Визуализация процесса
 
-The process begins in the `if __name__ == "__main__":` block.
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f0f0f0', 'edgeLabelBackground':'#f0f0f0', 'clusterBkg': '#f0f0f0'}}}%%
+graph TD
+    subgraph "Шаг 1: Инициализация"
+        A[Start] --> B{Парсинг аргументов CLI};
+        B --> C[run_ultra_fast_analysis];
+    end
 
-1.  **`argparse` Parser:** An argument parser is created for command-line inputs. It defines the following parameters:
-    *   `--data-path`: The path to the data directory.
-    *   `--exchanges`: A list of exchanges to analyze.
-    *   `--workers`: The number of parallel processes.
-    *   `--date`, `--start-date`, `--end-date`, `--today`: Parameters for filtering data by date.
-    *   `--thresholds`: Deviation thresholds for the analysis.
+    subgraph "Шаг 2: Оркестрация"
+        C --> D{discover_data};
+        D --> E{Фильтрация символов};
+        E --> F[Формирование задач (1 задача/символ)];
+        F --> G[multiprocessing.Pool];
+    end
 
-2.  **Date Handling:** The script determines the date range for analysis based on the `--today`, `--date`, `--start-date`, and `--end-date` arguments.
+    subgraph "Шаг 3: Параллельная обработка (внутри Pool)"
+        G --> H(analyze_symbol_batch);
+        H --> I{ThreadPoolExecutor};
+        I --> J[load_exchange_symbol_data];
+        J --> K[scan_parquet];
+        K --> L[DataFrame в памяти];
+        L --> M{Анализ всех пар};
+        M --> N(analyze_pair_fast);
+    end
 
-3.  **Main Function Call:** The primary function, `run_ultra_fast_analysis`, is called with the parsed parameters.
+    subgraph "Шаг 4: Анализ пары (analyze_pair_fast)"
+        N --> O[join_asof];
+        O --> P[Расчет ratio/deviation];
+        P --> Q[Расчет zero_crossings];
+        Q --> R[count_complete_cycles];
+        R --> S[Сбор всех метрик];
+    end
 
-## Step 2: `run_ultra_fast_analysis` - Analysis Orchestration
+    subgraph "Шаг 5: Завершение"
+        S --> T{Сбор результатов из Pool};
+        T --> U[Формирование итогового DataFrame];
+        U --> V[Сортировка и вывод в консоль];
+        V --> W[Сохранение в CSV];
+        W --> X[End];
+    end
 
-This function serves as the main orchestrator for the entire process.
+    style H fill:#f9f,stroke:#333,stroke-width:2px
+    style N fill:#ccf,stroke:#333,stroke-width:2px
+```
 
-1.  **Data Discovery (`discover_data`):**
-    *   **Input:** The data path (`data_path`).
-    *   **Logic:** The function scans the specified directory, finding all `exchange=*` and `symbol=*` subfolders. It creates a `defaultdict(set)` where the key is the symbol name (e.g., `BTC/USDT`) and the value is a set of exchanges where it trades.
-    *   **Output:** Returns a `symbols_to_analyze` dictionary containing only the symbols that trade on at least two exchanges.
+## Шаг 1: Инициализация и парсинг аргументов
 
-2.  **Exchange Filtering:** If the `--exchanges` argument was provided, the `symbols_to_analyze` dictionary is filtered to keep only symbols that trade on at least two of the *specified* exchanges.
+**Файл:** [`run_all_ultra.py:595`](analyzer/run_all_ultra.py:595)
 
-3.  **Task Formation:**
-    *   The script iterates through the filtered `symbols_to_analyze` dictionary.
-    *   For each symbol, a task is created as a tuple: `(symbol, list(exchanges), DATA_PATH, start_date, end_date, thresholds)`.
-    *   **Key Optimization:** A single task is created per *symbol*, not per *exchange pair*. This avoids redundant data loading.
+Процесс начинается в блоке `if __name__ == "__main__":` с инициализации `argparse` парсера.
 
-4.  **Parallel Execution (`multiprocessing.Pool`):**
-    *   A pool of worker processes is created. The number of workers is either taken from the `--workers` argument or defaults to `cpu_count() * 3`.
-    *   The tasks (a list of tuples) are passed to `pool.imap_unordered(analyze_symbol_batch, tasks)`. `imap_unordered` is used to get results as they are completed, improving responsiveness.
+### 1.1. Определение параметров командной строки
+```python
+parser = argparse.ArgumentParser(...)
+parser.add_argument("--data-path", type=str, default="data/market_data")
+parser.add_argument("--exchanges", type=str, nargs='+', default=None)
+parser.add_argument("--workers", type=int, default=None)
+parser.add_argument("--date", type=str, default=None)
+parser.add_argument("--start-date", type=str, default=None)
+parser.add_argument("--end-date", type=str, default=None)
+parser.add_argument("--thresholds", type=float, nargs=3, default=[0.3, 0.5, 0.4])
+parser.add_argument("--today", action="store_true")
+```
 
-5.  **Result Processing and Aggregation:**
-    *   The results from the workers are iterated over. Each result is a list of dictionaries, one for each exchange pair of a given symbol.
-    *   Statistics from successful results (`status == "SUCCESS"`) are collected into a single `all_stats` list.
-    *   Processing progress is printed to the console.
+### 1.2. Обработка флагов дат
+```python
+# Обработка --today flag
+if args.today:
+    today_str = date.today().strftime('%Y-%m-%d')
+    start_date = today_str
+    end_date = today_str
+# Обработка --date shortcut  
+elif args.date:
+    start_date = args.date
+    end_date = args.date
+else:
+    start_date = args.start_date
+    end_date = args.end_date
+```
 
-6.  **Saving and Displaying Statistics:**
-    *   If `all_stats` is not empty, it is converted into a `polars.DataFrame`.
-    *   The DataFrame is sorted by `zero_crossings_per_minute` (mean reversion frequency).
-    *   The results are saved to a CSV file in the `analyzer/summary_stats/` directory with a unique, timestamp-based name.
-    *   Two "Top 10" tables are printed to the console: one sorted by mean reversion frequency and the other by the number of complete arbitrage cycles.
+### 1.3. Валидация входных данных
+```python
+# Базовая валидация формата дат
+for date_str, name in [(start_date, "start-date"), (end_date, "end-date")]:
+    if date_str:
+        datetime.strptime(date_str, '%Y-%m-%d')
+```
 
-## Step 3: `analyze_symbol_batch` - Processing a Single Symbol
+### 1.4. Запуск основного анализа
+Вызов `run_ultra_fast_analysis` с распарсенными параметрами.
 
-This function runs in a separate process and is responsible for analyzing one symbol across all its available exchanges.
+## Шаг 2: `run_ultra_fast_analysis` - Оркестрация анализа
 
-1.  **Parallel Data Loading (`ThreadPoolExecutor`):**
-    *   **Input:** `symbol`, `exchanges`, `data_path`, `start_date`, `end_date`.
-    *   **Logic:** For each exchange in the `exchanges` list, a `load_exchange_symbol_data` task is submitted to a `ThreadPoolExecutor`. This allows for the simultaneous loading of data from different exchanges for the same symbol.
-    *   **Output:** An `exchange_data` dictionary where the key is the exchange name and the value is a `polars.DataFrame` of its data.
+**Файл:** [`run_all_ultra.py:430`](analyzer/run_all_ultra.py:430)
 
-2.  **Pair Analysis:**
-    *   A list of all possible two-exchange combinations is created using `itertools.combinations`.
-    *   For each exchange pair (`ex1`, `ex2`), the `analyze_pair_fast` function is called.
-    *   **Key Optimization:** The data (`exchange_data[ex1]`, `exchange_data[ex2]`) is passed directly. It is already loaded in memory and does not require re-reading from disk.
+Главная функция-оркестратор всего процесса.
 
-3.  **Result Formation:** The function returns a list of dictionaries, each containing `symbol`, `ex1`, `ex2`, `status`, and `stats` (the result from `analyze_pair_fast`).
+### 2.1. Отображение информации о фильтрации
+```python
+if start_date or end_date:
+    if start_date and end_date:
+        print(f"\n>>> Filtering data: {start_date} to {end_date} <<<")
+    elif start_date:
+        print(f"\n>>> Filtering data: from {start_date} onwards <<<")
+    else:
+        print(f"\n>>> Filtering data: up to {end_date} <<<")
+else:
+    print("\n>>> Analyzing ALL available data <<<")
+```
 
-## Step 4: `load_exchange_symbol_data` - Loading Data from Disk
+### 2.2. Обнаружение данных (`discover_data`)
+**Файл:** [`run_all_ultra.py:400`](analyzer/run_all_ultra.py:400)
 
-1.  **Path Discovery:** The function constructs the path to the data, checking two symbol name formats (e.g., `BTC/USDT` and `BTCUSDT`).
-2.  **Date-based File Filtering:** If a date range is specified, the function scans the `date=*` directories and selects only those within the range before reading any files.
-3.  **Parquet Reading (`pl.scan_parquet`):**
-    *   **Key Optimization:** It uses `scan_parquet` on all found files at once, which is significantly faster than reading them one by one.
-    *   **Logic:** It selects only the required columns (`Timestamp`, `BestBid`, `BestAsk`), renames them, casts their types to `Float64`, and filters out `null` values.
-    *   `.collect()` materializes the lazy DataFrame, and `.sort('timestamp')` orders the data.
-4.  **Output:** Returns a sorted `polars.DataFrame` or `None` if no data is found or an error occurs.
+**Входные данные:** путь к данным (`data_path`)
 
-## Step 5: `analyze_pair_fast` - Calculating Pair Metrics
+**Логика:**
+- Сканирование директории, поиск всех подпапок `exchange=*` и `symbol=*`
+- Создание `defaultdict(set)` где ключ = имя символа, значение = множество бирж
+- Фильтрация только символов, торгующихся на минимум 2 биржах
 
-This is the analysis core where all computations happen.
+**Выходные данные:** словарь `symbols_to_analyze` с валидными символами
 
-1.  **Data Synchronization (`join_asof`):** The data from two exchanges are joined on the `timestamp` column. This aligns quotes that were closest in time to each other.
-2.  **Deviation Calculation:** `ratio` (`bid_ex1 / bid_ex2`) and `deviation` (`(ratio - 1.0) * 100`) are calculated. The deviation is critically calculated from `1.0` (price parity) to assess the possibility of a break-even trade.
-3.  **Base Metric Calculation:** `max`, `min`, and `mean` for the `deviation` are calculated using `polars`.
-4.  **`zero_crossings` Calculation:** The number of times the deviation crosses zero is determined. The logic `sign[i] * sign[i-1] < 0` is used to correctly count only true sign changes.
-5.  **`opportunity_cycles` Calculation:**
-    *   **Key Logic:** A cycle is considered "complete" only if the deviation first exceeds a `threshold` and then returns to a "neutral zone" (`abs(deviation) < ZERO_THRESHOLD`). This ensures that only opportunities where a trade could be opened and closed are counted.
-    *   This logic is implemented in `count_complete_cycles`, which iterates over `numpy` arrays.
-6.  **Dictionary Formation:** All calculated metrics (asymmetry, percentage of time above threshold, average cycle duration, etc.) are collected into a single dictionary and returned.
+### 2.3. Фильтрация по биржам
+```python
+if exchanges_filter:
+    exchanges_filter_set = set(exchanges_filter)
+    filtered_symbols = {}
+    for symbol, exchanges in symbols_to_analyze.items():
+        filtered_exchanges = exchanges.intersection(exchanges_filter_set)
+        if len(filtered_exchanges) >= 2:
+            filtered_symbols[symbol] = filtered_exchanges
+    symbols_to_analyze = filtered_symbols
+```
+
+### 2.4. Создание задач для батч-обработки
+**Ключевая оптимизация:** Одна задача на *символ*, а не на *пару бирж*.
+
+```python
+tasks = []
+total_pairs = 0
+for symbol, exchanges in symbols_to_analyze.items():
+    n_pairs = len(list(combinations(exchanges, 2)))
+    total_pairs += n_pairs
+    tasks.append((symbol, list(exchanges), DATA_PATH, start_date, end_date, thresholds))
+```
+
+### 2.5. Параллельное выполнение (`multiprocessing.Pool`)
+```python
+# Определение количества воркеров
+if n_workers is None:
+    n_workers = cpu_count() * 3
+
+# Создание пула процессов
+with Pool(processes=n_workers) as pool:
+    results_batches = pool.imap_unordered(analyze_symbol_batch, tasks, chunksize=1)
+    
+    # Обработка результатов по мере завершения
+    for batch_results in results_batches:
+        for result in batch_results:
+            processed_pairs += 1
+            # обработка SUCCESS/SKIPPED статусов
+```
+
+### 2.6. Агрегация и сохранение результатов
+```python
+if all_stats:
+    stats_df = pl.DataFrame(all_stats)
+    stats_df = stats_df.sort('zero_crossings_per_minute', descending=True)
+    
+    # Создание директории summary_stats
+    analyzer_dir = Path(__file__).parent
+    save_dir = analyzer_dir / "summary_stats"
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Сохранение с timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    stats_filename = save_dir / f"summary_stats_{timestamp}.csv"
+    stats_df.write_csv(stats_filename)
+```
+
+### 2.7. Отображение топ-результатов
+Два отчета топ-10:
+1. По частоте среднего реверсирования (`zero_crossings_per_minute`)
+2. По количеству полных циклов (`opportunity_cycles_040bp`)
+
+## Шаг 3: `analyze_symbol_batch` - Обработка одного символа
+
+**Файл:** [`run_all_ultra.py:34`](analyzer/run_all_ultra.py:34)
+
+Функция выполняется в отдельном процессе для анализа одного символа на всех доступных биржах.
+
+### 3.1. Параллельная загрузка данных (`ThreadPoolExecutor`)
+**Файл:** [`run_all_ultra.py:47`](analyzer/run_all_ultra.py:47)
+
+**Критическая оптимизация:** Одновременная загрузка данных со всех бирж.
+
+```python
+with ThreadPoolExecutor(max_workers=len(exchanges)) as executor:
+    future_to_exchange = {
+        executor.submit(load_exchange_symbol_data, data_path, exchange, symbol, start_date, end_date): exchange
+        for exchange in exchanges
+    }
+    
+    # Сбор результатов по мере завершения
+    for future in as_completed(future_to_exchange):
+        exchange = future_to_exchange[future]
+        try:
+            data = future.result()
+            if data is not None and not data.is_empty():
+                exchange_data[exchange] = data
+        except Exception:
+            pass  # Обработка ошибок загрузки
+```
+
+### 3.2. Анализ всех пар бирж
+```python
+exchange_pairs = list(combinations(sorted(exchanges), 2))
+
+for ex1, ex2 in exchange_pairs:
+    if ex1 not in exchange_data or ex2 not in exchange_data:
+        results.append({
+            'symbol': symbol,
+            'ex1': ex1,
+            'ex2': ex2,
+            'status': 'SKIPPED',
+            'stats': None
+        })
+        continue
+    
+    # Анализ пары с уже загруженными данными
+    stats = analyze_pair_fast(
+        symbol, ex1, ex2,
+        exchange_data[ex1],
+        exchange_data[ex2],
+        thresholds
+    )
+```
+
+### 3.3. Формирование результатов
+Возврат списка словарей с результатами для всех пар данного символа.
+
+## Шаг 4: `load_exchange_symbol_data` - Загрузка данных с диска
+
+**Файл:** [`run_all_ultra.py:107`](analyzer/run_all_ultra.py:107)
+
+Функция чтения и предобработки данных для одной пары (биржа, символ).
+
+### 4.1. Построение путей к данным
+```python
+base_path = Path(data_path)
+exchange_path = base_path / f"exchange={exchange}"
+
+# Поддержка двух форматов именования символов
+symbol_formats = [
+    symbol.replace('/', '#'),  # VIRTUAL#USDT
+    symbol.replace('/', '').replace('_', '')  # VIRTUALUSDT
+]
+```
+
+### 4.2. Фильтрация файлов по датам (до чтения)
+**Ключевая оптимизация:** Фильтрация на этапе сбора файлов, а не после загрузки.
+
+```python
+if start_date or end_date:
+    available_dates = []
+    for item in os.scandir(symbol_path):
+        if item.is_dir() and item.name.startswith('date='):
+            date_str = item.name.split('=')[1]
+            if (not start_date or date_str >= start_date) and (not end_date or date_str <= end_date):
+                available_dates.append(date_str)
+```
+
+### 4.3. Единое сканирование Parquet
+**Файл:** [`run_all_ultra.py:177`](analyzer/run_all_ultra.py:177)
+
+**Критическая оптимизация #8:** Одно `scan_parquet` для всех файлов (2-4x быстрее I/O).
+
+```python
+# Сбор ВСЕХ parquet файлов для выбранных дат
+all_files = []
+for date in available_dates:
+    date_path = symbol_path / f"date={date}"
+    if date_path.exists():
+        for hour_dir in date_path.glob("hour=*"):
+            all_files.extend(hour_dir.glob("*.parquet"))
+
+# Единое сканирование всех файлов
+df = pl.scan_parquet(all_files) \
+    .select(['Timestamp', 'BestBid', 'BestAsk']) \
+    .rename({'Timestamp': 'timestamp', 'BestBid': 'bestBid', 'BestAsk': 'bestAsk'}) \
+    .with_columns([pl.col('bestBid').cast(pl.Float64), pl.col('bestAsk').cast(pl.Float64)]) \
+    .filter(pl.col('bestBid').is_not_null() & pl.col('bestAsk').is_not_null()) \
+    .collect() \
+    .sort('timestamp')
+```
+
+### 4.4. Обработка ошибок
+Возврат `None` при отсутствии данных или ошибках загрузки.
+
+## Шаг 5: `analyze_pair_fast` - Вычисление метрик пары
+
+**Файл:** [`run_all_ultra.py:200`](analyzer/run_all_ultra.py:200)
+
+Основное ядро системы, где происходят все вычисления для пары бирж.
+
+### 5.1. Синхронизация данных (`join_asof`)
+```python
+joined = data1.rename({
+    'bestBid': 'bid_ex1',
+    'bestAsk': 'ask_ex1'
+}).join_asof(
+    data2.rename({
+        'bestBid': 'bid_ex2', 
+        'bestAsk': 'ask_ex2'
+    }),
+    on='timestamp'
+)
+```
+
+### 5.2. Расчет отношения и отклонения
+**Файл:** [`run_all_ultra.py:223`](analyzer/run_all_ultra.py:223)
+
+**Критическая оптимизация #4:** Чистые Polars операции (1.5-2x быстрее, zero-copy).
+
+```python# Векторизованные вычисления
+joined = joined.with_columns([
+    (pl.col('bid_ex1') / pl.col('bid_ex2')).alias('ratio')
+])
+
+# КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: deviation от 1.0, НЕ от среднего
+joined = joined.with_columns([
+    ((pl.col('ratio') - 1.0) / 1.0 * 100).alias('deviation')
+])
+```
+
+### 5.3. Базовые статистики
+```python
+max_deviation_pct = float(joined['deviation'].max())
+min_deviation_pct = float(joined['deviation'].min())
+mean_deviation_pct = float(joined['deviation'].mean())
+asymmetry = mean_deviation_pct
+```
+
+### 5.4. Детекция пересечений нуля
+**Файл:** [`run_all_ultra.py:251`](analyzer/run_all_ultra.py:251)
+
+**Исправленная логика:** Использование умножения для определения истинных смен знака.
+
+```python
+deviation_sign = pl.col('deviation').sign()
+zero_crossings = int(
+    joined.with_columns([
+        (deviation_sign * deviation_sign.shift(1) < 0).alias('crossed')
+    ])['crossed'].sum()
+)
+```
+
+### 5.5. Подготовка данных для анализа порогов
+**Файл:** [`run_all_ultra.py:283`](analyzer/run_all_ultra.py:283)
+
+```python
+ZERO_THRESHOLD = 0.05  # 5 базисных пунктов допуска для шума
+
+if thresholds is None:
+    thresholds = [0.3, 0.5, 0.4]
+
+joined_with_thresholds = joined.with_columns([
+    (pl.col('deviation').abs() > thresholds[0]).alias('above_030bp'),
+    (pl.col('deviation').abs() > thresholds[1]).alias('above_050bp'),
+    (pl.col('deviation').abs() > thresholds[2]).alias('above_040bp'),
+    (pl.col('deviation').abs() < ZERO_THRESHOLD).alias('in_neutral')
+])
+```
+
+### 5.6. Подсчет полных циклов (`count_complete_cycles`)
+**Файл:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294)
+
+**Критическая проблема:** Использование `.to_numpy()` создает копию данных и ломает zero-copy оптимизации.
+
+**Логика подсчета циклов:**
+```python
+def count_complete_cycles(above_threshold_series, in_neutral_series):
+    above = above_threshold_series.to_numpy()
+    neutral = in_neutral_series.to_numpy()
+    
+    cycles = 0
+    was_above = False
+    
+    for i in range(len(above)):
+        if above[i]:
+            was_above = True
+        elif neutral[i] and was_above:
+            cycles += 1  # Полный цикл: был выше порога → вернулся в нейтраль
+            was_above = False
+    
+    return cycles
+```
+
+### 5.7. Расчет дополнительных метрик
+```python
+# Процент времени выше порогов
+threshold_metrics = joined_with_thresholds.select([
+    (pl.col('above_030bp').mean() * 100).alias('pct_030bp'),
+    (pl.col('above_050bp').mean() * 100).alias('pct_050bp'),
+    (pl.col('above_040bp').mean() * 100).alias('pct_040bp')
+])
+
+# Средняя длительность циклов
+avg_duration_040bp_sec = (duration_hours * pct_040bp / 100 * 3600) / cycles_040bp if cycles_040bp > 0 else 0
+
+# Детекция сломанных паттернов
+last_deviation = float(joined['deviation'][-1])
+pattern_break_040bp = abs(last_deviation) > thresholds[2]
+```
+
+### 5.8. Формирование финального словаря
+Возврат словаря со всеми рассчитанными метриками.
+
+## Временные характеристики процесса
+
+### Последовательность выполнения:
+1. **Инициализация:** < 1 секунда
+2. **Обнаружение данных:** 1-10 секунд (зависит от объема данных)
+3. **Параллельный анализ:** Основное время выполнения
+   - Загрузка данных: I/O bound
+   - Анализ пар: CPU bound
+4. **Агрегация результатов:** < 5 секунд
+
+### Критические пути:
+- **I/O:** Загрузка больших Parquet файлов
+- **CPU:** Вычисление метрик для множества пар
+- **Memory:** Хранение DataFrame в памяти для повторного использования
+
+## Оптимизации производительности
+
+### Реализованные:
+- ✅ **Батч-обработка по символам** - избегание повторной загрузки
+- ✅ **Параллельная загрузка бирж** - ThreadPoolExecutor
+- ✅ **Единое сканирование Parquet** - `scan_parquet(all_files)`
+- ✅ **Чистые Polars операции** - векторизованные вычисления
+- ✅ **Lazy evaluation** - отложенное выполнение
+
+### Требуют внимания:
+- ❌ **NumPy конверсия в горячем цикле** - ломает zero-copy
+- ❌ **Передача больших DataFrame между процессами** - IPC overhead
+- ❌ **Отсутствие кэширования** - повторные вычисления

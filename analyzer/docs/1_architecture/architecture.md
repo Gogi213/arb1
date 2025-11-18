@@ -1,77 +1,236 @@
-# Detailed Architecture of the Analyzer Project
+# Детальная архитектура проекта Analyzer
 
-## 1. Overview
+## 1. Обзор
 
-The `analyzer` project is a Python console application designed for high-performance batch analysis of market data. Its architecture is built around the principle of maximum performance through parallel processing and efficient in-memory data manipulation. The application is stateless and is controlled exclusively through command-line arguments.
+Проект `analyzer` - это высокопроизводительное Python-приложение консольного типа, предназначенное для пакетного анализа рыночных данных с максимальной производительностью через параллельную обработку и эффективное управление данными в памяти. Приложение является stateless и управляется исключительно через аргументы командной строки.
 
-## 2. Architectural Layers and Components
+**Ключевые характеристики:**
+- Stateless архитектура без внешних зависимостей (БД, серверы)
+- Массовая параллельная обработка через `multiprocessing.Pool`
+- Оптимизированная работа с памятью через `polars`
+- Конфигурация только через командную строку
 
-The architecture can be conceptually divided into several logical layers, implemented as functions within the `run_all_ultra.py` script.
+## 2. Архитектурные слои и компоненты
 
-### 2.1. Orchestration Layer (`run_ultra_fast_analysis`)
+Архитектура реализована как набор функций в файле `run_all_ultra.py:run_all_ultra.py:1`, организованных в логические слои.
 
-This is the top-level component that manages the entire analysis process.
+### 2.1. Слой оркестрации (`run_ultra_fast_analysis`)
 
-*   **Responsibilities:**
-    *   Initiating data discovery.
-    *   Filtering data based on the provided configuration.
-    *   Creating and distributing tasks for parallel processing.
-    *   Aggregating the results.
-    *   Saving the final report and printing a summary to the console.
-*   **Parallelism:** Uses `multiprocessing.Pool` to distribute tasks for analyzing *symbols* across different processes, allowing for full utilization of CPU cores.
+Главный компонент, управляющий всем процессом анализа.
 
-### 2.2. Batch Processing Layer (`analyze_symbol_batch`)
+**Файл:** [`run_all_ultra.py:430`](analyzer/run_all_ultra.py:430)
 
-This component handles a single large task: analyzing one trading symbol across all exchanges where it is listed.
+**Ответственности:**
+- Обнаружение доступных данных (`discover_data`)
+- Фильтрация данных по датам и биржам
+- Создание и распределение задач для параллельной обработки
+- Агрегация результатов от воркеров
+- Сохранение финального отчета в CSV
 
-*   **Responsibilities:**
-    *   Loading data for a single symbol from all necessary exchanges.
-    *   Organizing the analysis of all possible exchange pairs for that symbol.
-    *   Returning the analysis results for all pairs.
-*   **Parallelism:** Uses `concurrent.futures.ThreadPoolExecutor` to load data from disk for different exchanges in parallel. This is effective because data loading is an I/O-bound operation.
-*   **Key Optimization (Batching):** Data for a single symbol (e.g., `BTC/USDT`) is loaded into memory once and then reused for analyzing all pairs (Bybit-Binance, Bybit-OKX, Binance-OKX, etc.). This eliminates redundant disk I/O operations.
+**Параллелизм:** `multiprocessing.Pool` для распределения задач по символам между процессами, максимальное использование CPU ядер.
 
-### 2.3. Data Access Layer (`load_exchange_symbol_data`)
+**Ключевые оптимизации:**
+- Балансировка нагрузки: автоматическое определение количества воркеров (3x CPU cores)
+- Планировщик задач: чанкинг по символам для эффективного IPC
 
-This component is responsible for reading and preprocessing data from the disk.
+### 2.2. Слой пакетной обработки (`analyze_symbol_batch`)
 
-*   **Responsibilities:**
-    *   Finding the correct path to a symbol's data, accounting for different naming formats.
-    *   Efficiently filtering files by date *before* reading them.
-    *   Reading all necessary Parquet files in a single pass (`pl.scan_parquet`).
-    *   Performing basic data cleaning and transformation (selecting columns, renaming, casting types, filtering nulls).
-*   **Technology:** Uses `polars.scan_parquet` for lazy reading, which allows the Polars engine to optimize the query.
+Компонент для анализа всех пар бирж одного символа за один проход.
 
-### 2.4. Analysis and Computation Layer (`analyze_pair_fast`)
+**Файл:** [`run_all_ultra.py:34`](analyzer/run_all_ultra.py:34)
 
-This is the core of the system, where the actual analysis for a single pair of exchanges occurs.
+**Ответственности:**
+- Загрузка данных для одного символа со всех бирж
+- Анализ всех возможных пар бирж для этого символа
+- Возврат результатов анализа для всех пар
 
-*   **Responsibilities:**
-    *   Synchronizing the time-series data of two exchanges.
-    *   Calculating metrics for deviation, mean reversion, and trading opportunities.
-*   **Technology:** Primarily uses `polars` for all computations to leverage its performance. A key algorithm, `count_complete_cycles`, currently uses a `numpy` conversion for iterative processing, representing a known area for future optimization.
-*   **Algorithms:**
-    *   `join_asof`: For fast and efficient time-series synchronization.
-    *   Vectorized `polars` operations for calculating `ratio` and `deviation`.
-    *   A custom `count_complete_cycles` algorithm (using a `numpy` loop) for counting realistic trading opportunities.
+**Параллелизм:** `concurrent.futures.ThreadPoolExecutor` для параллельной загрузки данных с разных бирж (I/O-bound операция).
 
-## 3. Data Flow
+**Ключевая оптимизация (Баблинг по символу):**
+Данные для одного символа (например, `BTC/USDT`) загружаются в память один раз и затем многократно используются для анализа всех пар (Bybit-Binance, Bybit-OKX, Binance-OKX, etc.). Это исключает избыточные дисковые I/O операции.
 
-1.  **Source:** A set of Parquet files on disk, structured by `exchange/symbol/date/hour`.
-2.  **Loading:** `load_exchange_symbol_data` reads the files and creates a `polars.DataFrame` in memory for each `(exchange, symbol)`.
-3.  **Joining:** `analyze_pair_fast` joins two `DataFrame`s into one using `join_asof`.
-4.  **Transformation:** New columns (`ratio`, `deviation`, threshold flags) are created in the joined `DataFrame`.
-5.  **Aggregation:** Scalar values (statistics) are extracted from the `DataFrame` using methods like `.mean()`, `.max()`, and `.sum()`.
-6.  **Result:** The statistics are collected into a dictionary, then a list of dictionaries, which is finally converted into a final `polars.DataFrame`.
-7.  **Output:** The final `DataFrame` is saved to a CSV file.
+### 2.3. Слой доступа к данным (`load_exchange_symbol_data`)
 
-## 4. Configuration
+Компонент чтения и предобработки данных с диска.
 
-The application is fully configured via command-line arguments using `argparse`.
+**Файл:** [`run_all_ultra.py:107`](analyzer/run_all_ultra.py:107)
 
-*   `--data-path`: Defines the root of the data storage.
-*   `--workers`: Allows for performance tuning by controlling the number of processes.
-*   `--date`, `--start-date`, `--end-date`: Provide flexibility in selecting the time slice for analysis.
-*   `--thresholds`: Allow for tuning the key parameters of the opportunity-finding algorithm.
+**Ответственности:**
+- Поиск корректного пути к данным символа с поддержкой разных форматов именования
+- Эффективная фильтрация файлов по датам *до* чтения
+- Чтение всех необходимых Parquet файлов одним проходом (`pl.scan_parquet`)
+- Базовая очистка и трансформация данных (выбор колонок, переименование, приведение типов, фильтрация null)
 
-This architecture makes the application flexible, performant, and lightweight, as it does not require external databases, servers, or complex state management.
+**Технология:** `polars.scan_parquet` для ленивого чтения, что позволяет Polars движку оптимизировать запрос.
+
+**Поддерживаемые форматы символов:**
+- `symbol.replace('/', '#')` → `VIRTUAL#USDT`
+- `symbol.replace('/', '').replace('_', '')` → `VIRTUALUSDT`
+
+### 2.4. Слой анализа и вычислений (`analyze_pair_fast`)
+
+Основное ядро системы, где происходит анализ одной пары бирж.
+
+**Файл:** [`run_all_ultra.py:200`](analyzer/run_all_ultra.py:200)
+
+**Ответственности:**
+- Синхронизация временных рядов данных двух бирж
+- Вычисление метрик отклонений, среднего реверсирования и торговых возможностей
+
+**Технология:** В основном использует `polars` для всех вычислений для максимальной производительности. Алгоритм `count_complete_cycles` использует `numpy` конверсию для итеративной обработки - известная область для будущей оптимизации.
+
+**Алгоритмы:**
+- `join_asof`: Быстрая и эффективная синхронизация временных рядов
+- Векторизованные операции `polars` для вычисления `ratio` и `deviation`
+- Кастомный алгоритм `count_complete_cycles` (использует `numpy` цикл) для подсчета реалистичных торговых возможностей
+
+**Критическая исправленная логика:** [`run_all_ultra.py:227`](analyzer/run_all_ultra.py:227)
+
+Метрика `deviation` вычисляется от 1.0 (ценовое равенство), НЕ от среднего отношения. Это критически важно для арбитража - отклонение = 0 означает возможность закрытия позиции по безубытку.
+
+## 3. Поток данных
+
+```mermaid
+graph TD
+    subgraph "Data Layer"
+        A[Parquet Files on Disk]
+    end
+
+    subgraph "Processing Layer (Parallel)"
+        B(load_exchange_symbol_data)
+        C(analyze_pair_fast)
+    end
+
+    subgraph "Orchestration Layer"
+        D(analyze_symbol_batch)
+        E(run_ultra_fast_analysis)
+    end
+
+    subgraph "Output Layer"
+        F[CSV Report]
+    end
+
+    A -- "path" --> B;
+    B -- "DataFrame" --> D;
+    E -- "tasks" --> D;
+    D -- "DataFrame" --> C;
+    C -- "stats" --> E;
+    E -- "sorted stats" --> F;
+
+    style B fill:#cde,stroke:#333
+    style C fill:#ccf,stroke:#333
+    style D fill:#f9f,stroke:#333
+```
+
+1. **Источник:** Набор Parquet файлов на диске, структурированных по `exchange/symbol/date/hour`
+2. **Загрузка:** `load_exchange_symbol_data` читает файлы и создает `polars.DataFrame` в памяти для каждой пары `(exchange, symbol)`
+3. **Объединение:** `analyze_pair_fast` объединяет два `DataFrame` в один используя `join_asof`
+4. **Трансформация:** Создаются новые колонки (`ratio`, `deviation`, флаги порогов)
+5. **Агрегация:** Скалярные значения (статистики) извлекаются из `DataFrame` методами `.mean()`, `.max()`, `.sum()`
+6. **Результат:** Статистики собираются в словарь, затем список словарей, финально конвертируются в `polars.DataFrame`
+7. **Вывод:** Финальный `DataFrame` сохраняется в CSV файл
+
+## 4. Критические оптимизации производительности
+
+### 4.1. Оптимизация #8: Единое сканирование Parquet
+**Файл:** [`run_all_ultra.py:177`](analyzer/run_all_ultra.py:177)
+
+```python
+# Было: множественные сканирования файлов
+# Стало: один scan_parquet для всех файлов (2-4x быстрее I/O)
+df = pl.scan_parquet(all_files)
+```
+
+### 4.2. Оптимизация #12: Параллельная загрузка бирж
+**Файл:** [`run_all_ultra.py:47`](analyzer/run_all_ultra.py:47)
+
+```python
+# ThreadPoolExecutor для параллельной загрузки бирж (1.5-2x быстрее)
+with ThreadPoolExecutor(max_workers=len(exchanges)) as executor:
+    future_to_exchange = {
+        executor.submit(load_exchange_symbol_data, ...): exchange
+        for exchange in exchanges
+    }
+```
+
+### 4.3. Оптимизация #4: Чистые Polars операции
+**Файл:** [`run_all_ultra.py:223`](analyzer/run_all_ultra.py:223)
+
+```python
+# Векторизованные Polars операции (1.5-2x быстрее, zero-copy)
+joined = joined.with_columns([
+    (pl.col('bid_ex1') / pl.col('bid_ex2')).alias('ratio')
+])
+```
+
+## 5. Конфигурация
+
+Приложение полностью конфигурируется через аргументы командной строки с использованием `argparse`.
+
+**Файл:** [`run_all_ultra.py:595`](analyzer/run_all_ultra.py:595)
+
+**Параметры:**
+- `--data-path`: Определяет корневой путь к хранилищу данных
+- `--workers`: Позволяет настройку производительности через контроль количества процессов
+- `--date`, `--start-date`, `--end-date`: Гибкость в выборе временного среза для анализа
+- `--thresholds`: Позволяет настройку ключевых параметров алгоритма поиска возможностей
+- `--exchanges`: Фильтрация по списку бирж
+- `--today`: Алиас для анализа только сегодняшних данных
+
+## 6. Алгоритмы подсчета циклов
+
+### 6.1. Алгоритм полных циклов (`count_complete_cycles`)
+**Файл:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294)
+
+Критически важный алгоритм для подсчета реалистичных торговых возможностей.
+
+**Логика:** Подсчитываются только ПОЛНЫЕ циклы:
+- Движение от ~нуля → выше порога → возврат к ~нулю
+- Это обеспечивает подсчет только торгуемых возможностей (можно закрыть позицию по безубытку)
+
+**ZERO_THRESHOLD:** 0.05% (5 базисных пунктов) - допуск для шума при определении "нулевой" зоны.
+
+### 6.2. Детекция пересечений нуля
+**Файл:** [`run_all_ultra.py:251`](analyzer/run_all_ultra.py:251)
+
+```python
+# Исправленная логика: умножение для определения истинных смен знака
+deviation_sign = pl.col('deviation').sign()
+zero_crossings = int(
+    joined.with_columns([
+        (deviation_sign * deviation_sign.shift(1) < 0).alias('crossed')
+    ])['crossed'].sum()
+)
+```
+
+## 7. Архитектурные проблемы и известные ограничения
+
+### 7.1. Известные узкие места
+1. **NumPy зависимость в count_complete_cycles:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294) - требует конверсию в numpy для итеративной обработки
+2. **Память:** Загрузка данных символа целиком в память может быть проблемой для больших символов
+3. **IPC накладные расходы:** Передача больших DataFrame между процессами
+
+### 7.2. Области для будущих оптимизаций
+1. Реализация `count_complete_cycles` полностью на Polars
+2. Добавление streaming/chunked обработки для больших датасетов
+3. Кэширование результатов на диске для повторного анализа
+
+## 8. Выходные метрики
+
+Система генерирует следующие ключевые метрики:
+
+**Основные метрики:**
+- **Zero crossings per minute:** Частота среднего реверсирования
+- **Opportunity cycles per hour:** Количество полных циклов для разных порогов (0.3%, 0.5%, 0.4%)
+- **Percent time above threshold:** Процент времени выше каждого порога
+
+**Дополнительные метрики:**
+- **Deviation asymmetry:** Асимметрия отклонений (индикатор направленного уклона)
+- **Pattern break detection:** Детекция неполных паттернов в конце данных
+- **Average cycle duration:** Средняя длительность цикла в секундах
+
+## 9. Заключение
+
+Архитектура analyzer'а оптимизирована для максимальной производительности при анализе больших объемов рыночных данных. Stateless дизайн делает приложение легким в развертывании, а агрессивная параллелизация обеспечивает значительное ускорение анализа по сравнению с наивными реализациями.
+
+**Ожидаемое ускорение:** 2-3x против предыдущей версии, 30-60x против наивной реализации.

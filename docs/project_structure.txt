@@ -165,7 +165,8 @@
 | | `- process_flow.md
 | |- completion_report.md
 | |- dependencies.md
-| `- project_structure.txt
+| |- project_structure.txt
+| `- task_progress_update.md
 |- trader
 | |- docs
 | | |- 1_architecture
@@ -252,7 +253,8 @@
 | | | |- PROPOSAL-2025-0095-FixUnboundedChannels.md
 | | | |- PROPOSAL-2025-0096-ReduceRollingWindowSize.md
 | | | |- PROPOSAL-2025-0097-FixEventHandlersLeak.md
-| | | `- PROPOSAL-2025-0099-update_context.md
+| | | |- PROPOSAL-2025-0099-update_context.md
+| | | `- PROPOSAL-2025-0100-SpecializeTraderRole.md
 | | |- sprints
 | | | |- sprint5_spread_trading_plan.md
 | | | `- sprint6_oom_hotfix_plan.md

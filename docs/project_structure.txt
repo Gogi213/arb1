@@ -18,6 +18,8 @@
 | | | `- PROPOSAL-2025-0085-FixAnalyzerDefaultPath.md
 | | |- roadmap.md
 | | `- role_definition.md
+| |- summary_stats
+| | `- summary_stats_20251118_170538.csv
 | |- README.md
 | |- requirements.txt
 | |- run_all_ultra.py
@@ -63,7 +65,9 @@
 | | | |- PROPOSAL-2025-0083-ConfigureCollectionsExchanges.md
 | | | |- PROPOSAL-2025-0084-ConfigurableSavePath.md
 | | | |- PROPOSAL-2025-0091-FixUnboundedChannels.md
-| | | `- PROPOSAL-2025-0092-FixSymbolDeduplication.md
+| | | |- PROPOSAL-2025-0092-FixSymbolDeduplication.md
+| | | |- PROPOSAL-2025-0093-HFT-OptimizeChannelArchitecture.md
+| | | `- PROPOSAL-2025-0094-LastTickMatching.md
 | | |- README.md
 | | |- metrics.md
 | | `- role_definition.md
@@ -90,6 +94,8 @@
 | | | | |- SymbolInfo.cs
 | | | | |- TradeData.cs
 | | | | `- WebSocketMessage.cs
+| | | |- Models
+| | | | `- SpreadPoint.cs
 | | | |- Services
 | | | | |- SpreadCalculator.cs
 | | | | `- VolumeFilter.cs
@@ -158,6 +164,7 @@
 | |- overall_process_flow
 | | `- process_flow.md
 | |- completion_report.md
+| |- dependencies.md
 | `- project_structure.txt
 |- trader
 | |- docs
@@ -244,7 +251,8 @@
 | | | |- PROPOSAL-2025-0063-FixChartLookaheadBias.md
 | | | |- PROPOSAL-2025-0095-FixUnboundedChannels.md
 | | | |- PROPOSAL-2025-0096-ReduceRollingWindowSize.md
-| | | `- PROPOSAL-2025-0097-FixEventHandlersLeak.md
+| | | |- PROPOSAL-2025-0097-FixEventHandlersLeak.md
+| | | `- PROPOSAL-2025-0099-update_context.md
 | | |- sprints
 | | | |- sprint5_spread_trading_plan.md
 | | | `- sprint6_oom_hotfix_plan.md

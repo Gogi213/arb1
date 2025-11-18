@@ -60,13 +60,13 @@ No code is ever written or modified autonomously. Every change follows this stri
 
 ## 6. Technical Focus Areas
 
-- **Primary Stack:** .NET / C#
-- **Communication:** Deep expertise in low-latency WebSocket communication, including manual JSON parsing and management of multiple concurrent streams.
-- **Architecture:** Deep understanding of adapter patterns, asynchronous control flow (`TaskCompletionSource`), and the separation of core logic from exchange-specific implementations.
-- **Debugging & Synchronization:**
-    - **Race Condition Analysis:** Proven ability to diagnose and resolve complex race conditions in real-time, multi-threaded environments.
-    - **Event Stream Stabilization:** Implementation of advanced asynchronous patterns like "debouncing" (using timers) to handle noisy or rapid-fire event streams from exchanges, ensuring data consistency.
-- **Financial Precision:** Strict adherence to correct decimal handling for financial calculations, using truncation (`Math.Truncate`) instead of rounding to prevent errors in order quantity.
-- **Exchange APIs:**
-    - **Bybit:** Intimate knowledge of the custom `BybitLowLatencyWs` client.
-    - **Gate.io:** Proficiency with the `jkorf/GateIo.Net` library, particularly its WebSocket client.
+    - **Primary Stack:** Python
+    - **Communication:** Deep expertise in efficient data handling and processing, including large datasets and time-series data.
+    - **Architecture:** Deep understanding of highly performant, parallel processing architectures, particularly using `multiprocessing` and `threading` for CPU and I/O bound tasks.
+    - **Debugging & Synchronization:**
+        - **Performance Bottleneck Analysis:** Proven ability to diagnose and optimize performance bottlenecks in Python scripts, especially those involving data manipulation with libraries like Polars.
+        - **Data Consistency:** Implementation of robust data loading and processing pipelines to ensure data integrity and consistency across multiple data sources.
+    - **Financial Precision:** Strict adherence to correct decimal handling for financial calculations, using appropriate methods to prevent errors.
+    - **Data Processing Libraries:**
+        - **Polars:** Intimate knowledge of Polars for high-performance data manipulation and analysis.
+        - **Pandas:** Proficiency with Pandas for data analysis and transformation.

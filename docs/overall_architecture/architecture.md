@@ -1,61 +1,71 @@
 # High-Level System Architecture
-**Version:** 2.0 (Validated on 2025-11-17)
+**Version:** 3.0 (Validated on 2025-11-18)
 
-This system is designed for cryptocurrency arbitrage and consists of three primary, decoupled components: `collections`, `trader`, and `analyzer`. Each component has a distinct role and interacts with the others through well-defined contracts.
+This system is designed for cryptocurrency market analysis and automated trading. It consists of three primary, decoupled components: `collections`, `trader`, and `analyzer`. Each component has a distinct role and interacts with the others through well-defined data handoffs.
 
 ## 1. Components
 
 ### 1.1. `collections` (The Data Hub)
 
 *   **Project:** `SpreadAggregator` (C#)
-*   **Role:** The central nervous system, responsible for acquiring, processing, and distributing all market data.
+*   **Role:** The central nervous system for data. It is responsible for acquiring, processing, and distributing all market data.
 *   **Key Responsibilities:**
-    *   **Exchange Connection:** Establishes and maintains real-time WebSocket connections to multiple cryptocurrency exchanges (e.g., Binance, Bybit, Gate.io).
-    *   **Data Ingestion:** Subscribes to ticker (price) and trade streams.
-    *   **Real-time Broadcasting:** Runs a WebSocket server that streams processed market data (spreads, trades) to any connected client. This is the primary data source for the `trader`.
-    *   **Historical Persistence:** Asynchronously writes all raw market data to a structured data lake (`/data/market_data`) in Parquet format. This data is consumed by the `analyzer`.
-*   **Architectural Note:** The project follows Clean Architecture. It contains a known architectural flaw where data is written to its internal channel twice and consumed by competing consumers, leading to incomplete data in the persisted Parquet files.
+    *   **Data Ingestion:** Establishes real-time WebSocket connections to multiple exchanges (e.g., Binance, Bybit, Gate.io) to subscribe to price and trade streams.
+    *   **Real-time Broadcasting:** Calculates arbitrage spreads and streams this data via a WebSocket server (`ws://localhost:5000/ws/realtime_charts`). This serves as a data source for other components.
+    *   **Historical Persistence:** Asynchronously writes raw market data to a data lake (`/data/market_data`) in Parquet format. This data is intended for offline analysis.
+*   **Architectural Note:** The project contains a known "competing consumers" flaw, which results in the persisted Parquet files being incomplete.
 
 ### 1.2. `trader` (The Execution Engine)
 
 *   **Project:** `TraderBot` (C#)
-*   **Role:** Responsible for making and executing trading decisions in real-time.
-*   **Key Responsibilities:**
-    *   **Signal Reception:** Connects to the `collections` WebSocket server to receive the live feed of market data.
-    *   **Decision Making:** The `DecisionMaker` component listens for profitable spread opportunities based on a predefined threshold.
-    *   **Trade Execution:** **(Not Yet Implemented)** The `ArbitrageTrader` component is designed to execute the full arbitrage cycle. However, the logic to initiate it from the `DecisionMaker` is currently a `//TODO` placeholder. **As of now, the trader does not execute trades.**
-*   **Architectural Note:** The `trader` is designed for high performance, using low-latency WebSocket clients and a stateful, event-driven model to manage the trade lifecycle. This design is documented but not fully implemented.
+*   **Role:** Responsible for executing trading strategies. It operates in one of two distinct modes, determined at startup.
+*   **Modes of Operation:**
+    1.  **Convergent Trader Mode (Active):**
+        *   **Trigger:** Activated by passing an exchange name (`bybit` or `gate`) as a command-line argument.
+        *   **Functionality:** This is the **primary, operational trading strategy**. It executes a simple, self-contained "buy-then-sell" strategy on a single exchange.
+        *   **Dependencies:** This mode is **self-contained**. It connects directly to the target exchange and **does not consume any data from the `collections` project.**
+    2.  **Spread Listener Mode (Legacy/Passive):**
+        *   **Trigger:** The default mode when the application is started with no arguments.
+        *   **Functionality:** Connects to the `collections` WebSocket server to listen for profitable spread opportunities. However, the `DecisionMaker` component that receives these signals is a **non-functional placeholder**.
+        *   **Conclusion:** In this mode, the `trader` **listens but does not execute any trades.**
 
 ### 1.3. `analyzer` (The Offline Brain)
 
 *   **Project:** Python scripts (`run_all_ultra.py`)
-*   **Role:** Performs offline, batch analysis of historical data to find statistical patterns and opportunities.
+*   **Role:** Performs offline, batch analysis of historical data to find statistical patterns.
 *   **Key Responsibilities:**
-    *   **Data Reading:** Processes the Parquet files from the data lake generated by `collections`.
-    *   **High-Performance Analysis:** Uses `polars` and `multiprocessing` to run high-speed parallel analysis on large datasets, calculating metrics like mean-reversion frequency and complete opportunity cycles.
-    *   **Reporting:** Generates CSV reports (`summary_stats`) that rank trading pairs by their arbitrage potential. These reports are used to inform the trading strategy.
+    *   **Data Reading:** Processes the (incomplete) Parquet files from the data lake generated by `collections`.
+    *   **High-Performance Analysis:** Uses `polars` and `multiprocessing` to run high-speed parallel analysis on the historical data.
+    *   **Reporting:** Generates CSV reports that rank trading pairs by their statistical arbitrage potential. These reports are used to inform which symbols and parameters to use with the `trader`.
 
 ## 2. Data Flows and Dependencies
 
-```
-+----------------+       (1) Real-time Data       +----------+
-|                | -----------------------------> |          |
-|  collections   |      (WebSocket Stream)        |  trader  |
-| (C#/.NET)      |                                | (C#/.NET)|
-|                | <----------------------------- |          |
-+-------+--------+       (Future Control API)      +----------+
-        |
-        | (2) Historical Data
-        | (Incomplete Parquet Files)
-        v
-+-------+--------+
-|                |
-|   analyzer     |
-|   (Python)     |
-|                |
-+----------------+
+The system has two main data flows that correspond to its real-time and analytical functions.
+
+```mermaid
+graph TD
+    subgraph Real-Time Analysis & Passive Listening
+        A[Exchange APIs] --> B(collections);
+        B -- (1) Real-time Spreads [WebSocket] --> C(trader - Legacy Mode);
+        C --> D((Listens, No Trades));
+    end
+
+    subgraph Active Trading
+        E[Exchange APIs] --> F(trader - Convergent Mode);
+        F --> G((Executes Trades));
+    end
+
+    subgraph Offline Analysis
+        B -- (2) Historical Data [Incomplete Parquet Files] --> H(analyzer);
+        H -- (3) CSV Reports --> I(Human Operator);
+    end
+
+    I -- Configures --> F;
+
+    style C fill:#f9f,stroke:#333,stroke-width:2px
+    style G fill:#9cf,stroke:#333,stroke-width:2px
 ```
 
-1.  **Real-Time Flow (`collections` -> `trader`):** `collections` streams market data via WebSockets. `trader` consumes this stream to make immediate trading decisions. This is the HFT (High-Frequency Trading) path.
-2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` persists all data to disk. `analyzer` periodically reads this data for deep, statistical analysis. Due to the flaw in `collections`, this data is currently incomplete.
-3.  **Strategic Flow (`analyzer` -> Human -> `trader`):** The output from `analyzer` (CSV reports) is consumed by a human operator, who uses the insights to configure and guide the trading strategies employed by the `trader`.
+1.  **Real-Time Passive Flow (`collections` -> `trader` Legacy Mode):** `collections` streams calculated spreads. The `trader`'s legacy mode can connect to this stream to listen, but it does not act on the data.
+2.  **Historical/Batch Flow (`collections` -> `analyzer`):** `collections` persists historical data to disk. `analyzer` periodically reads this data for deep statistical analysis.
+3.  **Strategic Flow (`analyzer` -> Human -> `trader` Active Mode):** The output from `analyzer` (CSV reports) is consumed by a human operator, who uses the insights to configure and run the active `ConvergentTrader` mode of the `trader` project. Note the clear separation: the active trading loop is independent of the `collections` project.

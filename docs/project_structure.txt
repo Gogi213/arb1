@@ -172,6 +172,8 @@
 | | | |- balance_cycle_metrics_flow.md
 | | | `- metrics.md
 | | |- 5_mermaid
+| | | |- convergent_trader_flow.mmd
+| | | |- legacy_arbitrage_flow.mmd
 | | | `- process_flow.mmd
 | | |- audit
 | | | `- audit_report.md
@@ -270,7 +272,6 @@
 | | | | |- BybitExchange.cs
 | | | | |- BybitLowLatencyWs.cs
 | | | | |- BybitTrailingTrader.cs
-| | | | |- ReverseArbitrageTrader.cs
 | | | | `- TraderBot.Exchanges.Bybit.csproj
 | | | `- GateIo
 | | |   |- Adapters.cs
@@ -299,6 +300,8 @@
 | |     |- In
 | |     | `- DESKTOP-E9IC9QV
 | |     `- Out
+| |- BYBIT_MARKET_SELL_FIX.md
+| |- TEST_BYBIT.md
 | `- TraderBot.sln
 |- GEMINI.md
 |- README.md

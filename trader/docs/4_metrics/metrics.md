@@ -1,5 +1,5 @@
 # Trader Project: Key Performance Metrics
-**Version:** 3.0 (Validated on 2025-11-18)
+**Version:** 4.0 (Validated on 2025-11-18)
 
 This document describes the key performance and diagnostic metrics for the `Trader` project. It covers both the intended metrics for the now-deprecated two-legged arbitrage strategy and the actively collected metrics for the `ConvergentTrader` MVP.
 

@@ -1,17 +1,20 @@
 graph TD
-    A[Start Application Program.cs] --> B(Load Configuration appsettings.json)
-    B --> C(Initialize IExchange Implementation)
-    C --> D(Initialize ConvergentTrader with Exchange & Parameters)
-    D --> E[Call RunManualConvergentTrader() for Execution Loop]
+    subgraph Initialization
+        A[Start App with 'bybit' or 'gate' arg] --> B(Load ExchangeConfig from appsettings.json)
+        B --> C(Initialize IExchange Implementation e.g., BybitExchange)
+        C --> D(Initialize ConvergentTrader with IExchange)
+    end
 
-    E --> F[ConvergentTrader Loop]
-    F --> G(Initiate Buy Order)
-    G --> H{Wait for Buy Order Fill}
-    H --> I(Handle Buy Fill: Record Quantity & Price)
-    I --> J{Wait for Configured Sell Delay}
-    J --> K(Initiate Market Sell Order for Entire Quantity)
-    K --> L{Wait for Sell Order Fill}
-    L --> M(Handle Sell Fill: Record Quantity & Price, Calculate P&L)
-    M --> N{Repeat Cycle or Stop?}
-    N -- Repeat --> F
-    N -- Stop --> O[End Application]
+    subgraph "Execution Loop (RunManualConvergentTrader)"
+        D --> E(Start ConvergentTrader)
+        E --> F(Cancel All Open Orders)
+        F --> G(Delegate to TrailingTrader to place BUY order)
+        G --> H{Wait for Buy Order Fill event}
+        H --> I(Handle Buy Fill: Record Quantity)
+        I --> J(Wait for Balance Update Confirmation via WebSocket)
+        J --> K(Wait for 5-second Hardcoded Delay)
+        K --> L(Place Market SELL Order for entire available balance)
+        L --> M(Assume Sell Order Fills after 1s Delay)
+        M --> N(Estimate P&L)
+        N --> O[Cycle Complete]
+    end

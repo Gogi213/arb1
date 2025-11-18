@@ -1,5 +1,5 @@
 # Trader Project: Detailed Process Flow
-**Version:** 3.0 (Validated on 2025-11-18)
+**Version:** 4.0 (Validated on 2025-11-18)
 
 This document describes the detailed, step-by-step data and execution flow of the `Trader` application. It covers both the **Legacy Two-Legged Arbitrage MVP Process Flow** and the **Current Convergent Trader MVP Process Flow**.
 

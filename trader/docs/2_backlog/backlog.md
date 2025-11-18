@@ -1,5 +1,5 @@
 # Trader Project Backlog
-**Version:** 3.0 (Validated on 2025-11-18)
+**Version:** 4.0 (Validated on 2025-11-18)
 
 ## Current Project Status (November 2025)
 

@@ -1,122 +1,82 @@
 # Trader Project Architecture
-**Version:** 3.0 (Validated on 2025-11-18)
+**Version:** 4.0 (Validated on 2025-11-18)
 
 ## 1. Overview
 
-The `Trader` project is a .NET application designed to execute arbitrage or short-term trading strategies. This document outlines two distinct architectural phases: the **Legacy Two-Legged Arbitrage MVP** and the **Current Convergent Trader MVP**.
+The `Trader` project is a .NET application designed to execute automated trading strategies. The architecture has evolved from a complex, two-legged arbitrage model to a simpler, more robust single-exchange strategy. This document outlines both the current, active architecture and the legacy components that remain in the codebase.
 
-## 2. Legacy Architecture (Deprecated MVP)
+The application has two primary modes of operation, determined by command-line arguments at startup:
+1.  **Convergent Trader Mode (Active):** Invoked by passing an exchange name (`bybit` or `gate`) as an argument. This is the primary, operational trading strategy.
+2.  **Spread Listener Mode (Legacy/Passive):** The default mode when no arguments are provided. This mode listens for arbitrage opportunities but **does not execute trades**.
 
-This section describes the initial vision and implementation of the `Trader` project, which focused on a complex two-legged arbitrage strategy between two different exchanges. While the code for this architecture remains in the codebase, it is **no longer actively used or maintained** as the primary trading strategy. It serves as a historical record of the project's evolution.
+## 2. Current Architecture: Convergent Trader
 
-### 2.1. Overview (Legacy)
+This section describes the active and operational trading strategy within the `Trader` project. It represents a simplified and more reliable approach, focusing on a single-exchange, buy-then-sell cycle.
 
-The system was designed to listen for profitable spreads, execute a two-legged trade (buy on one exchange, sell on another), and meticulously track the state and timing of each step. This approach proved to be complex and prone to issues related to timing, fees, and state management, leading to its deprecation in favor of a simpler model.
+### 2.1. Entry Point & Control Flow
 
-### 2.2. Core Components (Legacy)
+*   **`Host/Program.cs`**: The application's entry point. When started with `bybit` or `gate` arguments, it executes the `RunManualConvergentTrader()` method.
+*   **`RunManualConvergentTrader()`**:
+    1.  Reads the relevant exchange configuration from `appsettings.json`.
+    2.  Instantiates the correct `IExchange` implementation (`BybitExchange` or `GateIoExchange`).
+    3.  Injects the exchange adapter into a new `ConvergentTrader` instance.
+    4.  Starts the `ConvergentTrader` with parameters (symbol, amount) from the configuration.
 
-The architecture was divided into three main logical modules: `Host`, `Core`, and `Exchanges`.
+### 2.2. Core Components
 
-#### 2.2.1. `Host` (Entry Point - Legacy)
+The `ConvergentTrader` is the heart of the current strategy.
 
-*   **`Program.cs`**: The console application serving as the entry point. In scenarios where the `ConvergentTrader` is not explicitly invoked via command-line arguments, `Program.cs` proceeds with the setup for the legacy components:
-    1.  Reading configuration from `appsettings.json` (e.g., `SpreadListenerUrl`).
-    2.  Initializes and wires up key services like `SpreadListener` and `DecisionMaker`.
-    3.  Starts the `SpreadListener` via `listener.StartAsync()`.
-
-#### 2.2.2. `Core` (Business Logic - Legacy)
-
-This module contained the primary decision-making and trade execution logic for the two-legged arbitrage.
-
-*   **`SpreadListener`**:
-    *   **Responsibility:** Connects via WebSocket to the `SpreadAggregator` (`Collections` project) to receive real-time spread data. **This component is still instantiated and started if the `ConvergentTrader` is not invoked via command-line arguments.**
-    *   **Logic:** When a spread exceeded a predefined threshold (e.g., 0.25%), it fired an `OnProfitableSpreadDetected` event, indicating an arbitrage direction (e.g., `GateIo_To_Bybit`).
-
-*   **`DecisionMaker` (Legacy - Placeholder):**
-    *   **Responsibility:** Reacts to the `OnProfitableSpreadDetected` event.
-    *   **State:** This was largely a **placeholder implementation**. It subscribed to the event and used an `_isCycleInProgress` flag to prevent overlapping cycles, but it **did not initiate a trade**. It only logged profitable spread detections. **This component still receives events from the `SpreadListener` but performs no trading actions.** The intention was to integrate and start the `ArbitrageTrader`.
-
-*   **`ArbitrageTrader` (Legacy - Intended State Machine):**
-    *   **Status:** This component represented the **intended, future-state design** for the first leg of the two-legged trade cycle (buy on one exchange, sell on another). It was **never fully integrated or actively used** by the `DecisionMaker` in its operational phase.
-    *   **Intended State Flow:**
-        1.  **Start:** Initiated a `TrailingTrader` to place the "buy" leg.
-        2.  **Wait for Buy Fill:** Subscribed to `OnOrderFilled` from the `TrailingTrader`.
-        3.  **Wait for Balance:** Upon buy fill, it waited for a `TaskCompletionSource` (`_baseAssetBalanceTcs`) to be signaled by a balance update, ensuring asset availability. A debounce timer handled fluctuating balance updates.
-        4.  **Execute Sell:** Once balance was confirmed, it placed an immediate market "sell" order on the second exchange.
-        5.  **Wait for Sell Fill:** Waited for a WebSocket order update confirming the sell order fill.
-        6.  **Complete:** Calculated P&L, logged latencies, and signaled completion via `_arbitrageCycleTcs`.
-    *   **Concurrency Control:** Used a `SemaphoreSlim` to protect critical logic.
-
-*   **`ReverseArbitrageTrader` (Legacy - Intended State Machine for Leg 2):**
-    *   **Status:** This component represented the **intended design for the second leg** of the two-legged arbitrage, aimed at rebalancing assets. Like `ArbitrageTrader`, it was **never fully integrated or actively used**.
-    *   **Intended Responsibility:** To perform a reverse trade, buying back on the secondary exchange and selling the original quantity on the primary exchange, utilizing state from `ArbitrageTrader`.
-
-*   **`IExchange` (Interface - Legacy):**
-    *   **Responsibility:** Defined a universal contract (Adapter pattern) for interacting with any exchange, including methods for placing orders, getting balances, and subscribing to WebSocket updates.
-
-### 2.3. `Exchanges` (Adapters - Legacy)
-
-*   **Responsibility:** Contained concrete implementations of the `IExchange` interface for each supported exchange (e.g., `BybitExchange`, `GateIoExchange`). This layer isolated the core logic from specific exchange API details.
-*   **Example (`BybitExchange` & `BybitLowLatencyWs`):** Used a custom `BybitLowLatencyWs` client for critical operations to minimize latency.
-
-### 2.4. Architectural Patterns (Legacy)
-
-*   **State Machine:** The `ArbitrageTrader` and `ReverseArbitrageTrader` were designed as state machines.
-*   **Observer:** `SpreadListener` acted as the publisher, `DecisionMaker` as the subscriber.
-*   **Adapter:** The `IExchange` interface provided adaptability.
-*   **Singleton/State Lock:** `_isCycleInProgress` and `SemaphoreSlim` managed state and race conditions.
-
-## 3. Current Architecture (Convergent Trader MVP)
-
-This section describes the currently active and operational trading strategy within the `Trader` project. This architecture represents a simplified approach, focusing on single-exchange trading, which proved more robust and manageable than the legacy two-legged arbitrage.
-
-### 3.1. Overview (Current)
-
-The current strategy involves a `ConvergentTrader` that executes a buy order on a single exchange, waits for a short, fixed duration, and then sells the entire acquired balance on the *same* exchange. This simpler model reduces complexity associated with cross-exchange synchronization and asset transfer.
-
-### 3.2. Core Components (Current)
-
-The `Current Architecture` leverages parts of the existing `Host` and `Exchanges` modules, but the core trading logic is encapsulated in the `ConvergentTrader`.
-
-#### 3.2.1. `Host` (Entry Point - Current)
-
-*   **`Program.cs`**: The main entry point has been refactored to directly instantiate and run the `ConvergentTrader`.
-    *   **Key Method:** `RunManualConvergentTrader()` is now the primary execution path.
-    *   **Responsibilities:**
-        1.  Reads configuration (e.g., API keys, order parameters for `ConvergentTrader`).
-        2.  Initializes the specific `IExchange` implementation (e.g., `BybitExchange`).
-        3.  Creates and starts the `ConvergentTrader` with the configured parameters.
-
-#### 3.2.2. `Core` (Business Logic - Current)
-
-The `ConvergentTrader` is the central component of the current trading strategy.
-
-*   **`ConvergentTrader`**:
-    *   **Responsibility:** Manages the entire buy-then-sell cycle on a single exchange.
+*   **`Core/ConvergentTrader.cs`**:
+    *   **Responsibility:** Manages the entire buy-wait-sell cycle on a single exchange.
     *   **State Flow:**
-        1.  **Initialization:** Configured with exchange instance, symbol, order quantity, and other parameters.
-        2.  **Start:** Initiates a buy order. It often employs a trailing mechanism or market order depending on configuration.
-        3.  **Handle Buy Fill:** Once the buy order is filled, it records the purchased quantity and average price.
-        4.  **Wait and Sell:** After a configured delay (e.g., `_sellDelayMs`), it places a market sell order for the entire acquired quantity.
-        5.  **Handle Sell Fill:** Records the sold quantity and average price, completing one cycle.
-        6.  **Loop/Stop:** Depending on configuration, it may repeat the cycle or stop.
+        1.  **Start:** Cancels any open orders for the target symbol and subscribes to balance updates. It then uses a `TrailingTrader` to execute the initial "buy" order.
+        2.  **Handle Buy Fill:** Once the buy order is filled, it waits for a WebSocket balance update to confirm the asset is available in the account.
+        3.  **Wait and Sell:** After a hardcoded 5-second delay, it places a market "sell" order for the entire acquired quantity of the asset.
+        4.  **Complete:** Assumes the market sell order fills immediately and completes the cycle.
 
-*   **`IExchange` (Interface - Current):**
-    *   **Responsibility:** Remains the universal contract for exchange interaction, used by `ConvergentTrader` for order placement and balance queries.
+*   **`Core/IExchange.cs`**:
+    *   **Responsibility:** A key abstraction (Adapter pattern) that defines a universal contract for all exchange-specific implementations. It allows `ConvergentTrader` to interact with different exchanges without knowing their specific API details.
 
-### 3.3. `Exchanges` (Adapters - Current)
+*   **`Exchanges/`**:
+    *   **Responsibility:** This directory contains the concrete implementations of the `IExchange` interface (e.g., `BybitExchange`, `GateIoExchange`). This layer isolates the core logic from third-party libraries and exchange-specific protocols.
 
-*   **Responsibility:** Continues to provide concrete implementations of the `IExchange` interface, abstracting exchange-specific API details. The `ConvergentTrader` utilizes these adapters.
+### 2.3. Architectural Patterns
 
-### 3.4. Architectural Patterns (Current)
+*   **Command Pattern:** The `ConvergentTrader` can be seen as a command that executes a predefined trading sequence.
+*   **Adapter Pattern:** The `IExchange` interface decouples the core logic from the exchange implementations.
+*   **Dependency Injection:** The `IExchange` instance is injected into the `ConvergentTrader` at runtime.
 
-*   **Command Pattern:** `ConvergentTrader` acts as a command executor for a predefined trading sequence.
-*   **Adapter:** `IExchange` still serves as the adapter for exchange integration.
-*   **Simple State Management:** Internal state within `ConvergentTrader` tracks the current phase (buy, wait, sell).
-*   **Dependency Injection:** Configuration and exchange instances are injected into `ConvergentTrader`.
+---
+
+## 3. Legacy Architecture: Spread Listener (Passive)
+
+This section describes the initial implementation of the `Trader` project, which is no longer the active trading strategy but remains the default execution path if the application is started without arguments.
+
+### 3.1. Overview
+
+The legacy system was designed to listen for arbitrage opportunities between two exchanges, as identified by the `SpreadAggregator` project. However, the component responsible for acting on these opportunities (`DecisionMaker`) was never fully implemented to execute trades.
+
+### 3.2. Entry Point & Control Flow
+
+*   **`Host/Program.cs`**: If no command-line arguments are provided, the application falls back to this mode.
+    1.  It reads the `SpreadListenerUrl` from `appsettings.json`.
+    2.  It initializes the `SpreadListener` and the `DecisionMaker`.
+    3.  The `DecisionMaker` subscribes to events from the `SpreadListener`.
+    4.  The application starts the `SpreadListener` and waits indefinitely.
+
+### 3.3. Core Components
+
+*   **`Core/SpreadListener.cs`**:
+    *   **Responsibility:** Connects to the `SpreadAggregator` WebSocket server.
+    *   **Logic:** It listens for incoming spread data. If a spread exceeds a predefined threshold, it fires an `OnProfitableSpreadDetected` event.
+
+*   **`Core/DecisionMaker.cs`**:
+    *   **Responsibility:** Subscribes to the `OnProfitableSpreadDetected` event.
+    *   **State:** This is a **placeholder implementation**. It logs that a profitable spread was detected and uses a simple flag (`_isCycleInProgress`) to avoid logging concurrent events.
+    *   **Crucially, it does not contain any logic to start a trader or execute any orders.** The `TODO` comments in the code confirm its incomplete status.
 
 ## 4. External Dependencies
 
-*   **`appsettings.json`:** Configuration file for API keys, order parameters, and other settings relevant to the `ConvergentTrader`.
-*   **Exchange-specific libraries:** `Bybit.Net`, `GateIo.Net`, etc., are used within the `Exchanges` layer.
-*   **No direct dependency on `SpreadAggregator` from `Collections` for the current active strategy.**
+*   **`appsettings.json`:** Contains all external configuration, including the `SpreadListenerUrl` for the legacy mode and the `ExchangeConfigs` (API keys, secrets, trading amounts) for the active `ConvergentTrader` mode.
+*   **Exchange Libraries:** `Bybit.Net`, `GateIo.Net`, etc., are used within the `Exchanges` layer.
+*   **`SpreadAggregator` Project:** The legacy `SpreadListener` mode depends on the WebSocket server provided by the `SpreadAggregator` (from the `collections` project). The active `ConvergentTrader` mode has **no dependency** on this.

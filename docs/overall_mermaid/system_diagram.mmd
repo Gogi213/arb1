@@ -1,39 +1,54 @@
-graph LR
-    subgraph Exchanges
-        E1[Exchange 1 WS]
-        E2[Exchange 2 WS]
-        E3[...]
+graph TD
+    subgraph "External Systems"
+        Exchanges[Exchange APIs & WebSockets]
     end
 
     subgraph "Project: collections"
         direction TB
-        A["<b>collections</b><br>(C# Data Hub)"]
-        A -- "1. Ingests raw data" --> P1["Processes & Calculates Spreads"]
-        P1 -- "2a. Broadcasts<br>Real-time Spreads" --> WS_Out["WebSocket Server<br>(ws://localhost:8181)"]
-        P1 -- "2b. Writes Raw Data<br><b>(INCOMPLETE DATA DUE TO BUG)</b>" --> D_DataLake[(Data Lake<br>Parquet Files)]
+        Collections["<b>collections</b><br>(C# Data Hub)"]
+        Collections_Process["Processes &<br>Calculates Spreads"]
+        
+        Collections -- "1. Ingests raw data" --> Collections_Process
+        Collections_Process -- "2a. Broadcasts Spreads" --> Collections_WS_Out["WebSocket Server"]
+        Collections_Process -- "2b. Writes Raw Data<br><b>(Incomplete Data)</b>" --> DataLake[(Parquet Files)]
     end
     
     subgraph "Project: trader"
-        B["<b>trader</b><br>(C# Bot)"]
-        B -- "3. Listens for spreads" --> WS_Out
-        B -- "4. Detects Opportunity" --> B_HALT["<b>PROCESS HALTS<br>(Execution is TODO)</b>"]
-        style B_HALT fill:#d63031,stroke:#000,stroke-width:2px
+        Trader["<b>trader</b><br>(C# Bot)"]
+        
+        subgraph "Active Mode"
+            direction LR
+            Trader_Convergent["ConvergentTrader"]
+            Trader_Convergent -- "Executes Trades" --> Exchanges
+        end
+        
+        subgraph "Passive/Legacy Mode"
+            direction LR
+            Trader_Listener["SpreadListener"]
+            Trader_Listener -- "Listens" --> Collections_WS_Out
+            Trader_Listener --> Trader_Halt((Stops Here))
+        end
+
+        Trader -- "Runs in one of two modes" --> Trader_Convergent
+        Trader -- "Runs in one of two modes" --> Trader_Listener
     end
 
     subgraph "Project: analyzer"
-        C["<b>analyzer</b><br>(Python Batch Analysis)"]
-        C -- "5. Reads historical data" --> D_DataLake
-        C -- "6. Generates CSV reports" --> C_Reports[(CSV Reports<br>summary_stats)]
+        Analyzer["<b>analyzer</b><br>(Python Analysis)"]
+        Analyzer -- "3. Reads historical data" --> DataLake
+        Analyzer -- "4. Generates reports" --> Reports[(CSV Reports)]
     end
     
-    subgraph "External Actors"
-        U[Human Operator]
+    subgraph "Human Interaction"
+        Operator[Human Operator]
+        Operator -- "5. Reads reports" --> Reports
+        Operator -- "6. Configures & Runs" --> Trader_Convergent
     end
 
-    E1 & E2 & E3 --> A
-    
-    C_Reports -- "7. Informs strategy" --> U
-    U -- "8. Configures" --> B
+    Exchanges --> Collections
 
     classDef project fill:#ececff,stroke:#9090ff,stroke-width:2px,font-weight:bold
-    class A,B,C project
+    class Collections,Trader,Analyzer project
+    
+    style Trader_Halt fill:#f9f,stroke:#333,stroke-width:2px
+    style Trader_Convergent fill:#9cf,stroke:#333,stroke-width:2px

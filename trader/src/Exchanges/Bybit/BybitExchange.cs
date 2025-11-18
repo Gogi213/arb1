@@ -125,15 +125,26 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task<long?> PlaceOrderAsync(string symbol, Core.OrderSide side, Core.NewOrderType type, decimal? quantity = null, decimal? price = null, decimal? quoteQuantity = null)
         {
-            if (_lowLatencyWs == null) throw new InvalidOperationException("Client not initialized");
+            FileLogger.LogOther($"[Bybit] ========== PlaceOrderAsync ENTRY ==========");
+            FileLogger.LogOther($"[Bybit] Input Symbol: '{symbol}'");
+            FileLogger.LogOther($"[Bybit] Side: {side}, Type: {type}");
+            FileLogger.LogOther($"[Bybit] Quantity: {quantity}, Price: {price}, QuoteQuantity: {quoteQuantity}");
+
+            if (_lowLatencyWs == null)
+            {
+                FileLogger.LogOther($"[Bybit-ERROR] ❌ Client not initialized!");
+                throw new InvalidOperationException("Client not initialized");
+            }
 
             // Bybit uses symbol format without underscore (XPLUSDT, not XPL_USDT)
             var bybitSymbol = symbol.Replace("_", "");
+            FileLogger.LogOther($"[Bybit] Converted symbol: '{symbol}' -> '{bybitSymbol}'");
 
             // Standardize to always use base quantity. Quote quantity is no longer supported for market orders.
             var orderQuantity = quantity;
             if (orderQuantity == null)
             {
+                FileLogger.LogOther($"[Bybit-ERROR] ❌ Order quantity is NULL!");
                 throw new ArgumentNullException(nameof(quantity), "Order quantity must be provided.");
             }
 
@@ -143,32 +154,67 @@ namespace TraderBot.Exchanges.Bybit
             string? orderIdStr;
             if (type == Core.NewOrderType.Market)
             {
-                FileLogger.LogOther($"[Bybit] Calling PlaceMarketOrderAsync: symbol={bybitSymbol}, side={sideStr}, qty={orderQuantity.Value}");
-                orderIdStr = await _lowLatencyWs.PlaceMarketOrderAsync(bybitSymbol, sideStr, orderQuantity.Value);
-                FileLogger.LogOther($"[Bybit] PlaceMarketOrderAsync returned: {orderIdStr ?? "NULL"}");
+                // Round quantity to basePrecision to avoid "too many decimals" error
+                // basePrecision is the step size (e.g., 0.1, 0.01, 0.001)
+                // Calculate number of decimals from precision: 0.1 -> 1, 0.01 -> 2, etc.
+                int decimals = 0;
+                if (_basePrecision > 0)
+                {
+                    decimals = (int)Math.Round(-Math.Log10((double)_basePrecision));
+                }
+                var roundedQuantity = Math.Round(orderQuantity.Value, decimals);
+
+                FileLogger.LogOther($"[Bybit] 📤 Calling PlaceMarketOrderAsync:");
+                FileLogger.LogOther($"[Bybit]   Symbol: {bybitSymbol}");
+                FileLogger.LogOther($"[Bybit]   Side: {sideStr}");
+                FileLogger.LogOther($"[Bybit]   Quantity (original): {orderQuantity.Value}");
+                FileLogger.LogOther($"[Bybit]   BasePrecision: {_basePrecision} -> {decimals} decimal places");
+                FileLogger.LogOther($"[Bybit]   Quantity (rounded): {roundedQuantity}");
+
+                orderIdStr = await _lowLatencyWs.PlaceMarketOrderAsync(bybitSymbol, sideStr, roundedQuantity);
+
+                FileLogger.LogOther($"[Bybit] 📥 PlaceMarketOrderAsync returned: '{orderIdStr ?? "NULL"}'");
             }
             else
             {
                 if (price == null)
                 {
+                    FileLogger.LogOther($"[Bybit-ERROR] ❌ Price is NULL for limit order!");
                     throw new ArgumentNullException(nameof(price), "Price must be provided for limit orders.");
                 }
+
+                FileLogger.LogOther($"[Bybit] 📤 Calling PlaceLimitOrderAsync:");
+                FileLogger.LogOther($"[Bybit]   Symbol: {bybitSymbol}");
+                FileLogger.LogOther($"[Bybit]   Side: {sideStr}");
+                FileLogger.LogOther($"[Bybit]   Quantity: {orderQuantity.Value}");
+                FileLogger.LogOther($"[Bybit]   Price: {price.Value}");
+
                 orderIdStr = await _lowLatencyWs.PlaceLimitOrderAsync(bybitSymbol, sideStr, orderQuantity.Value, price.Value);
+
+                FileLogger.LogOther($"[Bybit] 📥 PlaceLimitOrderAsync returned: '{orderIdStr ?? "NULL"}'");
             }
 
             var t1 = DateTime.UtcNow;
             var apiLatency = (t1 - t0).TotalMilliseconds;
-            FileLogger.LogWebsocket($"[Bybit] Low-latency WS PlaceOrder: {apiLatency:F0}ms (OrderId={orderIdStr})");
+            FileLogger.LogOther($"[Bybit] Total API call latency: {apiLatency:F0}ms");
 
             // Parse real OrderId from Bybit
+            FileLogger.LogOther($"[Bybit] Attempting to parse OrderId string: '{orderIdStr}'");
+
             if (orderIdStr != null && long.TryParse(orderIdStr, out var orderId))
             {
-                FileLogger.LogOther($"[Bybit] Successfully parsed OrderId: {orderId}");
+                FileLogger.LogOther($"[Bybit] ✅ Successfully parsed OrderId: {orderId}");
+                FileLogger.LogOther($"[Bybit] ========== PlaceOrderAsync EXIT (SUCCESS) ==========");
                 return orderId;
             }
             else
             {
-                FileLogger.LogOther($"[Bybit] Failed to parse OrderId from string: '{orderIdStr}'. Returning null.");
+                FileLogger.LogOther($"[Bybit-ERROR] ❌ Failed to parse OrderId from string: '{orderIdStr}'");
+                FileLogger.LogOther($"[Bybit-ERROR] Possible reasons:");
+                FileLogger.LogOther($"[Bybit-ERROR]   1) OrderId is NULL (Bybit did not respond)");
+                FileLogger.LogOther($"[Bybit-ERROR]   2) OrderId is a GUID (timeout fallback from PlaceMarketOrderAsync)");
+                FileLogger.LogOther($"[Bybit-ERROR]   3) OrderId format is unexpected");
+                FileLogger.LogOther($"[Bybit] ========== PlaceOrderAsync EXIT (FAILURE - RETURNING NULL) ==========");
                 return null;
             }
         }

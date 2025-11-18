@@ -75,8 +75,35 @@ namespace TraderBot.Core
             FileLogger.LogOther($"[Convergent] Waiting 5 seconds before market sell...");
             await Task.Delay(5000);
 
+            // CRITICAL CHECK: Validate we have enough base asset to sell
+            FileLogger.LogOther($"[Convergent] ========== PRE-SELL VALIDATION ==========");
+            FileLogger.LogOther($"[Convergent] Base Asset: {_baseAsset}");
+            FileLogger.LogOther($"[Convergent] Available Balance: {actualAvailable}");
+            FileLogger.LogOther($"[Convergent] Intended Sell Quantity: {actualAvailable}");
+
+            if (actualAvailable <= 0)
+            {
+                FileLogger.LogOther($"[Convergent-ERROR] ❌ Cannot sell: Available balance is {actualAvailable}!");
+                _cycleTcs.TrySetException(new Exception($"Insufficient balance: {actualAvailable} {_baseAsset}"));
+                return;
+            }
+
+            // Get USDT balance for diagnostic purposes (to understand what we'd receive)
+            try
+            {
+                var quoteAsset = _symbol?.Split('_')[1] ?? "USDT";
+                var quoteBalance = await _exchange.GetBalanceAsync(quoteAsset);
+                FileLogger.LogOther($"[Convergent] Quote Asset ({quoteAsset}) Balance BEFORE sell: {quoteBalance}");
+            }
+            catch (Exception ex)
+            {
+                FileLogger.LogOther($"[Convergent-WARN] Failed to get quote balance: {ex.Message}");
+            }
+
+            FileLogger.LogOther($"[Convergent] ========== END PRE-SELL VALIDATION ==========");
+
             // Place market sell
-            FileLogger.LogOther($"[Convergent] Placing market sell for {actualAvailable} on {filledOrder.Symbol}");
+            FileLogger.LogOther($"[Convergent] 📤 Placing market sell for {actualAvailable} on {filledOrder.Symbol}");
             var sellQuantity = actualAvailable;
 
             try
@@ -92,7 +119,7 @@ namespace TraderBot.Core
 
                 if (sellOrderId.HasValue)
                 {
-                    FileLogger.LogOther($"[Convergent] Market sell placed: {sellOrderId.Value}");
+                    FileLogger.LogOther($"[Convergent] ✅ Market sell placed successfully: {sellOrderId.Value}");
                     // In this simple version, assume market sell fills immediately
                     // For real implementation, would need order update subscription
                     await Task.Delay(1000); // Assume filled
@@ -101,13 +128,18 @@ namespace TraderBot.Core
                 }
                 else
                 {
-                    FileLogger.LogOther($"[Convergent] FAILED to place sell order! (returned NULL)");
+                    FileLogger.LogOther($"[Convergent-ERROR] ❌ FAILED to place sell order! PlaceOrderAsync returned NULL");
+                    FileLogger.LogOther($"[Convergent-ERROR] This typically means:");
+                    FileLogger.LogOther($"[Convergent-ERROR]   1) Bybit did not respond in time (timeout)");
+                    FileLogger.LogOther($"[Convergent-ERROR]   2) Bybit rejected the order (check logs above)");
+                    FileLogger.LogOther($"[Convergent-ERROR]   3) WebSocket is disconnected/not authenticated");
                     _cycleTcs.TrySetException(new Exception("Sell failed: OrderId is null"));
                 }
             }
             catch (Exception ex)
             {
-                FileLogger.LogOther($"[Convergent] EXCEPTION placing sell order: {ex.Message}");
+                FileLogger.LogOther($"[Convergent-ERROR] ❌ EXCEPTION placing sell order: {ex.Message}");
+                FileLogger.LogOther($"[Convergent-ERROR] Stack trace: {ex.StackTrace}");
                 _cycleTcs.TrySetException(new Exception($"Sell failed with exception: {ex.Message}", ex));
             }
         }

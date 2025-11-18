@@ -31,6 +31,10 @@ namespace TraderBot.Exchanges.Bybit
         private readonly SemaphoreSlim _tradeSendLock = new SemaphoreSlim(1, 1);
         private readonly SemaphoreSlim _publicSendLock = new SemaphoreSlim(1, 1);
 
+        // TaskCompletionSource for waiting auth completion
+        private readonly TaskCompletionSource<bool> _privateAuthTcs = new TaskCompletionSource<bool>();
+        private readonly TaskCompletionSource<bool> _tradeAuthTcs = new TaskCompletionSource<bool>();
+
         // Local order book state
         private readonly SortedDictionary<decimal, decimal> _bids = new(Comparer<decimal>.Create((a, b) => b.CompareTo(a))); // Bids are descending
         private readonly SortedDictionary<decimal, decimal> _asks = new(); // Asks are ascending
@@ -140,11 +144,33 @@ namespace TraderBot.Exchanges.Bybit
                 await SendMessageAsync(ws, _privateSendLock, authMessage, "PRIVATE");
             else if (name == "TRADE")
                 await SendMessageAsync(ws, _tradeSendLock, authMessage, "TRADE");
-            
-            FileLogger.LogWebsocket($"[WS-{name}] Authentication request sent.");
-            
-            // In a real scenario, we'd wait for the auth response in ReceiveLoop
-            await Task.Delay(1000);
+
+            FileLogger.LogWebsocket($"[WS-{name}] Authentication request sent. Waiting for confirmation...");
+
+            // Wait for actual auth response with timeout
+            var authTask = name == "PRIVATE" ? _privateAuthTcs.Task : _tradeAuthTcs.Task;
+            var timeoutTask = Task.Delay(10000); // 10 second timeout
+
+            var completedTask = await Task.WhenAny(authTask, timeoutTask);
+
+            if (completedTask == authTask)
+            {
+                var isAuthenticated = await authTask;
+                if (isAuthenticated)
+                {
+                    FileLogger.LogWebsocket($"[WS-{name}] Authentication confirmed successfully.");
+                }
+                else
+                {
+                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] Authentication FAILED!");
+                    throw new Exception($"Authentication failed for {name} WebSocket");
+                }
+            }
+            else
+            {
+                FileLogger.LogWebsocket($"[WS-{name}-ERROR] Authentication timeout after 10 seconds!");
+                throw new TimeoutException($"Authentication timeout for {name} WebSocket");
+            }
         }
 
         private string GenerateAuthSignature(long expires)
@@ -163,11 +189,19 @@ namespace TraderBot.Exchanges.Bybit
     
         public async Task<string?> PlaceMarketOrderAsync(string symbol, string side, decimal quantity)
         {
-            FileLogger.LogOther($"[WS-TRADE] PlaceMarketOrderAsync called. Authenticated: {_isTradeAuthenticated}");
+            var diagStartTime = DateTime.UtcNow;
+            FileLogger.LogOther($"[WS-TRADE] ========== PlaceMarketOrderAsync DIAGNOSTIC START ==========");
+            FileLogger.LogOther($"[WS-TRADE] Symbol: {symbol}, Side: {side}, Quantity: {quantity}");
+            FileLogger.LogOther($"[WS-TRADE] Trade WS State: {_tradeWs.State}");
+            FileLogger.LogOther($"[WS-TRADE] Authenticated: {_isTradeAuthenticated}");
 
             if (!_isTradeAuthenticated)
             {
-                FileLogger.LogOther($"[WS-TRADE-ERROR] Cannot place market order: Trade WebSocket is not authenticated!");
+                FileLogger.LogOther($"[WS-TRADE-ERROR] ❌ Cannot place market order: Trade WebSocket is NOT authenticated!");
+                FileLogger.LogOther($"[WS-TRADE-ERROR] This means either:");
+                FileLogger.LogOther($"[WS-TRADE-ERROR]   1) Authentication never completed");
+                FileLogger.LogOther($"[WS-TRADE-ERROR]   2) Authentication failed");
+                FileLogger.LogOther($"[WS-TRADE-ERROR]   3) Connection dropped after authentication");
                 throw new InvalidOperationException("Trade WebSocket is not authenticated");
             }
 
@@ -180,7 +214,7 @@ namespace TraderBot.Exchanges.Bybit
             try
             {
                 _orderIdMapping[reqId] = tcs;
-                FileLogger.LogOther($"[WS-TRADE] OrderId mapping created for reqId: {reqId}");
+                FileLogger.LogOther($"[WS-TRADE] ✓ OrderId mapping created for reqId: {reqId}");
             }
             finally
             {
@@ -193,25 +227,39 @@ namespace TraderBot.Exchanges.Bybit
             // Build JSON with proper Bybit v5 format
             var orderMessage = $@"{{""reqId"":""{reqId}"",""header"":{{""X-BAPI-TIMESTAMP"":""{timestamp}"",""X-BAPI-RECV-WINDOW"":""5000""}},""op"":""order.create"",""args"":[{{""category"":""spot"",""symbol"":""{symbol}"",""side"":""{side}"",""orderType"":""Market"",""qty"":""{qtyStr}""}}]}}";
 
-            FileLogger.LogOther($"[WS-TRADE] Sending order message: {orderMessage}");
+            FileLogger.LogOther($"[WS-TRADE] 📤 Sending order.create message:");
+            FileLogger.LogOther($"[WS-TRADE] {orderMessage}");
             var t0 = DateTime.UtcNow;
             await SendMessageAsync(_tradeWs, _tradeSendLock, orderMessage, "TRADE");
             var t1 = DateTime.UtcNow;
 
             var sendLatency = (t1 - t0).TotalMilliseconds;
-            FileLogger.LogOther($"[WS-TRADE] Market order sent in {sendLatency:F2}ms. ReqId: {reqId}");
+            FileLogger.LogOther($"[WS-TRADE] ✓ Order message sent in {sendLatency:F2}ms. ReqId: {reqId}");
 
-            // Wait for real OrderId from WS response (timeout 5 seconds)
-            FileLogger.LogOther($"[WS-TRADE] Waiting for response (timeout 5s)...");
+            // Wait for real OrderId from WS response (timeout 10 seconds - increased from 5)
+            FileLogger.LogOther($"[WS-TRADE] ⏳ Waiting for Bybit response (timeout 10s)...");
             var realOrderIdTask = tcs.Task;
-            if (await Task.WhenAny(realOrderIdTask, Task.Delay(5000)) == realOrderIdTask)
+            if (await Task.WhenAny(realOrderIdTask, Task.Delay(10000)) == realOrderIdTask)
             {
                 var realId = await realOrderIdTask;
-                FileLogger.LogOther($"[WS-TRADE] Received real OrderId '{realId}' for reqId '{reqId}'.");
+                var totalLatency = (DateTime.UtcNow - diagStartTime).TotalMilliseconds;
+                FileLogger.LogOther($"[WS-TRADE] ✅ SUCCESS! Received real OrderId '{realId}' for reqId '{reqId}'.");
+                FileLogger.LogOther($"[WS-TRADE] Total execution time: {totalLatency:F2}ms");
+                FileLogger.LogOther($"[WS-TRADE] ========== PlaceMarketOrderAsync DIAGNOSTIC END ==========");
                 return realId;
             }
 
-            FileLogger.LogWebsocket($"[WS-PRIVATE-ERROR] Timeout waiting for OrderId for reqId '{reqId}'. Returning reqId as fallback.");
+            // TIMEOUT PATH - this is where the problem likely occurs
+            var timeoutDuration = (DateTime.UtcNow - diagStartTime).TotalMilliseconds;
+            FileLogger.LogOther($"[WS-TRADE-ERROR] ❌ TIMEOUT after {timeoutDuration:F2}ms waiting for OrderId!");
+            FileLogger.LogOther($"[WS-TRADE-ERROR] ReqId: {reqId}");
+            FileLogger.LogOther($"[WS-TRADE-ERROR] This means Bybit either:");
+            FileLogger.LogOther($"[WS-TRADE-ERROR]   1) Did not respond to our order.create request");
+            FileLogger.LogOther($"[WS-TRADE-ERROR]   2) Responded with an error that we didn't parse correctly");
+            FileLogger.LogOther($"[WS-TRADE-ERROR]   3) Responded but the message was lost/malformed");
+            FileLogger.LogOther($"[WS-TRADE-ERROR] Check WebSocket receive logs above for any responses with reqId '{reqId}'");
+            FileLogger.LogOther($"[WS-TRADE-ERROR] Returning reqId as fallback (will fail to parse as long)");
+
             await _mappingLock.WaitAsync();
             try
             {
@@ -221,6 +269,8 @@ namespace TraderBot.Exchanges.Bybit
             {
                 _mappingLock.Release();
             }
+
+            FileLogger.LogOther($"[WS-TRADE] ========== PlaceMarketOrderAsync DIAGNOSTIC END (TIMEOUT) ==========");
             return reqId; // Fallback to reqId if timeout
         }
 
@@ -447,14 +497,30 @@ namespace TraderBot.Exchanges.Bybit
 
                             if (success)
                             {
-                                if (name == "PRIVATE") _isPrivateAuthenticated = true;
-                                if (name == "TRADE") _isTradeAuthenticated = true;
+                                if (name == "PRIVATE")
+                                {
+                                    _isPrivateAuthenticated = true;
+                                    _privateAuthTcs.TrySetResult(true);
+                                }
+                                if (name == "TRADE")
+                                {
+                                    _isTradeAuthenticated = true;
+                                    _tradeAuthTcs.TrySetResult(true);
+                                }
                                 FileLogger.LogWebsocket($"[WS-{name}-EVENT] Authentication successful.");
                             }
                             else
                             {
-                                if (name == "PRIVATE") _isPrivateAuthenticated = false;
-                                if (name == "TRADE") _isTradeAuthenticated = false;
+                                if (name == "PRIVATE")
+                                {
+                                    _isPrivateAuthenticated = false;
+                                    _privateAuthTcs.TrySetResult(false);
+                                }
+                                if (name == "TRADE")
+                                {
+                                    _isTradeAuthenticated = false;
+                                    _tradeAuthTcs.TrySetResult(false);
+                                }
                                 string errorDetail = "Unknown error";
                                 if (root.TryGetProperty("retMsg", out var msg) && msg.ValueKind == JsonValueKind.String)
                                 {
@@ -481,28 +547,82 @@ namespace TraderBot.Exchanges.Bybit
                             var reqId = reqIdProp.GetString();
                             var retCode = root.TryGetProperty("retCode", out var rc) ? rc.GetInt32() : -1;
                             var retMsg = root.TryGetProperty("retMsg", out var rm) ? rm.GetString() : "N/A";
-                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] Operation response for reqId '{reqId}'. Code: {retCode}, Msg: '{retMsg}'");
+
+                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] ========== OPERATION RESPONSE ==========");
+                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] ReqId: '{reqId}'");
+                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] RetCode: {retCode}");
+                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] RetMsg: '{retMsg}'");
 
                             // Extract real OrderId from successful order.create response
                             if (root.TryGetProperty("op", out var opType) && opType.GetString() == "order.create")
                             {
+                                FileLogger.LogWebsocket($"[WS-{name}-EVENT] Operation Type: order.create");
+
                                 if (retCode == 0)
                                 {
-                                    if (root.TryGetProperty("data", out var data) && data.TryGetProperty("orderId", out var orderIdProp))
+                                    FileLogger.LogWebsocket($"[WS-{name}-EVENT] ✅ Order creation SUCCESS");
+                                    FileLogger.LogWebsocket($"[WS-{name}-DEBUG] FULL RESPONSE MESSAGE:");
+                                    FileLogger.LogWebsocket($"[WS-{name}-DEBUG] {message}");
+
+                                    string? realOrderId = null;
+
+                                    if (root.TryGetProperty("data", out var data))
                                     {
-                                        var realOrderId = orderIdProp.GetString();
-                                        if (reqId != null && realOrderId != null)
+                                        FileLogger.LogWebsocket($"[WS-{name}-EVENT] Data found in response");
+
+                                        // Try to find orderId in various possible locations
+                                        if (data.TryGetProperty("orderId", out var orderIdProp) && orderIdProp.ValueKind == JsonValueKind.String)
                                         {
-                                            await CompleteOrderIdMapping(reqId, realOrderId);
+                                            realOrderId = orderIdProp.GetString();
+                                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] ✓ Found OrderId in data.orderId: '{realOrderId}'");
                                         }
+                                        else if (data.TryGetProperty("orderLinkId", out var orderLinkIdProp) && orderLinkIdProp.ValueKind == JsonValueKind.String)
+                                        {
+                                            realOrderId = orderLinkIdProp.GetString();
+                                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] ✓ Found OrderId in data.orderLinkId: '{realOrderId}'");
+                                        }
+                                        else
+                                        {
+                                            FileLogger.LogWebsocket($"[WS-{name}-WARN] No 'orderId' or 'orderLinkId' field found in data");
+                                            FileLogger.LogWebsocket($"[WS-{name}-DEBUG] Data content: {data}");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        FileLogger.LogWebsocket($"[WS-{name}-WARN] No 'data' field in response");
+                                    }
+
+                                    // CRITICAL: For market orders that execute immediately, Bybit may not return orderId
+                                    // In this case, we need to accept the order as successful but log a warning
+                                    if (realOrderId == null || realOrderId == reqId)
+                                    {
+                                        FileLogger.LogWebsocket($"[WS-{name}-CRITICAL] ⚠️ No valid numeric orderId found in response!");
+                                        FileLogger.LogWebsocket($"[WS-{name}-CRITICAL] This is unexpected for Bybit API.");
+                                        FileLogger.LogWebsocket($"[WS-{name}-CRITICAL] Market order may have executed, but we cannot track it.");
+                                        FileLogger.LogWebsocket($"[WS-{name}-CRITICAL] Using reqId as fallback: '{reqId}'");
+                                        realOrderId = reqId; // Fallback - will fail to parse but at least won't timeout
+                                    }
+
+                                    if (reqId != null && realOrderId != null)
+                                    {
+                                        await CompleteOrderIdMapping(reqId, realOrderId);
+                                    }
+                                    else
+                                    {
+                                        FileLogger.LogWebsocket($"[WS-{name}-ERROR] ❌ ReqId or realOrderId is NULL after all attempts!");
                                     }
                                 }
                                 else
                                 {
-                                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] Order creation failed for reqId '{reqId}'. Full response: {message}");
+                                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] ❌ Order creation FAILED!");
+                                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] Error Code: {retCode}");
+                                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] Error Message: {retMsg}");
+                                    FileLogger.LogWebsocket($"[WS-{name}-ERROR] Full response: {message}");
+
                                     if (reqId != null) await FailOrderIdMapping(reqId);
                                 }
                             }
+                            FileLogger.LogWebsocket($"[WS-{name}-EVENT] ========== END OPERATION RESPONSE ==========");
                             continue;
                         }
 

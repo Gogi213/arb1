@@ -13,6 +13,7 @@ namespace TraderBot.Exchanges.Bybit
     public class BybitTrailingTrader
     {
         private readonly IExchange _exchange;
+        private string? _symbol;
         private long? _orderId;
         private decimal? _currentOrderPrice;
         private decimal _quantity;
@@ -33,6 +34,7 @@ namespace TraderBot.Exchanges.Bybit
 
         public async Task StartAsync(string symbol, decimal amount, decimal dollarDepth)
         {
+            _symbol = symbol;
             _dollarDepth = dollarDepth;
 
             FileLogger.LogOther($"[BybitTrailing] Starting for {symbol}, amount=${amount}, depth=${dollarDepth}");
@@ -151,10 +153,21 @@ namespace TraderBot.Exchanges.Bybit
                     FileLogger.LogOther($"[Latency] Order fill time: {fillLatency:F0}ms");
                 }
 
-                if (order.OrderId == _orderId && order.Status == "Filled")
+                // Check if this is our order - either by matching _orderId OR by symbol if order filled before we got the orderId
+                // (assuming only one active order per symbol at a time)
+                bool isOurOrder = (order.OrderId == _orderId) ||
+                                  (_orderId == null && _symbol != null && order.Symbol == _symbol.Replace("_", "") && !_isFilled);
+
+                if (isOurOrder && order.Status == "Filled")
                 {
-                    FileLogger.LogOther($"[!!!] Bybit order {order.OrderId} was FILLED!");
+                    FileLogger.LogOther($"[!!!] Order {order.OrderId} was FILLED!");
                     _isFilled = true;
+                    // Set _orderId if it wasn't set yet (instant fill case)
+                    if (_orderId == null)
+                    {
+                        _orderId = order.OrderId;
+                        FileLogger.LogOther($"[!!!] OrderId set from fill event: {_orderId}");
+                    }
                     OnOrderFilled?.Invoke(order);
                 }
             }

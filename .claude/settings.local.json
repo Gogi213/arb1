@@ -39,7 +39,8 @@
       "Bash(timeout 30 curl:*)",
       "Bash(timeout 45 dotnet run:*)",
       "Bash(pip install:*)",
-      "Bash(findstr:*)"
+      "Bash(findstr:*)",
+      "Bash(del \"c:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\ReverseArbitrageTrader.cs\")"
     ],
     "deny": [],
     "ask": []

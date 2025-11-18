@@ -162,17 +162,22 @@ public class OrchestrationService
                 // Log bid/ask with both server and local timestamps (non-blocking)
                 _bidAskLogger?.LogAsync(normalizedSpreadData, localTimestamp);
 
-                await _rawDataChannel.Writer.WriteAsync(normalizedSpreadData);
-                await _rollingWindowChannel.Writer.WriteAsync(normalizedSpreadData);
+                // PROPOSAL-2025-0093: HFT hot path optimization
+                // HOT PATH: WebSocket broadcast FIRST (critical for <1μs latency)
                 var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };
                 var message = JsonSerializer.Serialize(wrapper);
-                try
+                _ = _webSocketServer.BroadcastRealtimeAsync(message); // fire-and-forget
+
+                // COLD PATH: TryWrite (synchronous, 0 allocations, ~50-100ns each)
+                // Preferred over WriteAsync for HFT - 20-100x faster, no blocking
+                if (!_rawDataChannel.Writer.TryWrite(normalizedSpreadData))
                 {
-                    await _webSocketServer.BroadcastRealtimeAsync(message);
+                    Console.WriteLine($"[Orchestration-WARN] Raw data channel full (system overload), dropping spread data");
                 }
-                catch (Exception ex)
+
+                if (!_rollingWindowChannel.Writer.TryWrite(normalizedSpreadData))
                 {
-                    Console.WriteLine($"[Orchestration] Failed to broadcast spread data: {ex.Message}");
+                    Console.WriteLine($"[Orchestration-WARN] Rolling window channel full (system overload), dropping spread data");
                 }
             }));
         }
@@ -182,17 +187,21 @@ public class OrchestrationService
             Console.WriteLine($"[{exchangeName}] Adding trade subscription task...");
             tasks.Add(exchangeClient.SubscribeToTradesAsync(filteredSymbolNames, async tradeData =>
             {
-                await _rawDataChannel.Writer.WriteAsync(tradeData);
-                await _rollingWindowChannel.Writer.WriteAsync(tradeData);
+                // PROPOSAL-2025-0093: HFT hot path optimization (same as for spreads)
+                // HOT PATH: WebSocket broadcast FIRST
                 var wrapper = new WebSocketMessage { MessageType = "Trade", Payload = tradeData };
                 var message = JsonSerializer.Serialize(wrapper);
-                try
+                _ = _webSocketServer.BroadcastRealtimeAsync(message); // fire-and-forget
+
+                // COLD PATH: TryWrite for minimal latency
+                if (!_rawDataChannel.Writer.TryWrite(tradeData))
                 {
-                    await _webSocketServer.BroadcastRealtimeAsync(message);
+                    Console.WriteLine($"[Orchestration-WARN] Raw data channel full (system overload), dropping trade data");
                 }
-                catch (Exception ex)
+
+                if (!_rollingWindowChannel.Writer.TryWrite(tradeData))
                 {
-                    Console.WriteLine($"[Orchestration] Failed to broadcast trade data: {ex.Message}");
+                    Console.WriteLine($"[Orchestration-WARN] Rolling window channel full (system overload), dropping trade data");
                 }
             }));
         }

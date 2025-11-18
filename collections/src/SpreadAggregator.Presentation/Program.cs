@@ -87,9 +87,15 @@ class Program
         {
             FullMode = BoundedChannelFullMode.DropOldest
         };
-        var sharedChannel = Channel.CreateBounded<MarketData>(channelOptions);
-        services.AddSingleton<RawDataChannel>(new RawDataChannel(sharedChannel));
-        services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(sharedChannel));
+
+        // PROPOSAL-2025-0093: Create TWO independent channels instead of one shared
+        // This fixes competing consumers bug where DataCollectorService and RollingWindowService
+        // were reading from the same channel, each getting only ~50% of data
+        var rawDataChannel = Channel.CreateBounded<MarketData>(channelOptions);
+        var rollingWindowChannel = Channel.CreateBounded<MarketData>(channelOptions);
+
+        services.AddSingleton<RawDataChannel>(new RawDataChannel(rawDataChannel));
+        services.AddSingleton<RollingWindowChannel>(new RollingWindowChannel(rollingWindowChannel));
         services.AddSingleton(sp => sp.GetRequiredService<RawDataChannel>().Channel.Reader);
 
         // Register all exchange clients

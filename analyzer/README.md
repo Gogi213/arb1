@@ -1,6 +1,17 @@
 # Cryptocurrency Arbitrage Ratio Analyzer
 
+**Version:** 2.0 (Modular Architecture)
+**Last Updated:** 2025-11-19
+
 High-performance analyzer for identifying mean-reverting price ratios between exchanges. This tool uses event-based opportunity cycle detection to find profitable arbitrage patterns based on deviations from price parity (1.0).
+
+## ✨ What's New in v2.0
+
+- ✅ **Modular Architecture** - Code split into reusable modules
+- ✅ **Configuration File** - YAML-based config for paths and parameters
+- ✅ **Unit Tests** - 22 tests covering critical analysis logic
+- ✅ **Importable Library** - Can be used as a Python package
+- ✅ **PROPOSAL-2025-0085 Applied** - Correct default data path
 
 ## Concept
 
@@ -24,23 +35,74 @@ This script is heavily optimized for speed:
 - **Optimized Data Types**: Casts decimals to `Float64` for faster calculations.
 - **Batch Threshold Calculation**: Analyzes all profitability thresholds (`0.3%`, `0.4%`, `0.5%`) in a single pass.
 
-## Usage
+## 📁 Project Structure
 
-### Basic Command
-To run the analysis on all available data:
+```
+analyzer/
+├── config.yaml              # Configuration file
+├── run_all_ultra.py         # CLI entry point
+├── lib/                     # Reusable library modules
+│   ├── __init__.py
+│   ├── config.py           # Configuration management
+│   ├── data_loader.py      # Data loading from parquet files
+│   ├── analysis.py         # Core analysis algorithms
+│   └── discovery.py        # Symbol discovery
+├── tests/                   # Unit tests (22 tests)
+│   ├── test_analysis.py
+│   ├── test_config.py
+│   └── test_data_loader.py
+├── summary_stats/           # Output directory for CSV reports
+└── requirements.txt
+```
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+cd analyzer
+pip install -r requirements.txt
+```
+
+### Configuration
+
+Edit `config.yaml` to customize paths and parameters:
+
+```yaml
+paths:
+  data_directory: "C:/visual projects/arb1/data/market_data"
+  output_directory: "C:/visual projects/arb1/analyzer/summary_stats"
+
+analysis:
+  zero_threshold: 0.05
+  thresholds: [0.3, 0.5, 0.4]
+
+performance:
+  workers: null  # Auto: 3x CPU cores
+```
+
+### Basic Usage
+
+Run analysis on all available data:
 ```bash
 python run_all_ultra.py
 ```
+
+Config file is loaded automatically. CLI arguments override config values.
 
 ### Command-Line Arguments
 
 | Argument | Type | Description |
 |--------------|------------|------------------------------------------------------------------------------------------|
-| `--workers` | integer | Number of parallel workers (default: 3x CPU cores). |
+| `--config` | path | Path to config file (default: config.yaml). |
+| `--data-path` | path | Override data directory from config. |
+| `--workers` | integer | Number of parallel workers (default: from config or 3x CPU cores). |
 | `--today` | flag | Shortcut to analyze only today's data. |
 | `--date` | YYYY-MM-DD | Analyze a specific date (shortcut for `--start-date=DATE --end-date=DATE`). |
 | `--start-date` | YYYY-MM-DD | Start date for analysis (inclusive). |
 | `--end-date` | YYYY-MM-DD | End date for analysis (inclusive). |
+| `--thresholds` | 3 floats | Override analysis thresholds (default: from config). |
+| `--exchanges` | list | Filter by exchanges (e.g., `Binance Bybit OKX`). |
 
 ### Usage Examples
 
@@ -111,6 +173,72 @@ Look for a combination of high opportunity frequency and low directional bias.
 - **`abs(deviation_asymmetry)` > 0.8**: Strong bias, high risk of the spread never closing.
 
 **Recommendation**: Focus on the **"Top 10 by COMPLETE cycles"** list in the console output. It is the most reliable indicator of tradeable pairs.
+
+## 🧪 Testing
+
+The analyzer includes comprehensive unit tests for critical functions:
+
+```bash
+# Run all tests
+python -m pytest tests/ -v
+
+# Run specific test module
+python -m pytest tests/test_analysis.py -v
+
+# Run with coverage
+python -m pytest tests/ --cov=lib
+```
+
+**Test Coverage:**
+- ✅ **22 unit tests** covering critical analysis logic
+- ✅ Analysis algorithms (`analyze_pair_fast`, `count_complete_cycles`)
+- ✅ Configuration management
+- ✅ Data loading and filtering
+
+## 📚 Using as a Library
+
+The analyzer can be imported and used as a Python library:
+
+```python
+from lib import load_config, load_exchange_symbol_data, analyze_pair_fast, discover_data
+
+# Load configuration
+config = load_config()
+
+# Discover available symbols
+symbols = discover_data(config.data_directory)
+
+# Load data for specific exchange/symbol
+data1 = load_exchange_symbol_data(
+    config.data_directory,
+    "Binance",
+    "BTC/USDT",
+    start_date="2025-11-01",
+    end_date="2025-11-03"
+)
+
+data2 = load_exchange_symbol_data(
+    config.data_directory,
+    "Bybit",
+    "BTC/USDT",
+    start_date="2025-11-01",
+    end_date="2025-11-03"
+)
+
+# Analyze the pair
+result = analyze_pair_fast(
+    "BTC/USDT",
+    "Binance",
+    "Bybit",
+    data1,
+    data2,
+    thresholds=config.thresholds,
+    zero_threshold=config.zero_threshold
+)
+
+print(f"Zero crossings per minute: {result['zero_crossings_per_minute']}")
+print(f"Complete cycles (40bp): {result['opportunity_cycles_040bp']}")
+```
 
 ## Data Structure
 

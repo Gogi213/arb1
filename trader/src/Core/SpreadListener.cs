@@ -14,10 +14,16 @@ namespace TraderBot.Core
         private readonly JsonSerializerOptions _jsonOptions;
         private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
 
-        private decimal? _lastGateBid;
-        private decimal? _lastBybitBid;
+        // PROPOSAL-001: Store price AND timestamp to detect stale data
+        private (decimal Price, DateTime Timestamp)? _lastGateBid;
+        private (decimal Price, DateTime Timestamp)? _lastBybitBid;
+        
         private string? _symbol;
         private const decimal SpreadThreshold = 0.25m;
+        
+        // PROPOSAL-001: Maximum allowed age for price data (7 seconds)
+        // Tolerant enough for illiquid coins, but protects against stale data
+        private static readonly TimeSpan MaxDataAge = TimeSpan.FromSeconds(7);
 
         public event Action<string, decimal>? OnProfitableSpreadDetected;
 
@@ -52,8 +58,12 @@ namespace TraderBot.Core
                 var result = await _ws.ReceiveAsync(new ArraySegment<byte>(buffer), cancellationToken);
                 if (result.MessageType == WebSocketMessageType.Close)
                 {
+                    // PROPOSAL-001: Invalidate all data on disconnect
+                    _lastGateBid = null;
+                    _lastBybitBid = null;
+                    
                     await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, string.Empty, cancellationToken);
-                    FileLogger.LogOther("[SpreadListener] Connection closed by server.");
+                    FileLogger.LogOther("[SpreadListener] Connection closed by server. All price data invalidated.");
                 }
                 else
                 {
@@ -90,13 +100,17 @@ namespace TraderBot.Core
             {
                 _symbol = data.Symbol;
 
+                // PROPOSAL-001: Store timestamp along with price
+                // Use data's timestamp if available, otherwise use current time
+                var timestamp = data.Timestamp != default ? data.Timestamp : DateTime.UtcNow;
+
                 if (string.Equals(data.Exchange, "GateIo", StringComparison.OrdinalIgnoreCase))
                 {
-                    _lastGateBid = data.BestBid;
+                    _lastGateBid = (data.BestBid, timestamp);
                 }
                 else if (string.Equals(data.Exchange, "Bybit", StringComparison.OrdinalIgnoreCase))
                 {
-                    _lastBybitBid = data.BestBid;
+                    _lastBybitBid = (data.BestBid, timestamp);
                 }
 
                 if (_lastGateBid.HasValue && _lastBybitBid.HasValue)
@@ -112,11 +126,48 @@ namespace TraderBot.Core
 
         private void CalculateAndLogSpreads()
         {
-            if (!_lastGateBid.HasValue || !_lastBybitBid.HasValue || _lastGateBid.Value == 0 || _lastBybitBid.Value == 0)
+            // PROPOSAL-001: Check WebSocket connection state FIRST
+            if (_ws.State != WebSocketState.Open)
+            {
+                FileLogger.LogOther($"[SpreadListener-ERROR] WebSocket disconnected (State: {_ws.State}). Invalidating all data.");
+                _lastGateBid = null;
+                _lastBybitBid = null;
+                return;
+            }
+
+            if (!_lastGateBid.HasValue || !_lastBybitBid.HasValue)
                 return;
 
+            // PROPOSAL-001: Extract price and timestamp from tuples
+            var (gatePrice, gateTime) = _lastGateBid.Value;
+            var (bybitPrice, bybitTime) = _lastBybitBid.Value;
+
+            if (gatePrice == 0 || bybitPrice == 0)
+                return;
+
+            // PROPOSAL-001: CRITICAL - Validate data freshness
+            // If either exchange's data is stale, do NOT calculate spread
+            // This prevents trading on phantom arbitrage opportunities
+            var now = DateTime.UtcNow;
+            var gateAge = now - gateTime;
+            var bybitAge = now - bybitTime;
+
+            if (gateAge > MaxDataAge || bybitAge > MaxDataAge)
+            {
+                // Optional: Log warning if data is stale (helps debugging connection issues)
+                if (gateAge > MaxDataAge)
+                {
+                    FileLogger.LogOther($"[SpreadListener-WARN] GateIo data is stale ({gateAge.TotalSeconds:F1}s old). Skipping spread calculation.");
+                }
+                if (bybitAge > MaxDataAge)
+                {
+                    FileLogger.LogOther($"[SpreadListener-WARN] Bybit data is stale ({bybitAge.TotalSeconds:F1}s old). Skipping spread calculation.");
+                }
+                return;
+            }
+
             // 1 - гейт -> байбит
-            var gateToBybitSpread = (_lastBybitBid.Value / _lastGateBid.Value - 1) * 100;
+            var gateToBybitSpread = (bybitPrice / gatePrice - 1) * 100;
             if (gateToBybitSpread >= SpreadThreshold)
             {
                 var direction = "GateIo_To_Bybit";
@@ -125,7 +176,7 @@ namespace TraderBot.Core
             }
 
             // 2 - байбит -> гейт
-            var bybitToGateSpread = (_lastGateBid.Value / _lastBybitBid.Value - 1) * 100;
+            var bybitToGateSpread = (gatePrice / bybitPrice - 1) * 100;
             if (bybitToGateSpread >= SpreadThreshold)
             {
                 var direction = "Bybit_To_GateIo";

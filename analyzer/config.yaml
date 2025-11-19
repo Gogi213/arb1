@@ -1,0 +1,44 @@
+# Analyzer Configuration
+# Generated: 2025-11-19
+
+# Data paths
+paths:
+  data_directory: "C:/visual projects/arb1/data/market_data"
+  output_directory: "C:/visual projects/arb1/analyzer/summary_stats"
+
+# Analysis parameters
+analysis:
+  # Neutral zone threshold (deviation % below which position can be closed at break-even)
+  zero_threshold: 0.05
+
+  # Profitability thresholds (in %)
+  # These are the deviation thresholds for opportunity detection
+  thresholds:
+    - 0.3  # 30 basis points
+    - 0.5  # 50 basis points
+    - 0.4  # 40 basis points (primary)
+
+# Performance settings
+performance:
+  # Number of parallel workers (null = auto: 3x CPU cores)
+  workers: null
+
+  # Chunk size for multiprocessing pool
+  chunk_size: 1
+
+# Exchange filter (null = all exchanges)
+# Example: ["Binance", "Bybit", "OKX"]
+exchanges: null
+
+# Date filtering
+# Format: YYYY-MM-DD
+# null = analyze all available data
+date_range:
+  start_date: null
+  end_date: null
+
+# Symbol format handling
+symbol_formats:
+  # Try both formats when searching for symbol data
+  - "{symbol_with_slash}"  # VIRTUAL/USDT -> VIRTUAL#USDT
+  - "{symbol_no_separator}"  # VIRTUAL/USDT -> VIRTUALUSDT

@@ -39,6 +39,11 @@ public class ParquetDataWriter : IDataWriter
     private readonly ChannelReader<MarketData> _channelReader;
     private readonly IConfiguration _configuration;
 
+    // PROPOSAL-2025-0095: Instance fields for graceful shutdown
+    private Dictionary<string, List<SpreadData>>? _spreadBuffers;
+    private Dictionary<string, List<TradeData>>? _tradeBuffers;
+    private readonly object _bufferLock = new();
+
     public ParquetDataWriter(Channel<MarketData> channel, IConfiguration configuration)
     {
         _channelReader = channel.Reader;
@@ -160,8 +165,13 @@ public class ParquetDataWriter : IDataWriter
         Directory.CreateDirectory(dataRoot);
         Console.WriteLine($"[DataCollector] Starting to record data with hybrid partitioning into: {dataRoot}");
 
-        var spreadBuffers = new Dictionary<string, List<SpreadData>>();
-        var tradeBuffers = new Dictionary<string, List<TradeData>>();
+        // PROPOSAL-2025-0095: Use instance fields for graceful shutdown
+        lock (_bufferLock)
+        {
+            _spreadBuffers = new Dictionary<string, List<SpreadData>>();
+            _tradeBuffers = new Dictionary<string, List<TradeData>>();
+        }
+
         var batchSize = _configuration.GetValue<int>("Recording:BatchSize", 1000);
 
         int? lastHour = null;
@@ -176,7 +186,7 @@ public class ParquetDataWriter : IDataWriter
                     if (lastHour.HasValue && lastHour != currentHour)
                     {
                         // Hour has changed, flush all buffers
-                        await FlushAllBuffersAsync(spreadBuffers, tradeBuffers);
+                        await FlushAsync();
                     }
                     lastHour = currentHour;
 
@@ -188,34 +198,44 @@ public class ParquetDataWriter : IDataWriter
 
                     if (data is SpreadData spreadData)
                     {
-                        if (!spreadBuffers.TryGetValue(hourlyPartitionDir, out var buffer))
+                        lock (_bufferLock)
                         {
-                            buffer = new List<SpreadData>();
-                            spreadBuffers[hourlyPartitionDir] = buffer;
-                        }
-                        buffer.Add(spreadData);
+                            if (_spreadBuffers == null) break;
 
-                        if (buffer.Count >= batchSize)
-                        {
-                            Directory.CreateDirectory(hourlyPartitionDir);
-                            var filePath = Path.Combine(hourlyPartitionDir, $"spreads-{data.Timestamp:mm-ss.fffffff}.parquet");
-                            await FlushSpreadBufferAsync(filePath, buffer);
+                            if (!_spreadBuffers.TryGetValue(hourlyPartitionDir, out var buffer))
+                            {
+                                buffer = new List<SpreadData>();
+                                _spreadBuffers[hourlyPartitionDir] = buffer;
+                            }
+                            buffer.Add(spreadData);
+
+                            if (buffer.Count >= batchSize)
+                            {
+                                Directory.CreateDirectory(hourlyPartitionDir);
+                                var filePath = Path.Combine(hourlyPartitionDir, $"spreads-{data.Timestamp:mm-ss.fffffff}.parquet");
+                                _ = FlushSpreadBufferAsync(filePath, buffer); // Fire-and-forget
+                            }
                         }
                     }
                     else if (data is TradeData tradeData)
                     {
-                        if (!tradeBuffers.TryGetValue(hourlyPartitionDir, out var buffer))
+                        lock (_bufferLock)
                         {
-                            buffer = new List<TradeData>();
-                            tradeBuffers[hourlyPartitionDir] = buffer;
-                        }
-                        buffer.Add(tradeData);
+                            if (_tradeBuffers == null) break;
 
-                        if (buffer.Count >= batchSize)
-                        {
-                            Directory.CreateDirectory(hourlyPartitionDir);
-                            var filePath = Path.Combine(hourlyPartitionDir, $"trades-{data.Timestamp:mm-ss.fffffff}.parquet");
-                            await FlushTradeBufferAsync(filePath, buffer);
+                            if (!_tradeBuffers.TryGetValue(hourlyPartitionDir, out var buffer))
+                            {
+                                buffer = new List<TradeData>();
+                                _tradeBuffers[hourlyPartitionDir] = buffer;
+                            }
+                            buffer.Add(tradeData);
+
+                            if (buffer.Count >= batchSize)
+                            {
+                                Directory.CreateDirectory(hourlyPartitionDir);
+                                var filePath = Path.Combine(hourlyPartitionDir, $"trades-{data.Timestamp:mm-ss.fffffff}.parquet");
+                                _ = FlushTradeBufferAsync(filePath, buffer); // Fire-and-forget
+                            }
                         }
                     }
                 }
@@ -227,7 +247,8 @@ public class ParquetDataWriter : IDataWriter
         }
         finally
         {
-            await FlushAllBuffersAsync(spreadBuffers, tradeBuffers);
+            // PROPOSAL-2025-0095: Final flush on shutdown
+            await FlushAsync();
         }
     }
 
@@ -247,25 +268,52 @@ public class ParquetDataWriter : IDataWriter
         buffer.Clear();
     }
 
-    private async Task FlushAllBuffersAsync(Dictionary<string, List<SpreadData>> spreadBuffers, Dictionary<string, List<TradeData>> tradeBuffers)
+    /// <summary>
+    /// PROPOSAL-2025-0095: Flush all buffered data to disk (graceful shutdown)
+    /// </summary>
+    public async Task FlushAsync()
     {
-        foreach (var (hourlyDir, buffer) in spreadBuffers)
+        Dictionary<string, List<SpreadData>>? spreadSnapshot;
+        Dictionary<string, List<TradeData>>? tradeSnapshot;
+
+        lock (_bufferLock)
+        {
+            if (_spreadBuffers == null || _tradeBuffers == null)
+                return;
+
+            // Take snapshot to minimize lock time
+            spreadSnapshot = new Dictionary<string, List<SpreadData>>(_spreadBuffers);
+            tradeSnapshot = new Dictionary<string, List<TradeData>>(_tradeBuffers);
+
+            // Clear original buffers
+            _spreadBuffers.Clear();
+            _tradeBuffers.Clear();
+        }
+
+        // Flush snapshots (outside lock)
+        var tasks = new List<Task>();
+
+        foreach (var (hourlyDir, buffer) in spreadSnapshot)
         {
             if (buffer.Any())
             {
                 Directory.CreateDirectory(hourlyDir);
-                var filePath = Path.Combine(hourlyDir, $"spreads-{DateTime.Now:mm-ss.fffffff}.parquet");
-                await FlushSpreadBufferAsync(filePath, buffer);
+                var filePath = Path.Combine(hourlyDir, $"spreads-{DateTime.UtcNow:mm-ss.fffffff}.parquet");
+                tasks.Add(FlushSpreadBufferAsync(filePath, buffer));
             }
         }
-        foreach (var (hourlyDir, buffer) in tradeBuffers)
+
+        foreach (var (hourlyDir, buffer) in tradeSnapshot)
         {
             if (buffer.Any())
             {
                 Directory.CreateDirectory(hourlyDir);
-                var filePath = Path.Combine(hourlyDir, $"trades-{DateTime.Now:mm-ss.fffffff}.parquet");
-                await FlushTradeBufferAsync(filePath, buffer);
+                var filePath = Path.Combine(hourlyDir, $"trades-{DateTime.UtcNow:mm-ss.fffffff}.parquet");
+                tasks.Add(FlushTradeBufferAsync(filePath, buffer));
             }
         }
+
+        await Task.WhenAll(tasks);
+        Console.WriteLine($"[DataCollector] Flushed {spreadSnapshot.Count + tradeSnapshot.Count} buffers to disk");
     }
 }

@@ -1,5 +1,6 @@
 using SpreadAggregator.Domain.Entities;
 using SpreadAggregator.Domain.Models;
+using SpreadAggregator.Application.Helpers;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Threading.Channels;
@@ -12,17 +13,22 @@ namespace SpreadAggregator.Application.Services;
 
 public class RollingWindowService : IDisposable
 {
+    // PROPOSAL-2025-0095: Memory safety - bounded collections with LRU eviction
+    private const int MAX_WINDOWS = 10_000;
+    private const int MAX_LATEST_TICKS = 50_000;
+    // Note: No MAX_SPREADS_PER_WINDOW - TIME limit (15min) is sufficient for production (3 exchanges × 50 symbols)
+
     private readonly ChannelReader<MarketData> _channelReader;
-    private readonly TimeSpan _windowSize = TimeSpan.FromMinutes(30);
-    private readonly ConcurrentDictionary<string, RollingWindowData> _windows = new();
+    private readonly TimeSpan _windowSize = TimeSpan.FromMinutes(15); // PROPOSAL-2025-0095: Reduced from 30min
+    private readonly LruCache<string, RollingWindowData> _windows;
     private readonly Timer _cleanupTimer;
     private readonly Abstractions.IBidBidLogger? _bidBidLogger;
     private readonly ILogger<RollingWindowService> _logger;
     private bool _disposed;
 
     // PROPOSAL-2025-0094: Last-Tick Matching state
-    // Store last known tick for each exchange-symbol pair for event-driven spread calculation
-    private readonly ConcurrentDictionary<string, (DateTime ts, decimal bid, decimal ask)> _latestTicks = new();
+    // PROPOSAL-2025-0095: Bounded LRU cache instead of unbounded ConcurrentDictionary
+    private readonly LruCache<string, TickData> _latestTicks;
     private readonly Timer _lastTickCleanupTimer;
 
     // Event-driven: raised when window data is updated
@@ -36,10 +42,15 @@ public class RollingWindowService : IDisposable
         _channelReader = channel.Reader;
         _bidBidLogger = bidBidLogger;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RollingWindowService>.Instance;
+
+        // PROPOSAL-2025-0095: Initialize bounded LRU caches
+        _windows = new LruCache<string, RollingWindowData>(MAX_WINDOWS);
+        _latestTicks = new LruCache<string, TickData>(MAX_LATEST_TICKS);
+
         _cleanupTimer = new Timer(CleanupOldData, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
 
-        // PROPOSAL-2025-0094: Cleanup stale last-ticks every 5 minutes
-        _lastTickCleanupTimer = new Timer(CleanupStaleLastTicks, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
+        // PROPOSAL-2025-0094: Cleanup stale last-ticks every 2 minutes (reduced from 5 for HFT)
+        _lastTickCleanupTimer = new Timer(CleanupStaleLastTicks, null, TimeSpan.FromMinutes(2), TimeSpan.FromMinutes(2));
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -65,7 +76,12 @@ public class RollingWindowService : IDisposable
 
         // Store current tick for future matching
         var tickKey = GetTickKey(data.Exchange, data.Symbol);
-        _latestTicks[tickKey] = (data.Timestamp, spreadData.BestBid, spreadData.BestAsk);
+        _latestTicks.AddOrUpdate(tickKey, new TickData
+        {
+            Timestamp = data.Timestamp,
+            Bid = spreadData.BestBid,
+            Ask = spreadData.BestAsk
+        });
     }
 
     /// <summary>
@@ -78,29 +94,27 @@ public class RollingWindowService : IDisposable
         var symbol = currentData.Symbol;
         var now = currentData.Timestamp;
 
-        // DEBUGGING: Detailed log for test symbols
-        bool shouldLog = symbol == "ASTER_USDT" || symbol == "BANANAS31_USDT";
+        // PROPOSAL-2025-0095: Removed debug logging (static leak)
+        // Use structured logging if needed
 
         // Find all other exchanges that have data for this symbol
-        var otherExchangeTicks = _latestTicks
-            .Where(kvp => kvp.Key.EndsWith($"_{symbol}") && !kvp.Key.StartsWith($"{currentExchange}_"))
+        var otherExchangeTicks = _latestTicks.Keys
+            .Where(key => key.EndsWith($"_{symbol}") && !key.StartsWith($"{currentExchange}_"))
+            .Select(key => (key, tick: _latestTicks.TryGetValue(key, out var t) ? t : default(TickData?)))
+            .Where(x => x.tick.HasValue)
+            .Select(x => (x.key, x.tick!.Value))
             .ToList();
-
-        if (shouldLog)
-        {
-            LogTestSymbol(symbol, $"Tick received: {currentExchange} | Bid={currentData.BestBid:F8} Ask={currentData.BestAsk:F8} | Found {otherExchangeTicks.Count} opposite");
-        }
 
         foreach (var (key, oppositeTick) in otherExchangeTicks)
         {
             var oppositeExchange = key.Split('_')[0];
 
             // Calculate staleness
-            var staleness = now - oppositeTick.ts;
+            var staleness = now - oppositeTick.Timestamp;
 
             // Calculate spread: (Bid1 / Ask2 - 1) * 100
-            var spread = oppositeTick.ask > 0
-                ? ((currentData.BestBid / oppositeTick.ask) - 1) * 100
+            var spread = oppositeTick.Ask > 0
+                ? ((currentData.BestBid / oppositeTick.Ask) - 1) * 100
                 : 0;
 
             // Create spread point
@@ -111,18 +125,11 @@ public class RollingWindowService : IDisposable
                 Exchange1 = currentExchange,
                 Exchange2 = oppositeExchange,
                 BestBid = currentData.BestBid,
-                BestAsk = oppositeTick.ask,
+                BestAsk = oppositeTick.Ask,
                 SpreadPercent = spread,
                 Staleness = staleness,
                 TriggeredBy = currentExchange
             };
-
-            if (shouldLog)
-            {
-                LogTestSymbol(symbol, $"Spread calculated: {currentExchange}→{oppositeExchange} | " +
-                    $"Bid1={currentData.BestBid:F8} Ask2={oppositeTick.ask:F8} | " +
-                    $"Spread={spread:F4}% | Staleness={staleness.TotalMilliseconds:F0}ms");
-            }
 
             // Add to window
             AddSpreadPointToWindow(spreadPoint);
@@ -140,52 +147,32 @@ public class RollingWindowService : IDisposable
         }
     }
 
-    private static readonly object _testLogLock = new();
-    private static readonly Dictionary<string, string> _testLogPaths = new();
-
-    private void LogTestSymbol(string symbol, string message)
-    {
-        try
-        {
-            lock (_testLogLock)
-            {
-                if (!_testLogPaths.ContainsKey(symbol))
-                {
-                    var logsDir = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "logs");
-                    Directory.CreateDirectory(logsDir);
-                    var logPath = Path.Combine(logsDir, $"{symbol.ToLower()}_{DateTime.UtcNow:yyyyMMdd_HHmmss}.log");
-                    _testLogPaths[symbol] = logPath;
-                    File.WriteAllText(logPath, $"=== {symbol} Last-Tick Matching Analysis ===\n");
-                    File.AppendAllText(logPath, $"Started: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss.fff} UTC\n\n");
-                }
-
-                File.AppendAllText(_testLogPaths[symbol], $"{DateTime.UtcNow:HH:mm:ss.fff} | {message}\n");
-            }
-        }
-        catch
-        {
-            // Ignore log errors
-        }
-    }
+    // PROPOSAL-2025-0095: Removed static memory leaks (_testLogPaths, _testLogLock)
+    // Use structured logging instead if debug logging needed
 
     /// <summary>
     /// Add pre-calculated spread point to rolling window
+    /// PROPOSAL-2025-0095: Only TIME-based cleanup (15 min window)
     /// </summary>
     private void AddSpreadPointToWindow(SpreadPoint spreadPoint)
     {
         // Create window key: exchange1_exchange2_symbol
         var windowKey = $"{spreadPoint.Exchange1}_{spreadPoint.Exchange2}_{spreadPoint.Symbol}";
 
-        var window = _windows.GetOrAdd(windowKey, _ => new RollingWindowData
+        // Try get existing window or create new
+        if (!_windows.TryGetValue(windowKey, out var window) || window == null)
         {
-            Exchange = $"{spreadPoint.Exchange1}→{spreadPoint.Exchange2}",
-            Symbol = spreadPoint.Symbol,
-            WindowStart = spreadPoint.Timestamp - _windowSize,
-            WindowEnd = spreadPoint.Timestamp
-        });
+            window = new RollingWindowData
+            {
+                Exchange = $"{spreadPoint.Exchange1}→{spreadPoint.Exchange2}",
+                Symbol = spreadPoint.Symbol,
+                WindowStart = spreadPoint.Timestamp - _windowSize,
+                WindowEnd = spreadPoint.Timestamp
+            };
+        }
 
         // Update window bounds
-        window.WindowEnd = spreadPoint.Timestamp;
+        window!.WindowEnd = spreadPoint.Timestamp;
         window.WindowStart = spreadPoint.Timestamp - _windowSize;
 
         // Add spread point (need to add SpreadPoints list to RollingWindowData)
@@ -199,11 +186,14 @@ public class RollingWindowService : IDisposable
             BestAsk = spreadPoint.BestAsk
         };
 
-        // Remove old spreads
+        // Remove old spreads (time-based cleanup - only mechanism needed)
         window.Spreads.RemoveAll(s => s.Timestamp < window.WindowStart);
 
         // Add new spread
         window.Spreads.Add(legacySpread);
+
+        // Update cache (will trigger LRU eviction if needed)
+        _windows.AddOrUpdate(windowKey, window);
 
         // PROPOSAL-2025-0094: Raise event for BOTH exchanges (triggered exchange + opposite)
         // This allows RealTimeController to match events properly
@@ -226,64 +216,58 @@ public class RollingWindowService : IDisposable
     private void CleanupOldData(object? state)
     {
         var now = DateTime.UtcNow;
-        var keysToRemove = _windows.Where(kvp => kvp.Value.WindowEnd < now - _windowSize).Select(kvp => kvp.Key).ToList();
+        var threshold = now - _windowSize;
 
-        var removedCount = 0;
-        foreach (var key in keysToRemove)
-        {
-            if (_windows.TryRemove(key, out _))
-            {
-                removedCount++;
-            }
-        }
+        // PROPOSAL-2025-0095: Use LruCache.EvictWhere for cleanup
+        var removedCount = _windows.EvictWhere((key, window) => window.WindowEnd < threshold);
 
         // Log memory metrics
-        if (removedCount > 0 || _windows.Count > 10)
+        if (removedCount > 0 || _windows.Count > 100)
         {
             var totalPoints = _windows.Values.Sum(w => w.Spreads.Count + w.Trades.Count);
-            Console.WriteLine($"[RollingWindow] Cleanup: removed {removedCount} windows, active: {_windows.Count}, total points: {totalPoints}");
+            _logger.LogInformation($"[RollingWindow] Cleanup: removed {removedCount} windows, active: {_windows.Count}/{MAX_WINDOWS}, total points: {totalPoints}");
         }
     }
 
     /// <summary>
     /// PROPOSAL-2025-0094: Cleanup stale last-ticks to prevent memory leak
-    /// Remove ticks older than 10 minutes (inactive symbols)
+    /// PROPOSAL-2025-0095: Reduced threshold to 5 minutes for HFT, use LruCache
     /// </summary>
     private void CleanupStaleLastTicks(object? state)
     {
         var now = DateTime.UtcNow;
-        var threshold = now - TimeSpan.FromMinutes(10);
+        var threshold = now - TimeSpan.FromMinutes(5); // Reduced from 10 for HFT
 
-        var staleKeys = _latestTicks
-            .Where(kvp => kvp.Value.ts < threshold)
-            .Select(kvp => kvp.Key)
-            .ToList();
-
-        var removedCount = 0;
-        foreach (var key in staleKeys)
-        {
-            if (_latestTicks.TryRemove(key, out _))
-            {
-                removedCount++;
-            }
-        }
+        // PROPOSAL-2025-0095: Use LruCache.EvictWhere for cleanup
+        var removedCount = _latestTicks.EvictWhere((key, tick) => tick.Timestamp < threshold);
 
         if (removedCount > 0)
         {
-            _logger.LogInformation($"[RollingWindow] Cleanup last-ticks: removed {removedCount} stale ticks, active: {_latestTicks.Count}");
+            _logger.LogInformation($"[RollingWindow] Cleanup last-ticks: removed {removedCount} stale ticks, active: {_latestTicks.Count}/{MAX_LATEST_TICKS}");
         }
     }
 
     public RollingWindowData? GetWindowData(string exchange, string symbol)
     {
         var key = $"{exchange}_{symbol}";
-        return _windows.TryGetValue(key, out var window) ? window : null;
+        _windows.TryGetValue(key, out var window);
+        return window;
     }
 
     public IEnumerable<RollingWindowData> GetAllWindows()
     {
-        return _windows.Values;
+        return _windows.Values.ToList(); // Snapshot to avoid collection modification
     }
+
+    /// <summary>
+    /// Get current window count for monitoring
+    /// </summary>
+    public int GetWindowCount() => _windows.Count;
+
+    /// <summary>
+    /// Get total spreads count for monitoring
+    /// </summary>
+    public int GetTotalSpreadCount() => _windows.Values.Sum(w => w.Spreads.Count);
 
     /// <summary>
     /// PROPOSAL-2025-0094: Get pre-calculated realtime spread data (Last-Tick Matching)
@@ -307,14 +291,6 @@ public class RollingWindowService : IDisposable
             .OrderBy(s => s.Timestamp)
             .ToList();
 
-        // Memory protection: limit to 10k points
-        const int maxPoints = 10000;
-        if (allSpreads.Count > maxPoints)
-        {
-            _logger.LogWarning($"RollingWindow: {allSpreads.Count} points exceeds limit {maxPoints}, truncating");
-            allSpreads = allSpreads.Skip(allSpreads.Count - maxPoints).ToList();
-        }
-
         // Calculate spread percentages
         var spreads = allSpreads.Select(s =>
         {
@@ -322,21 +298,31 @@ public class RollingWindowService : IDisposable
             return (double)(((s.BestBid / s.BestAsk) - 1) * 100);
         }).ToList();
 
-        // Log latest point for bid/bid logger
-        var pairKey = $"{exchange1}_{exchange2}_{symbol}";
-        if (_bidBidLogger != null && ShouldLogBidBid(pairKey) && spreads.Count > 0)
+        // PROPOSAL-2025-0095: Log latest point for bid/bid logger (throttled by logger itself)
+        // DISABLED: BidBid logging disabled to save disk space
+        /*
+        if (_bidBidLogger != null && spreads.Count > 0)
         {
             var lastSpread = allSpreads.Last();
             var lastSpreadPercent = spreads.Last();
             if (lastSpreadPercent.HasValue)
             {
+                // Fire-and-forget logging (non-blocking)
                 _ = Task.Run(async () =>
                 {
-                    await _bidBidLogger.LogAsync(symbol, exchange1, exchange2,
-                        lastSpread.Timestamp, lastSpread.BestBid, lastSpread.BestAsk, lastSpreadPercent.Value);
+                    try
+                    {
+                        await _bidBidLogger.LogAsync(symbol, exchange1, exchange2,
+                            lastSpread.Timestamp, lastSpread.BestBid, lastSpread.BestAsk, lastSpreadPercent.Value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "BidBid logging failed");
+                    }
                 });
             }
         }
+        */
 
         // Calculate rolling quantiles
         var upperBands = CalculateRollingQuantile(spreads, 0.97, 200);
@@ -369,13 +355,13 @@ public class RollingWindowService : IDisposable
         var chartUpperBands = recentIndices.Select(i => upperBands[i]).ToList();
         var chartLowerBands = recentIndices.Select(i => lowerBands[i]).ToList();
 
-        // PROPOSAL-2025-0094: Log data completeness metrics
-        var input1 = _latestTicks.Count(kvp => kvp.Key.StartsWith($"{exchange1}_") && kvp.Key.EndsWith($"_{symbol}"));
-        var input2 = _latestTicks.Count(kvp => kvp.Key.StartsWith($"{exchange2}_") && kvp.Key.EndsWith($"_{symbol}"));
+        // PROPOSAL-2025-0095: Log data completeness metrics
+        var input1Keys = _latestTicks.Keys.Count(key => key.StartsWith($"{exchange1}_") && key.EndsWith($"_{symbol}"));
+        var input2Keys = _latestTicks.Keys.Count(key => key.StartsWith($"{exchange2}_") && key.EndsWith($"_{symbol}"));
         var joined = allSpreads.Count;
-        var completeness = input1 + input2 > 0 ? (joined * 100.0) / (input1 + input2) : 0;
+        var completeness = input1Keys + input2Keys > 0 ? (joined * 100.0) / (input1Keys + input2Keys) : 0;
 
-        _logger.LogInformation(
+        _logger.LogDebug(
             $"[Last-Tick Matching] {exchange1}→{exchange2}/{symbol} | " +
             $"Spreads={joined} | Completeness={completeness:F1}% | " +
             $"Last15min={chartSpreads.Count}");
@@ -392,23 +378,8 @@ public class RollingWindowService : IDisposable
         };
     }
 
-    // Cache to prevent duplicate logging across multiple opportunity calls
-    private static readonly ConcurrentDictionary<string, DateTime> _lastLogTimes = new();
-    private static readonly TimeSpan _logCooldown = TimeSpan.FromSeconds(1); // Minimum 1 second between logs
-
-    private bool ShouldLogBidBid(string pairKey)
-    {
-        var now = DateTime.UtcNow;
-        var lastLogTime = _lastLogTimes.GetOrAdd(pairKey, _ => DateTime.MinValue);
-
-        if ((now - lastLogTime) >= _logCooldown)
-        {
-            _lastLogTimes[pairKey] = now;
-            return true;
-        }
-
-        return false;
-    }
+    // PROPOSAL-2025-0095: Removed static memory leak (_lastLogTimes)
+    // Throttling is now handled by BidBidLogger itself
 
     // PROPOSAL-2025-0094: AsOfJoin and BinarySearchFloor REMOVED
     // Spreads are now calculated event-driven in ProcessLastTickMatching()
@@ -474,4 +445,14 @@ public class WindowDataUpdatedEventArgs : EventArgs
     public required string Exchange { get; set; }
     public required string Symbol { get; set; }
     public DateTime Timestamp { get; set; }
+}
+
+/// <summary>
+/// PROPOSAL-2025-0095: Lightweight tick data for latest ticks cache
+/// </summary>
+public struct TickData
+{
+    public DateTime Timestamp { get; set; }
+    public decimal Bid { get; set; }
+    public decimal Ask { get; set; }
 }

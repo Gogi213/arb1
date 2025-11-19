@@ -105,10 +105,27 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
     }
 
     /// <summary>
+    /// Stops all active subscriptions and closes connections.
+    /// </summary>
+    public async Task StopAsync()
+    {
+        WebSocketLogger.Log($"[{ExchangeName}] Stopping all connections...");
+
+        // Stop all connections
+        var stopTasks = _connections.Select(c => c.StopAsync()).ToArray();
+        await Task.WhenAll(stopTasks);
+
+        _connections.Clear();
+
+        WebSocketLogger.Log($"[{ExchangeName}] All connections stopped");
+    }
+
+    /// <summary>
     /// Managed connection that handles a chunk of symbols with automatic reconnection.
     /// This class contains the 824 lines of duplicated code that we're eliminating.
+    /// PROPOSAL-2025-0095: Implements IDisposable for proper resource cleanup
     /// </summary>
-    private class ManagedConnection
+    private class ManagedConnection : IDisposable
     {
         private readonly ExchangeClientBase<TRestClient, TSocketClient> _parent;
         private readonly List<string> _symbols;
@@ -119,6 +136,7 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
         private dynamic? _subscriptionResultData; // Сохраняем ссылку на объект с событиями
         private Action? _connectionLostHandler;
         private Action<TimeSpan>? _connectionRestoredHandler;
+        private bool _disposed;
 
         public ManagedConnection(
             ExchangeClientBase<TRestClient, TSocketClient> parent,
@@ -140,21 +158,47 @@ public abstract class ExchangeClientBase<TRestClient, TSocketClient> : IExchange
 
         public async Task StopAsync()
         {
-            // Отписываемся от событий, если они были подписаны
-            if (_subscriptionResultData != null)
+            Dispose();
+            await Task.CompletedTask;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed) return;
+
+            // PROPOSAL-2025-0095: Proper resource cleanup
+            try
             {
-                if (_connectionLostHandler != null)
+                // Отписываемся от событий, если они были подписаны
+                if (_subscriptionResultData != null)
                 {
-                    _subscriptionResultData.ConnectionLost -= _connectionLostHandler;
+                    if (_connectionLostHandler != null)
+                    {
+                        _subscriptionResultData.ConnectionLost -= _connectionLostHandler;
+                    }
+                    if (_connectionRestoredHandler != null)
+                    {
+                        _subscriptionResultData.ConnectionRestored -= _connectionRestoredHandler;
+                    }
                 }
-                if (_connectionRestoredHandler != null)
-                {
-                    _subscriptionResultData.ConnectionRestored -= _connectionRestoredHandler;
-                }
+
+                // Unsubscribe from all streams
+                var api = _parent.CreateSocketApi(_socketClient);
+                api.UnsubscribeAllAsync().GetAwaiter().GetResult();
+
+                // Dispose socket client
+                _socketClient.Dispose();
+
+                // Dispose semaphore
+                _resubscribeLock.Dispose();
             }
-            var api = _parent.CreateSocketApi(_socketClient);
-            await api.UnsubscribeAllAsync();
-            _socketClient.Dispose();
+            catch (Exception ex)
+            {
+                WebSocketLogger.Log($"[{_parent.ExchangeName}] Error during ManagedConnection dispose: {ex.Message}");
+            }
+
+            _disposed = true;
+            GC.SuppressFinalize(this);
         }
 
         private async Task SubscribeInternalAsync()

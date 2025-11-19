@@ -39,4 +39,9 @@ public interface IExchangeClient
     /// <param name="symbols">The symbols to subscribe to.</param>
     /// <param name="onData">The action to perform when new trade data arrives.</param>
     Task SubscribeToTradesAsync(IEnumerable<string> symbols, Func<TradeData, Task> onData);
+
+    /// <summary>
+    /// Stops all active subscriptions and closes connections.
+    /// </summary>
+    Task StopAsync();
 }

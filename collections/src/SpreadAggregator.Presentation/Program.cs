@@ -60,6 +60,7 @@ class Program
 
         // Configure middleware
         app.UseStaticFiles(); // Serve static files from wwwroot
+        app.UseRouting(); // Enable routing
         app.UseWebSockets();
         app.UseCors();
         app.MapControllers();
@@ -195,41 +196,94 @@ class Program
 public class OrchestrationServiceHost : IHostedService
 {
     private readonly OrchestrationService _orchestrationService;
+    private readonly RawDataChannel _rawDataChannel;
+    private readonly ILogger<OrchestrationServiceHost> _logger;
 
-    public OrchestrationServiceHost(OrchestrationService orchestrationService)
+    public OrchestrationServiceHost(
+        OrchestrationService orchestrationService,
+        RawDataChannel rawDataChannel,
+        ILogger<OrchestrationServiceHost> logger)
     {
         _orchestrationService = orchestrationService;
+        _rawDataChannel = rawDataChannel;
+        _logger = logger;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
+        _logger.LogInformation("[OrchestrationHost] Starting orchestration service...");
         _ = _orchestrationService.StartAsync(cancellationToken);
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        // PROPOSAL-2025-0095: Graceful shutdown
+        _logger.LogInformation("[OrchestrationHost] Stopping orchestration service gracefully...");
+
+        // Stop orchestration (stops exchange subscriptions)
+        await _orchestrationService.StopAsync(cancellationToken);
+
+        // Complete raw data channel (signals consumers to stop)
+        _rawDataChannel.Channel.Writer.Complete();
+
+        _logger.LogInformation("[OrchestrationHost] Orchestration service stopped, channels completed");
     }
 }
 
 public class RollingWindowServiceHost : IHostedService
 {
     private readonly RollingWindowService _rollingWindowService;
+    private readonly RollingWindowChannel _rollingWindowChannel;
+    private readonly ILogger<RollingWindowServiceHost> _logger;
+    private Task? _runningTask;
+    private CancellationTokenSource? _cts;
 
-    public RollingWindowServiceHost(RollingWindowService rollingWindowService)
+    public RollingWindowServiceHost(
+        RollingWindowService rollingWindowService,
+        RollingWindowChannel rollingWindowChannel,
+        ILogger<RollingWindowServiceHost> logger)
     {
         _rollingWindowService = rollingWindowService;
+        _rollingWindowChannel = rollingWindowChannel;
+        _logger = logger;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
-        _ = _rollingWindowService.StartAsync(cancellationToken);
+        _logger.LogInformation("[RollingWindowHost] Starting rolling window service...");
+        _cts = new CancellationTokenSource();
+        _runningTask = _rollingWindowService.StartAsync(_cts.Token);
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public async Task StopAsync(CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        // PROPOSAL-2025-0095: Graceful shutdown
+        _logger.LogInformation("[RollingWindowHost] Stopping rolling window service gracefully...");
+
+        // Signal cancellation
+        _cts?.Cancel();
+
+        // Complete the channel to stop processing
+        _rollingWindowChannel.Channel.Writer.Complete();
+
+        // Wait for task to finish (with timeout)
+        if (_runningTask != null)
+        {
+            var timeout = Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+            var completed = await Task.WhenAny(_runningTask, timeout);
+
+            if (completed == timeout)
+            {
+                _logger.LogWarning("[RollingWindowHost] Rolling window service did not stop within 5 seconds");
+            }
+            else
+            {
+                _logger.LogInformation("[RollingWindowHost] Rolling window service stopped");
+            }
+        }
+
+        _cts?.Dispose();
     }
 }

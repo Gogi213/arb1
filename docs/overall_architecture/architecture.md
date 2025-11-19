@@ -25,9 +25,10 @@ This system is designed for cryptocurrency market analysis and automated trading
         *   **Functionality:** This is the **primary, operational trading strategy**. It executes a simple, self-contained "buy-then-sell" strategy on a single exchange.
         *   **Dependencies:** This mode is **self-contained**. It connects directly to the target exchange and **does not consume any data from the `collections` project.**
     2.  **Spread Listener Mode (Legacy/Passive):**
-        *   **Trigger:** The default mode when the application is started with no arguments.
-        *   **Functionality:** Connects to the `collections` WebSocket server to listen for profitable spread opportunities. However, the `DecisionMaker` component that receives these signals is a **non-functional placeholder**.
-        *   **Conclusion:** In this mode, the `trader` **listens but does not execute any trades.**
+        *   **Status:** **DEPRECATED & REMOVED from startup.**
+        *   **Trigger:** Previously default mode, now removed from `Program.cs`.
+        *   **Functionality:** The `SpreadListener` class remains (hardened against stale data), but the `DecisionMaker` component has been **deleted**.
+        *   **Conclusion:** This mode is no longer active. The code serves as a reference for WebSocket integration.
 
 ### 1.3. `analyzer` (The Offline Brain)
 

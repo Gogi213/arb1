@@ -15,12 +15,17 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
     private readonly List<IWebSocketConnection> _allSockets;
     private readonly object _lock = new object();
     private readonly Func<OrchestrationService> _orchestrationServiceFactory;
+    private readonly System.Threading.Timer _cleanupTimer;
 
     public FleckWebSocketServer(string location, Func<OrchestrationService> orchestrationServiceFactory)
     {
         _server = new WebSocketServer(location);
         _allSockets = new List<IWebSocketConnection>();
         _orchestrationServiceFactory = orchestrationServiceFactory;
+
+        // PROPOSAL-2025-0095: Dead connection cleanup every 5 minutes
+        _cleanupTimer = new System.Threading.Timer(CleanupDeadConnections, null,
+            TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(5));
     }
 
     public void Start()
@@ -80,8 +85,33 @@ public class FleckWebSocketServer : Application.Abstractions.IWebSocketServer, I
         return Task.WhenAll(tasks);
     }
 
+    /// <summary>
+    /// PROPOSAL-2025-0095: Cleanup dead WebSocket connections
+    /// Removes connections that are closed but not properly removed from list
+    /// </summary>
+    private void CleanupDeadConnections(object? state)
+    {
+        lock (_lock)
+        {
+            var deadConnections = _allSockets
+                .Where(s => !s.IsAvailable)
+                .ToList();
+
+            foreach (var socket in deadConnections)
+            {
+                _allSockets.Remove(socket);
+            }
+
+            if (deadConnections.Count > 0)
+            {
+                Console.WriteLine($"[Fleck] Cleaned up {deadConnections.Count} dead connections. Active: {_allSockets.Count}");
+            }
+        }
+    }
+
     public void Dispose()
     {
+        _cleanupTimer?.Dispose();
         _server.Dispose();
         GC.SuppressFinalize(this);
     }

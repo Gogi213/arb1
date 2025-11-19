@@ -31,22 +31,12 @@ namespace TraderBot.Host
                 return;
             }
 
-            // --- Spread Listener Setup ---
-            var spreadListenerUrl = configuration.GetValue<string>("SpreadListenerUrl");
-            if (string.IsNullOrEmpty(spreadListenerUrl))
-            {
-                FileLogger.LogOther("SpreadListenerUrl is not configured in appsettings.json. Exiting.");
-                return;
-            }
-
-            var listener = new SpreadListener(spreadListenerUrl);
-            var decisionMaker = new DecisionMaker();
-            decisionMaker.Subscribe(listener);
-
-            FileLogger.LogOther("Starting spread listener. Waiting for profitable spread...");
-            await listener.StartAsync(CancellationToken.None); // Now we await it, as it's the main loop
-
-            FileLogger.LogOther("Spread listener finished. Program exiting.");
+            // Default: Show usage
+            Console.WriteLine("Usage:");
+            Console.WriteLine("  dotnet run gate   - Run ConvergentTrader on GateIo");
+            Console.WriteLine("  dotnet run bybit  - Run ConvergentTrader on Bybit");
+            Console.WriteLine();
+            Console.WriteLine("Note: Legacy two-legged arbitrage (DecisionMaker) has been removed.");
         }
 
         static async Task RunManualConvergentTrader(IConfiguration configuration, string exchangeName)

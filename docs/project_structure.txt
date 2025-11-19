@@ -15,15 +15,30 @@
 | | | `- issue.md
 | | |- proposals
 | | | |- PROPOSAL-2025-0076-FixAnalyzerSavePath.md
-| | | `- PROPOSAL-2025-0085-FixAnalyzerDefaultPath.md
+| | | |- PROPOSAL-2025-0085-FixAnalyzerDefaultPath.md
+| | | `- PROPOSAL-2025-0090-ModularRefactoring.md
 | | |- roadmap.md
 | | `- role_definition.md
+| |- lib
+| | |- __init__.py
+| | |- analysis.py
+| | |- config.py
+| | |- data_loader.py
+| | `- discovery.py
 | |- summary_stats
-| | `- summary_stats_20251118_170538.csv
+| | |- summary_stats_20251118_170538.csv
+| | `- summary_stats_20251119_125553.csv
+| |- tests
+| | |- __init__.py
+| | |- test_analysis.py
+| | |- test_config.py
+| | `- test_data_loader.py
 | |- README.md
+| |- config.yaml
 | |- requirements.txt
 | |- run_all_ultra.py
-| `- test_date_filter.py
+| |- test_date_filter.py
+| `- test_normalization.py
 |- collections
 | |- docs
 | | |- 1_architecture
@@ -68,11 +83,12 @@
 | | | |- PROPOSAL-2025-0092-FixSymbolDeduplication.md
 | | | |- PROPOSAL-2025-0093-HFT-OptimizeChannelArchitecture.md
 | | | `- PROPOSAL-2025-0094-LastTickMatching.md
+| | |- IMPLEMENTATION-SUMMARY-2025-0095.md
+| | |- PROPOSAL-2025-0095-ProductionReadiness.md
 | | |- README.md
 | | |- metrics.md
 | | `- role_definition.md
 | |- src
-| | |- SpreadAggregator.Analyzer
 | | |- SpreadAggregator.Application
 | | | |- Abstractions
 | | | | |- IBidAskLogger.cs
@@ -81,6 +97,8 @@
 | | | | |- IExchangeClient.cs
 | | | | |- IWebSocketServer.cs
 | | | | `- TickerData.cs
+| | | |- Helpers
+| | | | `- LruCache.cs
 | | | |- Services
 | | | | |- DataCollectorService.cs
 | | | | |- OrchestrationService.cs
@@ -99,9 +117,9 @@
 | | | |- Services
 | | | | |- SpreadCalculator.cs
 | | | | `- VolumeFilter.cs
-| | | |- Class1.cs
 | | | `- SpreadAggregator.Domain.csproj
 | | |- SpreadAggregator.Infrastructure
+| | | |- Helpers
 | | | |- Services
 | | | | |- Charts
 | | | | | |- OpportunityFilterService.cs
@@ -126,11 +144,12 @@
 | | | | |- FleckWebSocketServer.cs
 | | | | |- ParquetDataWriter.cs
 | | | | `- WebSocketLogger.cs
-| | | |- Class1.cs
 | | | `- SpreadAggregator.Infrastructure.csproj
 | | `- SpreadAggregator.Presentation
 | |   |- Controllers
 | |   | |- DashboardController.cs
+| |   | |- HealthController.cs
+| |   | |- HomeController.cs
 | |   | `- RealTimeController.cs
 | |   |- Models
 | |   | |- ChartDataDto.cs
@@ -151,10 +170,31 @@
 | |   |   |- SpreadCalculatorTests.cs
 | |   |   `- VolumeFilterTests.cs
 | |   |- SpreadAggregator.Tests.csproj
+| |   |- Sprint1_MemorySafetyTests.cs
+| |   |- Sprint2_LifecycleTests.cs
+| |   |- Sprint3_5_ResilienceTests.cs
 | |   `- UnitTest1.cs
+| |- NETWORK-ACCESS.md
+| |- QUICK-START-EXTERNAL-ACCESS.md
 | |- README.md
 | `- SpreadAggregator.sln
 |- docs
+| |- gemini3
+| | |- proposals
+| | | |- PROPOSAL_001_STALE_DATA_FIX.md
+| | | |- PROPOSAL_002_EXTERNAL_CONFIG.md
+| | | |- PROPOSAL_003_CIRCUIT_BREAKER.md
+| | | `- PROPOSAL_004_ANALYZER_FEEDBACK.md
+| | |- FINAL_SUMMARY.md
+| | |- audit_report.md
+| | |- cleanup_log.md
+| | |- code_quality_report.md
+| | |- decisionmaker_explanation.md
+| | |- ecosystem_architecture.md
+| | |- evolution_plan.md
+| | |- plan.md
+| | |- refactoring_recommendations.md
+| | `- validation_report.md
 | |- issues
 | | `- ISSUE-001-realtime-charts-not-showing.md
 | |- overall_architecture
@@ -266,7 +306,6 @@
 | | | |- ArbitrageCycleState.cs
 | | | |- ArbitrageTrader.cs
 | | | |- ConvergentTrader.cs
-| | | |- DecisionMaker.cs
 | | | |- FileLogger.cs
 | | | |- IExchange.cs
 | | | |- ITrader.cs

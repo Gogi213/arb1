@@ -75,62 +75,31 @@ The `ConvergentTrader` is the heart of the current strategy.
 ---
 
 ## 3. Legacy Architecture: Spread Listener (Passive)
-
-This section describes the initial implementation of the `Trader` project, which is no longer the active trading strategy but remains the default execution path if the application is started without arguments.
-
-### Diagram
-```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#f0f0f0', 'edgeLabelBackground':'#f0f0f0', 'clusterBkg': '#f0f0f0'}}}%%
-graph TD
-    subgraph "1. Setup (No CLI Args)"
-        A[Start Application] --> B{Instantiate SpreadListener};
-        B --> C{Instantiate DecisionMaker};
-        C --> D[DecisionMaker subscribes to Listener];
-    end
-
-    subgraph "2. Spread Detection (SpreadListener)"
-        D --> E[Connect to SpreadAggregator WS];
-        E --> F{Receive SpreadData};
-        F -- Spread > Threshold --> G[Fire OnProfitableSpreadDetected];
-    end
-
-    subgraph "3. Decision (DecisionMaker)"
-        G --> H{HandleProfitableSpread};
-        H --> I{Check _isCycleInProgress flag};
-        I -- "false" --> J[Log opportunity];
-        J --> K[Set _isCycleInProgress = true];
-        I -- "true" --> L[Ignore signal];
-    end
-
-    subgraph "4. Execution (Not Implemented)"
-        K --> M(TODO: Start ArbitrageTrader);
-    end
-
-    style M fill:#f00,stroke:#333,stroke-width:4px
-```
-
-### 3.1. Overview
-
-The legacy system was designed to listen for arbitrage opportunities between two exchanges, as identified by the `SpreadAggregator` project. However, the component responsible for acting on these opportunities (`DecisionMaker`) was never fully implemented to execute trades.
-
-### 3.2. Entry Point & Control Flow
-
-*   **[`Host/Program.cs:34`](trader/src/Host/Program.cs:34)**: If no command-line arguments are provided, the application falls back to this mode.
-    1.  It reads the `SpreadListenerUrl` from `appsettings.json`.
-    2.  It initializes the `SpreadListener` and the `DecisionMaker`.
-    3.  The `DecisionMaker` subscribes to events from the `SpreadListener`.
-    4.  The application starts the `SpreadListener` and waits indefinitely.
-
-### 3.3. Core Components
-
-*   **[`Core/SpreadListener.cs`](trader/src/Core/SpreadListener.cs)**:
-    *   **Responsibility:** Connects to the `SpreadAggregator` WebSocket server.
-    *   **Logic:** It listens for incoming spread data. If a spread exceeds a predefined threshold, it fires an `OnProfitableSpreadDetected` event.
-
-*   **[`Core/DecisionMaker.cs`](trader/src/Core/DecisionMaker.cs)**:
-    *   **Responsibility:** Subscribes to the `OnProfitableSpreadDetected` event.
-    *   **State:** This is a **placeholder implementation**. It logs that a profitable spread was detected and uses a simple flag (`_isCycleInProgress`) to avoid logging concurrent events.
-    *   **Crucially, it does not contain any logic to start a trader or execute any orders.** The `TODO` comments in the code confirm its incomplete status.
+ 
+ **STATUS: DEPRECATED & PARTIALLY REMOVED**
+ 
+ This section describes the initial implementation of the `Trader` project.
+ 
+ - **SpreadListener**: Still exists in codebase (fixed by PROPOSAL 001), but not wired in `Program.cs`.
+ - **DecisionMaker**: **REMOVED** from codebase.
+ 
+ ### 3.1. Overview
+ 
+ The legacy system was designed to listen for arbitrage opportunities between two exchanges.
+ 
+ ### 3.2. Entry Point & Control Flow
+ 
+ *   **[`Host/Program.cs`](trader/src/Host/Program.cs)**: Legacy setup code has been **removed**. The application now displays a usage message if no arguments are provided.
+ 
+ ### 3.3. Core Components
+ 
+ *   **[`Core/SpreadListener.cs`](trader/src/Core/SpreadListener.cs)**:
+     *   **Status:** Exists, hardened against stale data (PROPOSAL 001).
+     *   **Responsibility:** Connects to the `SpreadAggregator` WebSocket server.
+ 
+ *   **[`Core/DecisionMaker.cs`](trader/src/Core/DecisionMaker.cs)**:
+     *   **Status:** ❌ **REMOVED**
+     *   **Reason:** Deprecated two-legged arbitrage logic.
 
 ## 4. External Dependencies
 

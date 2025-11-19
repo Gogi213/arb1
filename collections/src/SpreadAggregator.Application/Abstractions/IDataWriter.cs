@@ -10,4 +10,9 @@ public interface IDataWriter
     Task WriteAsync(string filePath, IReadOnlyCollection<SpreadData> data);
     Task<List<SpreadData>> ReadAsync(string filePath);
     Task InitializeCollectorAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// PROPOSAL-2025-0095: Flush all buffered data to disk (for graceful shutdown)
+    /// </summary>
+    Task FlushAsync();
 }

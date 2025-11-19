@@ -4,6 +4,19 @@ Complete history of changes to the ARB1 project after the audit.
 
 ---
 
+## [2025-11-19] - Code Quality Cleanup
+
+### ✅ Removed
+- **Dead Project**: `SpreadAggregator.Analyzer` (unused folder)
+- **Dead Code**: `Class1.cs` placeholders in Domain and Infrastructure layers
+- **Legacy Scripts**: Removed `run_all_ultra_old.py` and `run_all_ultra_v2.py` from Analyzer
+
+### ✅ Fixed
+- **Symbol Normalization**: Harmonized `SYMBOL_USDT` format across Collections and Analyzer
+- **Documentation**: Updated `GEMINI.md` with expanded role definition
+
+---
+
 ## [2025-11-10] - Sprint 3 Completion + Documentation Restructure
 
 ### ✅ Added

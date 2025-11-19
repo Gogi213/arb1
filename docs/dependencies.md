@@ -37,7 +37,7 @@ The `trader` project has conditional dependencies based on its mode of operation
 *   **Type:** Real-time, Runtime Dependency
 *   **Mode:** Passive/Legacy Mode only
 *   **Description:** When the `trader` is run in its default legacy mode, it establishes a WebSocket connection to the server hosted by the `collections` project to receive a stream of spread data.
-*   **Status:** **This dependency does not exist when running the active `ConvergentTrader` mode.**
+*   **Status:** **DEPRECATED.** The legacy mode is removed from the main execution path. The active `ConvergentTrader` mode has **no dependency** on `collections`.
 
 ### Dependency on `analyzer`
 *   **Type:** Indirect, Human-Mediated Data Dependency

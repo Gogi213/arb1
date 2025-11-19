@@ -55,4 +55,6 @@
 | TD-011 | Await Leg 2 completion | Obsolete | Relevant to two-legged arbitrage. |
 | TD-012 | Reliable balance management | Obsolete | Relevant to `ArbitrageTrader`; `ConvergentTrader` handles balance for a single exchange. |
 | TD-008 | Subscribe to balance updates | Completed (for Convergent) | Essential for `ConvergentTrader` to confirm funds; context shifted. |
+| PROPOSAL-001 | Fix Stale Data Vulnerability | **Completed** | Implemented timestamp validation in `SpreadListener` (even if currently unused). |
+| CLEANUP-001 | Remove DecisionMaker | **Completed** | Removed deprecated `DecisionMaker` class and legacy startup code from `Program.cs`. |
 | PROPOSAL-* | Various historical proposals for two-legged arbitrage | Obsolete | Many old proposals are now obsolete due to the deprecation of the two-legged arbitrage and the pivot to `ConvergentTrader`. |

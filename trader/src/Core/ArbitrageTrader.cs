@@ -1,6 +1,8 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using TraderBot.Core.Configuration;
 
 namespace TraderBot.Core
 {
@@ -31,11 +33,14 @@ namespace TraderBot.Core
         private Timer? _quoteAssetDebounceTimer;
         private decimal _lastReceivedQuoteAssetBalance;
 
-        public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange)
+        private readonly IOptionsMonitor<TradingSettings> _settings;
+
+        public ArbitrageTrader(IExchange buyExchange, IExchange sellExchange, IOptionsMonitor<TradingSettings> settings)
         {
             _buyExchange = buyExchange ?? throw new ArgumentNullException(nameof(buyExchange));
             _sellExchange = sellExchange ?? throw new ArgumentNullException(nameof(sellExchange));
-            _trailingTrader = new TrailingTrader(_buyExchange);
+            _settings = settings;
+            _trailingTrader = new TrailingTrader(_buyExchange, settings);
         }
 
         public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)

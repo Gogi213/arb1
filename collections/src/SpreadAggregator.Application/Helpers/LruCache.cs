@@ -49,25 +49,49 @@ public class LruCache<TKey, TValue> where TKey : notnull
 
     /// <summary>
     /// Add or update value, evicting oldest entries if capacity exceeded
+    /// ISSUE #10 FIX: Creates new CacheEntry instead of mutating to prevent data races
     /// </summary>
     public void AddOrUpdate(TKey key, TValue value)
     {
         var tick = Interlocked.Increment(ref _currentTick);
-        var entry = new CacheEntry { Value = value, LastAccessTick = tick };
+        
+        // FIX: Always create NEW CacheEntry (immutable pattern for thread-safety)
+        var newEntry = new CacheEntry { Value = value, LastAccessTick = tick };
+        
+        _cache.AddOrUpdate(
+            key, 
+            addValueFactory: k => newEntry,              // Add: use new entry
+            updateValueFactory: (k, old) => newEntry     // Update: replace with new entry (no mutation!)
+        );
 
-        _cache.AddOrUpdate(key, entry, (k, old) =>
-        {
-            // Update existing entry
-            old.Value = value;
-            old.LastAccessTick = tick;
-            return old;
-        });
+        // FIX: Move eviction inside AddOrUpdate to reduce TOCTOU window
+        // Still not perfect, but better than before
+        TryEvictIfNeeded();
+    }
 
-        // Check if eviction needed (single-threaded eviction)
-        if (_cache.Count > _maxSize)
+    /// <summary>
+    /// Try to evict oldest entries if cache is over capacity.
+    /// Uses lock to ensure only one thread evicts at a time.
+    /// </summary>
+    private void TryEvictIfNeeded()
+    {
+        // Fast path: no lock if not needed
+        if (_cache.Count <= _maxSize)
+            return;
+
+        // Try to acquire eviction lock (non-blocking)
+        if (Monitor.TryEnter(_evictionLock))
         {
-            EvictOldest();
+            try
+            {
+                EvictOldest();
+            }
+            finally
+            {
+                Monitor.Exit(_evictionLock);
+            }
         }
+        // If another thread is already evicting, skip (they'll handle it)
     }
 
     /// <summary>
@@ -108,7 +132,10 @@ public class LruCache<TKey, TValue> where TKey : notnull
     /// </summary>
     public int EvictWhere(Func<TKey, TValue, bool> predicate)
     {
-        var toRemove = _cache
+        // FIX: Take snapshot to avoid concurrent modification during enumeration
+        var snapshot = _cache.ToList();
+        
+        var toRemove = snapshot
             .Where(kvp => predicate(kvp.Key, kvp.Value.Value))
             .Select(kvp => kvp.Key)
             .ToList();
@@ -138,7 +165,10 @@ public class LruCache<TKey, TValue> where TKey : notnull
             // Evict 10% of oldest entries
             var evictCount = Math.Max(1, _maxSize / 10);
 
-            var toEvict = _cache
+            // FIX: Take snapshot to avoid ConcurrentModificationException during OrderBy
+            var snapshot = _cache.ToList();  // ✅ Thread-safe snapshot
+            
+            var toEvict = snapshot
                 .OrderBy(kvp => kvp.Value.LastAccessTick)
                 .Take(evictCount)
                 .Select(kvp => kvp.Key)

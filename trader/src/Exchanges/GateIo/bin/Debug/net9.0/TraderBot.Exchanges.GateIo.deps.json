@@ -195,6 +195,9 @@
       },
       "System.Text.Json/9.0.6": {},
       "TraderBot.Core/1.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Options": "9.0.6"
+        },
         "runtime": {
           "TraderBot.Core.dll": {
             "assemblyVersion": "1.0.0.0",

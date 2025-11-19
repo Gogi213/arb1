@@ -4,10 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using TraderBot.Core;
+using TraderBot.Core.Configuration;
 using TraderBot.Exchanges.Bybit;
 using TraderBot.Exchanges.GateIo;
-using TraderBot.Core;
 
 namespace TraderBot.Host
 {
@@ -68,8 +70,15 @@ namespace TraderBot.Host
                     await ((BybitExchange)exchange).InitializeAsync(config.ApiKey, config.ApiSecret);
                 }
 
+                FileLogger.LogOther("Setting up DI for Configuration...");
+                var services = new ServiceCollection();
+                services.AddOptions();
+                services.Configure<TradingSettings>(configuration.GetSection("TradingSettings"));
+                var serviceProvider = services.BuildServiceProvider();
+                var settings = serviceProvider.GetRequiredService<IOptionsMonitor<TradingSettings>>();
+
                 FileLogger.LogOther("Creating ConvergentTrader...");
-                var trader = new ConvergentTrader(exchange);
+                var trader = new ConvergentTrader(exchange, settings);
                 var state = new ArbitrageCycleState();
 
                 FileLogger.LogOther($"Starting manual ConvergentTrader with amount: {config.Amount} for {config.Symbol}");

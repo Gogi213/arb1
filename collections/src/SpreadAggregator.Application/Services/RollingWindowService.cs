@@ -70,6 +70,9 @@ public class RollingWindowService : IDisposable
         if (data is not SpreadData spreadData)
             return;
 
+        // DIAGNOSTIC: Track incoming data for testing
+        Diagnostics.DiagnosticCounters.Instance.RecordIncomingData(data.Exchange, data.Symbol);
+
         // PROPOSAL-2025-0094: Event-driven spread calculation
         // When Exchange 1 updates → lookup last tick from all other exchanges → calculate spreads
         ProcessLastTickMatching(spreadData);
@@ -88,14 +91,18 @@ public class RollingWindowService : IDisposable
     /// PROPOSAL-2025-0094: Last-Tick Matching
     /// When one exchange updates, calculate spread with last known ticks from all other exchanges
     /// </summary>
+    /// <summary>
+    /// PROPOSAL-2025-0094: Last-Tick Matching
+    /// When one exchange updates, calculate spread with last known ticks from all other exchanges
+    /// FIX: Now calculates BOTH directions:
+    /// 1. Bid(Current) / Ask(Other) -> Opportunity Current->Other
+    /// 2. Bid(Other) / Ask(Current) -> Opportunity Other->Current
+    /// </summary>
     private void ProcessLastTickMatching(SpreadData currentData)
     {
         var currentExchange = currentData.Exchange;
         var symbol = currentData.Symbol;
         var now = currentData.Timestamp;
-
-        // PROPOSAL-2025-0095: Removed debug logging (static leak)
-        // Use structured logging if needed
 
         // Find all other exchanges that have data for this symbol
         var otherExchangeTicks = _latestTicks.Keys
@@ -108,41 +115,57 @@ public class RollingWindowService : IDisposable
         foreach (var (key, oppositeTick) in otherExchangeTicks)
         {
             var oppositeExchange = key.Split('_')[0];
-
-            // Calculate staleness
             var staleness = now - oppositeTick.Timestamp;
 
-            // Calculate spread: (Bid1 / Ask2 - 1) * 100
-            var spread = oppositeTick.Ask > 0
-                ? ((currentData.BestBid / oppositeTick.Ask) - 1) * 100
-                : 0;
-
-            // Create spread point
-            var spreadPoint = new SpreadPoint
+            // --- Direction 1: Buy on Current, Sell on Opposite ---
+            // Spread = (Bid(Current) / Ask(Opposite)) - 1
+            if (oppositeTick.Ask > 0)
             {
-                Timestamp = now,
-                Symbol = symbol,
-                Exchange1 = currentExchange,
-                Exchange2 = oppositeExchange,
-                BestBid = currentData.BestBid,
-                BestAsk = oppositeTick.Ask,
-                SpreadPercent = spread,
-                Staleness = staleness,
-                TriggeredBy = currentExchange
-            };
+                var spread1 = ((currentData.BestBid / oppositeTick.Ask) - 1) * 100;
+                
+                var spreadPoint1 = new SpreadPoint
+                {
+                    Timestamp = now,
+                    Symbol = symbol,
+                    Exchange1 = currentExchange,
+                    Exchange2 = oppositeExchange,
+                    BestBid = currentData.BestBid,
+                    BestAsk = oppositeTick.Ask,
+                    SpreadPercent = spread1,
+                    Staleness = staleness,
+                    TriggeredBy = currentExchange
+                };
+                AddSpreadPointToWindow(spreadPoint1);
+            }
 
-            // Add to window
-            AddSpreadPointToWindow(spreadPoint);
+            // --- Direction 2: Buy on Opposite, Sell on Current ---
+            // Spread = (Bid(Opposite) / Ask(Current)) - 1
+            // This ensures that updates to the ASK price (Sell side) also trigger chart updates
+            if (currentData.BestAsk > 0)
+            {
+                var spread2 = ((oppositeTick.Bid / currentData.BestAsk) - 1) * 100;
 
-            // ANALYSIS-2025-0094: Removed staleness warnings
-            // Analysis shows 38% of spreads have staleness >100ms - this is EXPECTED behavior
-            // Staleness reflects real market conditions (exchanges update at different rates)
-            // Only log VERY high staleness (>5000ms) which might indicate connectivity issues
+                var spreadPoint2 = new SpreadPoint
+                {
+                    Timestamp = now,
+                    Symbol = symbol,
+                    Exchange1 = oppositeExchange,
+                    Exchange2 = currentExchange,
+                    BestBid = oppositeTick.Bid,
+                    BestAsk = currentData.BestAsk,
+                    SpreadPercent = spread2,
+                    Staleness = staleness,
+                    TriggeredBy = currentExchange
+                };
+                AddSpreadPointToWindow(spreadPoint2);
+            }
+
+            // Log warning only once per pair if needed
             if (staleness.TotalMilliseconds > 5000)
             {
                 _logger.LogWarning(
                     $"[RollingWindow-WARN] Very high staleness: {staleness.TotalMilliseconds:F0}ms " +
-                    $"for {symbol} {currentExchange}→{oppositeExchange} - possible connectivity issue");
+                    $"for {symbol} {currentExchange}<->{oppositeExchange}");
             }
         }
     }
@@ -205,6 +228,10 @@ public class RollingWindowService : IDisposable
     private void OnWindowDataUpdated(string exchange, string symbol)
     {
         _logger.LogDebug($"RollingWindow event: {exchange}/{symbol}");
+        
+        // DIAGNOSTIC: Track outgoing events for testing
+        Diagnostics.DiagnosticCounters.Instance.RecordOutgoingEvent(exchange, symbol);
+        
         WindowDataUpdated?.Invoke(this, new WindowDataUpdatedEventArgs
         {
             Exchange = exchange,

@@ -24,7 +24,7 @@
 | ID | Task | Component | Priority | Status | Description |
 |---|---|---|---|---|---|
 | TD-005 | Fetch symbol filters from the exchange | `Bybit` | High | To Do | For `ConvergentTrader`, `tickSize` and `basePrecision` must be fetched from the exchange's API to ensure correct order quantity rounding. (Still relevant for any exchange integration) |
-| TD-002 | Make "magic numbers" configurable | `Core` | High | To Do | Order sizes, sell delays, and other `ConvergentTrader` parameters should be moved to `appsettings.json` instead of being hardcoded. |
+
 | TD-014 | Accurate P&L Calculation for Convergent Trader | `Core` | High | To Do | Replace the estimated proceeds calculation with actual fill prices and exchange fees for precise P&L tracking. |
 | TD-015 | Implement Sell Order Status Tracking | `Core` | High | To Do | Remove the assumption of immediate market sell fill (`Task.Delay(1000);`) and implement robust tracking of sell order status via WebSocket updates. |
 | TD-009 | Add robust error handling for order operations | `Core`, `Bybit` | Medium | To Do | The `ConvergentTrader` needs comprehensive error handling for placing, modifying, and canceling orders. |
@@ -58,3 +58,4 @@
 | PROPOSAL-001 | Fix Stale Data Vulnerability | **Completed** | Implemented timestamp validation in `SpreadListener` (even if currently unused). |
 | CLEANUP-001 | Remove DecisionMaker | **Completed** | Removed deprecated `DecisionMaker` class and legacy startup code from `Program.cs`. |
 | PROPOSAL-* | Various historical proposals for two-legged arbitrage | Obsolete | Many old proposals are now obsolete due to the deprecation of the two-legged arbitrage and the pivot to `ConvergentTrader`. |
+| TD-002 | Make "magic numbers" configurable | **Completed** | Parameters moved to `appsettings.json` and `TradingSettings` class created. |

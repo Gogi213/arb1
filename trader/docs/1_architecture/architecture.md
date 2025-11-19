@@ -66,11 +66,20 @@ The `ConvergentTrader` is the heart of the current strategy.
 *   **`Exchanges/`**:
     *   **Responsibility:** This directory contains the concrete implementations of the `IExchange` interface (e.g., `BybitExchange`, `GateIoExchange`). This layer isolates the core logic from third-party libraries and exchange-specific protocols.
 
-### 2.3. Architectural Patterns
+### 2.3. Configuration & Dependency Injection
+*   **[`Core/Configuration/TradingSettings.cs`](trader/src/Core/Configuration/TradingSettings.cs)**:
+    *   **Responsibility:** Defines the strongly-typed configuration object for trading parameters (e.g., `SpreadThreshold`, `SellDelayMilliseconds`).
+    *   **Usage:** Mapped from the `TradingSettings` section in `appsettings.json`.
+
+*   **Dependency Injection (DI)**:
+    *   A minimal `ServiceCollection` is used in `Program.cs` to register configuration services.
+    *   **`IOptionsMonitor<TradingSettings>`** is injected into `ConvergentTrader` and `TrailingTrader`, enabling hot-reload of parameters without restarting the application.
+
+### 2.4. Architectural Patterns
 
 *   **Command Pattern:** The `ConvergentTrader` can be seen as a command that executes a predefined trading sequence.
 *   **Adapter Pattern:** The `IExchange` interface decouples the core logic from the exchange implementations.
-*   **Dependency Injection:** The `IExchange` instance is injected into the `ConvergentTrader` at runtime.
+*   **Dependency Injection:** The `IExchange` and `IOptionsMonitor` instances are injected into the `ConvergentTrader` at runtime.
 
 ---
 

@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using TraderBot.Core.Configuration;
 
 namespace TraderBot.Core
 {
@@ -9,6 +11,7 @@ namespace TraderBot.Core
     {
         private readonly IExchange _exchange;
         private readonly TrailingTrader _trailingTrader;
+        private readonly IOptionsMonitor<TradingSettings> _settings;
         private string? _symbol;
         private string? _baseAsset;
         private int _basePrecision;
@@ -21,10 +24,11 @@ namespace TraderBot.Core
         private Timer? _baseAssetDebounceTimer;
         private decimal _lastReceivedBaseAssetBalance;
 
-        public ConvergentTrader(IExchange exchange)
+        public ConvergentTrader(IExchange exchange, IOptionsMonitor<TradingSettings> settings)
         {
             _exchange = exchange;
-            _trailingTrader = new TrailingTrader(_exchange);
+            _settings = settings;
+            _trailingTrader = new TrailingTrader(_exchange, settings);
         }
 
         public async Task<decimal> StartAsync(string symbol, decimal amount, int durationMinutes, ArbitrageCycleState state)
@@ -71,9 +75,10 @@ namespace TraderBot.Core
 
             FileLogger.LogOther($"[Convergent] Balance updated. Available: {actualAvailable}");
 
-            // Wait 5 seconds as requested
-            FileLogger.LogOther($"[Convergent] Waiting 5 seconds before market sell...");
-            await Task.Delay(5000);
+            // Wait X seconds as requested (configurable)
+            var delayMs = _settings.CurrentValue.SellDelayMilliseconds;
+            FileLogger.LogOther($"[Convergent] Waiting {delayMs}ms before market sell...");
+            await Task.Delay(delayMs);
 
             // CRITICAL CHECK: Validate we have enough base asset to sell
             FileLogger.LogOther($"[Convergent] ========== PRE-SELL VALIDATION ==========");

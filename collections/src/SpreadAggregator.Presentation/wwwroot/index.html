@@ -47,14 +47,31 @@
         }
 
         function renderOrUpdateChart(chartData) {
+            // Robust property access (handle camelCase and PascalCase)
+            const symbol = chartData.symbol || chartData.Symbol || "Unknown";
+            const ex1 = chartData.exchange1 || chartData.Exchange1 || "Ex1";
+            const ex2 = chartData.exchange2 || chartData.Exchange2 || "Ex2";
+            
+            // Log data for debugging
+            if (!chartInstances.has(`${symbol}-${ex1}-${ex2}`)) {
+                console.log("Received Chart Data:", chartData); 
+            }
+
             const dashboard = document.getElementById('dashboard');
-            const key = getChartKey(chartData);
+            // Use the robust variables
+            const key = `${symbol}-${ex1}-${ex2}`;
+
+            // Handle case where arrays might be PascalCase too
+            const timestamps = chartData.timestamps || chartData.Timestamps || [];
+            const spreads = chartData.spreads || chartData.Spreads || [];
+            const upperBand = chartData.upperBand || chartData.UpperBand || [];
+            const lowerBand = chartData.lowerBand || chartData.LowerBand || [];
 
             const dataForPlot = [
-                chartData.timestamps,
-                chartData.spreads,
-                chartData.upperBand,
-                chartData.lowerBand
+                timestamps,
+                spreads,
+                upperBand,
+                lowerBand
             ];
 
             if (chartInstances.has(key)) {
@@ -68,7 +85,7 @@
                 container.id = key;
 
                 const title = document.createElement('h2');
-                title.textContent = `${chartData.symbol} (${chartData.exchange1} / ${chartData.exchange2})`;
+                title.textContent = `${symbol} (${ex1} / ${ex2})`;
 
                 const chartWrapper = document.createElement('div');
                 chartWrapper.className = 'chart-wrapper';

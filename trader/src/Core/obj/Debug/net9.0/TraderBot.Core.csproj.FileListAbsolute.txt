@@ -22,3 +22,4 @@ C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.dll
 C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\refint\TraderBot.Core.dll
 C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.pdb
 C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\ref\TraderBot.Core.dll
+C:\visual projects\arb1\trader\src\Core\obj\Debug\net9.0\TraderBot.Core.csproj.AssemblyReference.cache

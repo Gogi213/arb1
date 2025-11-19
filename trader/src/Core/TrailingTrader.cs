@@ -1,13 +1,17 @@
+
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
+using TraderBot.Core.Configuration;
 
 namespace TraderBot.Core
 {
     public class TrailingTrader
     {
         private readonly IExchange _exchange;
+        private readonly IOptionsMonitor<TradingSettings> _settings;
         private long? _orderId;
         private decimal? _currentOrderPrice;
         private decimal _quantity;
@@ -21,9 +25,10 @@ namespace TraderBot.Core
 
         public event Action<IOrder>? OnOrderFilled;
 
-        public TrailingTrader(IExchange exchange)
+        public TrailingTrader(IExchange exchange, IOptionsMonitor<TradingSettings> settings)
         {
             _exchange = exchange;
+            _settings = settings;
         }
 
         public async Task<bool> StartAsync(string symbol, decimal amount, int durationMinutes)
@@ -64,7 +69,7 @@ namespace TraderBot.Core
                 {
                     if (_isStopped || _isFilled || bestBidPrice == 0) return;
 
-                    newTargetPrice = CalculateTargetPrice(orderBook, 25); // $25 offset for faster fills in testing
+                    newTargetPrice = CalculateTargetPrice(orderBook, _settings.CurrentValue.TrailingLiquidityOffset);
 
                     if (_lastPlacedPrice > 0)
                         FileLogger.LogOther($"[TT] bid={bestBidPrice}  tgt={newTargetPrice}  last={_lastPlacedPrice}  diff%={((newTargetPrice - _lastPlacedPrice) / _lastPlacedPrice * 100):F3}");

@@ -2,7 +2,7 @@
 
 **Severity**: HIGH
 **Component**: Trader (Core)
-**Status**: Proposed
+**Status**: IMPLEMENTED (Phase 1)
 
 ## Problem
 Key trading parameters are hardcoded in the C# source code:

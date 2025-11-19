@@ -167,5 +167,5 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.genruntimeconfig.cache
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\ref\SpreadAggregator.Presentation.dll
-c:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\compressed\qlyp1mggis-r65xg582v5.gz
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\appsettings.example.json
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\compressed\qlyp1mggis-4xgwfkimcg.gz

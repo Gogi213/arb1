@@ -50,7 +50,7 @@ graph TD
 
 ## 1. Запуск и инициализация (`StartAsync`)
 
-**Файл:** [`OrchestrationService.cs:57`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:57)
+**Файл:** [`OrchestrationService.cs:106`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:106)
 
 ### 1.1. Запуск WebSocket сервера
 ```csharp
@@ -77,7 +77,7 @@ foreach (var exchangeName in exchangeNames)
 
 ## 2. Обработка одной биржи (`ProcessExchange`)
 
-**Файл:** [`OrchestrationService.cs:83`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:83)
+**Файл:** [`OrchestrationService.cs:157`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:157)
 
 ### 2.1. Загрузка конфигурации volume filter
 ```csharp
@@ -122,7 +122,7 @@ if (enableTickers)
 
 ## 3. Горячий путь: обработка Data Tick (Callback)
 
-**Файл:** [`OrchestrationService.cs:122`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:122)
+**Файл:** [`OrchestrationService.cs:203`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:203)
 
 Это наиболее критическая секция кода по производительности, выполняется при каждом обновлении цены.
 
@@ -133,7 +133,7 @@ var spreadData = // MarketData объект от exchange client
 
 ### 3.2. Нормализация и обогащение данных
 
-**Файл:** [`OrchestrationService.cs:133-147`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:133-147)
+**Файл:** [`OrchestrationService.cs:213-228`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:213-228)
 
 ```csharp
 // Унифицированная нормализация символов
@@ -174,7 +174,7 @@ var normalizedSpreadData = new SpreadData
 
 ### 3.4. HFT оптимизированное распределение данных
 
-**Файл:** [`OrchestrationService.cs:165-181`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:165-181)
+**Файл:** [`OrchestrationService.cs:247-263`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:247-263)
 
 #### 3.4.1. HOT PATH: WebSocket broadcast (КРИТИЧНО для <1μs latency)
 ```csharp
@@ -228,7 +228,7 @@ if (!_rollingWindowChannel.Writer.TryWrite(normalizedSpreadData))
 ## 5. Обработка ошибок и восстановление
 
 ### 5.1. Graceful shutdown
-**Файл:** [`OrchestrationService.cs:217-232`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:217-232)
+**Файл:** [`OrchestrationService.cs:299`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:299)
 
 ```csharp
 public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -290,7 +290,7 @@ if (!_rawDataChannel.Writer.TryWrite(normalizedSpreadData))
 ```
 
 ### 6.3. Channel настройки
-**Файл:** [`Program.cs:86-90`](collections/src/SpreadAggregator.Presentation/Program.cs:86-90)
+**Файл:** [`Program.cs:87-90`](collections/src/SpreadAggregator.Presentation/Program.cs:87-90)
 
 ```csharp
 var channelOptions = new BoundedChannelOptions(100_000)

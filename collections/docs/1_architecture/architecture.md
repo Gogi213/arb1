@@ -159,7 +159,7 @@ graph TD
 
 ### 3.4. HFT оптимизации в OrchestrationService
 
-**Файл:** [`OrchestrationService.cs:165-181`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:165-181)
+**Файл:** [`OrchestrationService.cs:247-263`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:247-263)
 
 ```csharp
 // PROPOSAL-2025-0093: HFT hot path optimization
@@ -293,7 +293,7 @@ if (!_rollingWindowChannel.Writer.TryWrite(normalizedSpreadData))
 
 ### 6.3. Symbol normalization
 
-**Файл:** [`OrchestrationService.cs:133-147`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:133-147)
+**Файл:** [`OrchestrationService.cs:213-228`](collections/src/SpreadAggregator.Application/Services/OrchestrationService.cs:213-228)
 
 ```csharp
 // Унифицированная нормализация: удаляем все разделители и преобразуем к формату SYMBOL_QUOTE

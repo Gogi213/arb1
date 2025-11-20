@@ -118,3 +118,18 @@
     - `overall_mermaid/` (папка)
 
 Если какая-либо из этих папок отсутствует, я должен их создать.
+
+## Current Project Status & Roadmap (Updated: 2025-11-20)
+
+**System State:**
+The system is currently in a transition phase from a fragmented set of tools to a unified HFT ecosystem.
+*   **Analyzer:** Optimized ("Ultra" mode), but disconnected from execution.
+*   **Collections:** High-performance data aggregation, but lacks advanced signal logic (Split Brain).
+*   **Trader:** Functional "Convergent" strategy, but executes blindly (Blind Trader).
+
+**Strategic Roadmap (See `docs/gemini3/ROADMAP_TO_ECOSYSTEM_V2.md`):**
+1.  **Phase 0 (Foundation):** Fix critical concurrency bugs (LruCache, ParquetWriter).
+2.  **Phase 1 (Intelligence):** Port `Deviation` and `ZeroCrossing` logic from Python to C# (`Collections`).
+3.  **Phase 2 (Execution):** Connect `Trader` to `Collections` via WebSocket for signal-based exit.
+4.  **Phase 3 (Automation):** Implement Auto-Pilot mode in `Trader` to poll `Collections` for top opportunities.
+5.  **Phase 4 (Control):** Build a Web UI for real-time monitoring and configuration.

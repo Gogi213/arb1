@@ -41,7 +41,7 @@ graph TD
 
 ### 2.1. Entry Point & Control Flow
 
-*   **[`Host/Program.cs:14`](trader/src/Host/Program.cs:14)**: The application's entry point. When started with `bybit` or `gate` arguments, it executes the `RunManualConvergentTrader()` method.
+*   **[`Host/Program.cs:18`](trader/src/Host/Program.cs:18)**: The application's entry point. When started with `bybit` or `gate` arguments, it executes the `RunManualConvergentTrader()` method.
 *   **`RunManualConvergentTrader()`**:
     1.  Reads the relevant exchange configuration from `appsettings.json`.
     2.  Instantiates the correct `IExchange` implementation (`BybitExchange` or `GateIoExchange`).
@@ -57,7 +57,8 @@ The `ConvergentTrader` is the heart of the current strategy.
     *   **State Flow:**
         1.  **Start:** Cancels any open orders for the target symbol and subscribes to balance updates. It then uses a `TrailingTrader` to execute the initial "buy" order.
         2.  **Handle Buy Fill:** Once the buy order is filled, it waits for a WebSocket balance update to confirm the asset is available in the account.
-        3.  **Wait and Sell:** After a hardcoded 5-second delay, it places a market "sell" order for the entire acquired quantity of the asset.
+            *   **Debounce Logic:** Uses a **150ms debounce timer** to ensure the balance update is stable and final before proceeding.
+        3.  **Wait and Sell:** After a configurable delay (default: **5 seconds**), it places a market "sell" order for the entire acquired quantity of the asset.
         4.  **Complete:** Assumes the market sell order fills immediately and completes the cycle.
 
 *   **[`Core/IExchange.cs`](trader/src/Core/IExchange.cs)**:
@@ -105,6 +106,11 @@ The `ConvergentTrader` is the heart of the current strategy.
  *   **[`Core/SpreadListener.cs`](trader/src/Core/SpreadListener.cs)**:
      *   **Status:** Exists, hardened against stale data (PROPOSAL 001).
      *   **Responsibility:** Connects to the `SpreadAggregator` WebSocket server.
+     *   **Stale Data Protection:**
+         *   Tracks `(Price, Timestamp)` tuples for each exchange.
+         *   Enforces a strict **7-second maximum data age** (`MaxDataAge`). If data from either exchange is older than 7 seconds, spread calculation is skipped to prevent phantom opportunities.
+         *   Validates WebSocket connection state *before* processing.
+         *   Invalidates all cached data immediately upon disconnection.
  
  *   **[`Core/DecisionMaker.cs`](trader/src/Core/DecisionMaker.cs)**:
      *   **Status:** ❌ **REMOVED**

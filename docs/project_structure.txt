@@ -54,6 +54,7 @@
 | | |- audit
 | | | |- AUDIT-2025-11-01-collections-architecture.md
 | | | |- AUDIT-SUMMARY.md
+| | | |- CLEANUP-LOG-2025-11-19.md
 | | | |- REFACTORING-LOG.md
 | | | |- REFACTORING-PLAN.md
 | | | |- changelog.md
@@ -97,10 +98,13 @@
 | | | | |- IExchangeClient.cs
 | | | | |- IWebSocketServer.cs
 | | | | `- TickerData.cs
+| | | |- Diagnostics
+| | | | `- DiagnosticCounters.cs
 | | | |- Helpers
 | | | | `- LruCache.cs
 | | | |- Services
 | | | | |- DataCollectorService.cs
+| | | | |- ExchangeHealthMonitor.cs
 | | | | |- OrchestrationService.cs
 | | | | `- RollingWindowService.cs
 | | | |- Class1.cs
@@ -148,6 +152,7 @@
 | | `- SpreadAggregator.Presentation
 | |   |- Controllers
 | |   | |- DashboardController.cs
+| |   | |- DiagnosticsController.cs
 | |   | |- HealthController.cs
 | |   | |- HomeController.cs
 | |   | `- RealTimeController.cs
@@ -169,6 +174,10 @@
 | |   | `- Services
 | |   |   |- SpreadCalculatorTests.cs
 | |   |   `- VolumeFilterTests.cs
+| |   |- Helpers
+| |   | `- LruCacheTests.cs
+| |   |- Infrastructure
+| |   | `- ParquetDataWriterTests.cs
 | |   |- SpreadAggregator.Tests.csproj
 | |   |- Sprint1_MemorySafetyTests.cs
 | |   |- Sprint2_LifecycleTests.cs
@@ -185,16 +194,17 @@
 | | | |- PROPOSAL_002_EXTERNAL_CONFIG.md
 | | | |- PROPOSAL_003_CIRCUIT_BREAKER.md
 | | | `- PROPOSAL_004_ANALYZER_FEEDBACK.md
-| | |- FINAL_SUMMARY.md
-| | |- audit_report.md
-| | |- cleanup_log.md
-| | |- code_quality_report.md
-| | |- decisionmaker_explanation.md
-| | |- ecosystem_architecture.md
-| | |- evolution_plan.md
-| | |- plan.md
-| | |- refactoring_recommendations.md
-| | `- validation_report.md
+| | |- roadmap
+| | | |- README.md
+| | | |- phase-0-foundation.md
+| | | |- phase-0.5-backtesting.md
+| | | |- phase-1-brain.md
+| | | |- phase-2-security.md
+| | | |- phase-3-sight.md
+| | | |- phase-4-autopilot.md
+| | | |- phase-5-webui.md
+| | | `- phase-6-monolith.md
+| | `- ROADMAP_UPDATE.md
 | |- issues
 | | `- ISSUE-001-realtime-charts-not-showing.md
 | |- overall_architecture
@@ -205,6 +215,7 @@
 | | `- process_flow.md
 | |- completion_report.md
 | |- dependencies.md
+| |- glossary.md
 | |- project_structure.txt
 | `- task_progress_update.md
 |- trader
@@ -303,6 +314,8 @@
 | | `- role_definition.md
 | |- src
 | | |- Core
+| | | |- Configuration
+| | | | `- TradingSettings.cs
 | | | |- ArbitrageCycleState.cs
 | | | |- ArbitrageTrader.cs
 | | | |- ConvergentTrader.cs
@@ -314,7 +327,8 @@
 | | | |- SpreadData.cs
 | | | |- SpreadListener.cs
 | | | |- TraderBot.Core.csproj
-| | | `- TrailingTrader.cs
+| | | |- TrailingTrader.cs
+| | | `- msbuild.log
 | | |- Exchanges
 | | | |- Bybit
 | | | | |- Adapters.cs
@@ -352,6 +366,7 @@
 | |- BYBIT_MARKET_SELL_FIX.md
 | |- TEST_BYBIT.md
 | `- TraderBot.sln
+|- DEVELOPMENT_CYCLE.md
 |- GEMINI.md
 |- README.md
 |- gemini_exclude.txt

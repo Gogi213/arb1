@@ -24,6 +24,8 @@ public class OrchestrationService
     private readonly Channel<MarketData> _rollingWindowChannel;
     private readonly IDataWriter? _dataWriter;
     private readonly IBidAskLogger? _bidAskLogger;
+    private readonly IExchangeHealthMonitor? _healthMonitor; // Task 0.5
+    private readonly DeviationCalculator? _deviationCalculator; // Phase 1, Task 1.1
 
     // PROPOSAL-2025-0095: Track symbols and tasks for cleanup
     private readonly List<SymbolInfo> _allSymbolInfo = new();
@@ -90,7 +92,9 @@ public class OrchestrationService
         Channel<MarketData> rawDataChannel,
         Channel<MarketData> rollingWindowChannel,
         IDataWriter? dataWriter = null,
-        IBidAskLogger? bidAskLogger = null)
+        IBidAskLogger? bidAskLogger = null,
+        IExchangeHealthMonitor? healthMonitor = null, // Task 0.5
+        DeviationCalculator? deviationCalculator = null) // Phase 1, Task 1.1
     {
         _webSocketServer = webSocketServer;
         _spreadCalculator = spreadCalculator;
@@ -101,6 +105,8 @@ public class OrchestrationService
         _rollingWindowChannel = rollingWindowChannel;
         _dataWriter = dataWriter;
         _bidAskLogger = bidAskLogger;
+        _healthMonitor = healthMonitor; // Task 0.5
+        _deviationCalculator = deviationCalculator; // Phase 1, Task 1.1
     }
 
     public async Task StartAsync(CancellationToken cancellationToken = default)
@@ -202,6 +208,9 @@ public class OrchestrationService
             Console.WriteLine($"[{exchangeName}] Adding ticker subscription task for {filteredSymbolNames.Count} symbols...");
             tasks.Add(exchangeClient.SubscribeToTickersAsync(filteredSymbolNames, async spreadData =>
             {
+                // Task 0.5: Report heartbeat to health monitor
+                _healthMonitor?.ReportHeartbeat(exchangeName);
+                
                 if (spreadData.BestAsk == 0) return;
 
                 var localTimestamp = DateTime.UtcNow;
@@ -249,6 +258,9 @@ public class OrchestrationService
                 var wrapper = new WebSocketMessage { MessageType = "Spread", Payload = normalizedSpreadData };
                 var message = JsonSerializer.Serialize(wrapper);
                 _ = _webSocketServer.BroadcastRealtimeAsync(message); // fire-and-forget
+
+                // Phase 1, Task 1.1: Process spread for cross-exchange deviation calculation
+                _deviationCalculator?.ProcessSpread(normalizedSpreadData);
 
                 // COLD PATH: TryWrite (synchronous, 0 allocations, ~50-100ns each)
                 // Preferred over WriteAsync for HFT - 20-100x faster, no blocking

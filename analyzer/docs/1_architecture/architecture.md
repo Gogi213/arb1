@@ -37,7 +37,7 @@
 
 Компонент для анализа всех пар бирж одного символа за один проход.
 
-**Файл:** [`run_all_ultra.py:34`](analyzer/run_all_ultra.py:34)
+**Файл:** [`run_all_ultra.py:39`](analyzer/run_all_ultra.py:39)
 
 **Ответственности:**
 - Загрузка данных для одного символа со всех бирж
@@ -72,7 +72,7 @@
 
 Основное ядро системы, где происходит анализ одной пары бирж.
 
-**Файл:** [`run_all_ultra.py:200`](analyzer/run_all_ultra.py:200)
+**Файл:** [`lib/analysis.py:45`](analyzer/lib/analysis.py:45)
 
 **Ответственности:**
 - Синхронизация временных рядов данных двух бирж
@@ -85,7 +85,7 @@
 - Векторизованные операции `polars` для вычисления `ratio` и `deviation`
 - Кастомный алгоритм `count_complete_cycles` (использует `numpy` цикл) для подсчета реалистичных торговых возможностей
 
-**Критическая исправленная логика:** [`run_all_ultra.py:227`](analyzer/run_all_ultra.py:227)
+**Критическая исправленная логика:** [`lib/analysis.py:108`](analyzer/lib/analysis.py:108)
 
 Метрика `deviation` вычисляется от 1.0 (ценовое равенство), НЕ от среднего отношения. Это критически важно для арбитража - отклонение = 0 означает возможность закрытия позиции по безубытку.
 
@@ -134,7 +134,7 @@ graph TD
 ## 4. Критические оптимизации производительности
 
 ### 4.1. Оптимизация #8: Единое сканирование Parquet
-**Файл:** [`run_all_ultra.py:177`](analyzer/run_all_ultra.py:177)
+**Файл:** [`lib/data_loader.py`](analyzer/lib/data_loader.py)
 
 ```python
 # Было: множественные сканирования файлов
@@ -143,7 +143,7 @@ df = pl.scan_parquet(all_files)
 ```
 
 ### 4.2. Оптимизация #12: Параллельная загрузка бирж
-**Файл:** [`run_all_ultra.py:47`](analyzer/run_all_ultra.py:47)
+**Файл:** [`run_all_ultra.py:48`](analyzer/run_all_ultra.py:48)
 
 ```python
 # ThreadPoolExecutor для параллельной загрузки бирж (1.5-2x быстрее)
@@ -155,7 +155,7 @@ with ThreadPoolExecutor(max_workers=len(exchanges)) as executor:
 ```
 
 ### 4.3. Оптимизация #4: Чистые Polars операции
-**Файл:** [`run_all_ultra.py:223`](analyzer/run_all_ultra.py:223)
+**Файл:** [`lib/analysis.py:102`](analyzer/lib/analysis.py:102)
 
 ```python
 # Векторизованные Polars операции (1.5-2x быстрее, zero-copy)
@@ -168,7 +168,7 @@ joined = joined.with_columns([
 
 Приложение полностью конфигурируется через аргументы командной строки с использованием `argparse`.
 
-**Файл:** [`run_all_ultra.py:595`](analyzer/run_all_ultra.py:595)
+**Файл:** [`run_all_ultra.py:296`](analyzer/run_all_ultra.py:296)
 
 **Параметры:**
 - `--data-path`: Определяет корневой путь к хранилищу данных
@@ -181,7 +181,7 @@ joined = joined.with_columns([
 ## 6. Алгоритмы подсчета циклов
 
 ### 6.1. Алгоритм полных циклов (`count_complete_cycles`)
-**Файл:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294)
+**Файл:** [`lib/analysis.py:11`](analyzer/lib/analysis.py:11)
 
 Критически важный алгоритм для подсчета реалистичных торговых возможностей.
 
@@ -192,7 +192,7 @@ joined = joined.with_columns([
 **ZERO_THRESHOLD:** 0.05% (5 базисных пунктов) - допуск для шума при определении "нулевой" зоны.
 
 ### 6.2. Детекция пересечений нуля
-**Файл:** [`run_all_ultra.py:251`](analyzer/run_all_ultra.py:251)
+**Файл:** [`lib/analysis.py:128`](analyzer/lib/analysis.py:128)
 
 ```python
 # Исправленная логика: умножение для определения истинных смен знака
@@ -207,7 +207,7 @@ zero_crossings = int(
 ## 7. Архитектурные проблемы и известные ограничения
 
 ### 7.1. Известные узкие места
-1. **NumPy зависимость в count_complete_cycles:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294) - требует конверсию в numpy для итеративной обработки
+1. **NumPy зависимость в count_complete_cycles:** [`lib/analysis.py:11`](analyzer/lib/analysis.py:11) - требует конверсию в numpy для итеративной обработки
 2. **Память:** Загрузка данных символа целиком в память может быть проблемой для больших символов
 3. **IPC накладные расходы:** Передача больших DataFrame между процессами
 

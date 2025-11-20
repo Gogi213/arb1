@@ -51,7 +51,7 @@ graph TD
 
 ## Шаг 1: Инициализация и парсинг аргументов
 
-**Файл:** [`run_all_ultra.py:595`](analyzer/run_all_ultra.py:595)
+**Файл:** [`run_all_ultra.py:296`](analyzer/run_all_ultra.py:296)
 
 Процесс начинается в блоке `if __name__ == "__main__":` с инициализации `argparse` парсера.
 
@@ -97,7 +97,7 @@ for date_str, name in [(start_date, "start-date"), (end_date, "end-date")]:
 
 ## Шаг 2: `run_ultra_fast_analysis` - Оркестрация анализа
 
-**Файл:** [`run_all_ultra.py:430`](analyzer/run_all_ultra.py:430)
+**Файл:** [`run_all_ultra.py:113`](analyzer/run_all_ultra.py:113)
 
 Главная функция-оркестратор всего процесса.
 
@@ -115,7 +115,7 @@ else:
 ```
 
 ### 2.2. Обнаружение данных (`discover_data`)
-**Файл:** [`run_all_ultra.py:400`](analyzer/run_all_ultra.py:400)
+**Файл:** [`lib/discovery.py:13`](analyzer/lib/discovery.py:13)
 
 **Входные данные:** путь к данным (`data_path`)
 
@@ -191,12 +191,12 @@ if all_stats:
 
 ## Шаг 3: `analyze_symbol_batch` - Обработка одного символа
 
-**Файл:** [`run_all_ultra.py:34`](analyzer/run_all_ultra.py:34)
+**Файл:** [`run_all_ultra.py:39`](analyzer/run_all_ultra.py:39)
 
 Функция выполняется в отдельном процессе для анализа одного символа на всех доступных биржах.
 
 ### 3.1. Параллельная загрузка данных (`ThreadPoolExecutor`)
-**Файл:** [`run_all_ultra.py:47`](analyzer/run_all_ultra.py:47)
+**Файл:** [`run_all_ultra.py:48`](analyzer/run_all_ultra.py:48)
 
 **Критическая оптимизация:** Одновременная загрузка данных со всех бирж.
 
@@ -247,7 +247,7 @@ for ex1, ex2 in exchange_pairs:
 
 ## Шаг 4: `load_exchange_symbol_data` - Загрузка данных с диска
 
-**Файл:** [`run_all_ultra.py:107`](analyzer/run_all_ultra.py:107)
+**Файл:** [`lib/data_loader.py:12`](analyzer/lib/data_loader.py:12)
 
 Функция чтения и предобработки данных для одной пары (биржа, символ).
 
@@ -277,7 +277,7 @@ if start_date or end_date:
 ```
 
 ### 4.3. Единое сканирование Parquet
-**Файл:** [`run_all_ultra.py:177`](analyzer/run_all_ultra.py:177)
+**Файл:** [`lib/data_loader.py:104`](analyzer/lib/data_loader.py:104)
 
 **Критическая оптимизация #8:** Одно `scan_parquet` для всех файлов (2-4x быстрее I/O).
 
@@ -305,7 +305,7 @@ df = pl.scan_parquet(all_files) \
 
 ## Шаг 5: `analyze_pair_fast` - Вычисление метрик пары
 
-**Файл:** [`run_all_ultra.py:200`](analyzer/run_all_ultra.py:200)
+**Файл:** [`lib/analysis.py:45`](analyzer/lib/analysis.py:45)
 
 Основное ядро системы, где происходят все вычисления для пары бирж.
 
@@ -324,7 +324,7 @@ joined = data1.rename({
 ```
 
 ### 5.2. Расчет отношения и отклонения
-**Файл:** [`run_all_ultra.py:223`](analyzer/run_all_ultra.py:223)
+**Файл:** [`lib/analysis.py:102`](analyzer/lib/analysis.py:102)
 
 **Критическая оптимизация #4:** Чистые Polars операции (1.5-2x быстрее, zero-copy).
 
@@ -348,7 +348,7 @@ asymmetry = mean_deviation_pct
 ```
 
 ### 5.4. Детекция пересечений нуля
-**Файл:** [`run_all_ultra.py:251`](analyzer/run_all_ultra.py:251)
+**Файл:** [`lib/analysis.py:128`](analyzer/lib/analysis.py:128)
 
 **Исправленная логика:** Использование умножения для определения истинных смен знака.
 
@@ -362,7 +362,7 @@ zero_crossings = int(
 ```
 
 ### 5.5. Подготовка данных для анализа порогов
-**Файл:** [`run_all_ultra.py:283`](analyzer/run_all_ultra.py:283)
+**Файл:** [`lib/analysis.py:154`](analyzer/lib/analysis.py:154)
 
 ```python
 ZERO_THRESHOLD = 0.05  # 5 базисных пунктов допуска для шума
@@ -379,7 +379,7 @@ joined_with_thresholds = joined.with_columns([
 ```
 
 ### 5.6. Подсчет полных циклов (`count_complete_cycles`)
-**Файл:** [`run_all_ultra.py:294`](analyzer/run_all_ultra.py:294)
+**Файл:** [`lib/analysis.py:11`](analyzer/lib/analysis.py:11)
 
 **Критическая проблема:** Использование `.to_numpy()` создает копию данных и ломает zero-copy оптимизации.
 

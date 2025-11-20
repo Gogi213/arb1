@@ -149,6 +149,20 @@ class Program
             return new RollingWindowService(rollingChannel, bidBidLogger, logger);
         });
 
+        // Task 0.5: Register ExchangeHealthMonitor
+        services.AddSingleton<IExchangeHealthMonitor>(sp =>
+        {
+            var logger = sp.GetRequiredService<ILogger<ExchangeHealthMonitor>>();
+            return new ExchangeHealthMonitor(logger);
+        });
+
+        // Phase 1, Task 1.1: Register DeviationCalculator
+        services.AddSingleton<DeviationCalculator>(sp =>
+        {
+            var minThreshold = configuration.GetValue<decimal>("Arbitrage:MinDeviationThreshold", 0.10m);
+            return new DeviationCalculator(minThreshold);
+        });
+
         services.AddSingleton<OrchestrationService>(sp =>
         {
             var rawChannel = sp.GetRequiredService<RawDataChannel>().Channel;
@@ -162,7 +176,9 @@ class Program
                 rawChannel,
                 rollingChannel,
                 sp.GetRequiredService<IDataWriter>(),
-                sp.GetRequiredService<IBidAskLogger>()
+                sp.GetRequiredService<IBidAskLogger>(),
+                sp.GetRequiredService<IExchangeHealthMonitor>(), // Task 0.5
+                sp.GetRequiredService<DeviationCalculator>() // Phase 1, Task 1.1
             );
         });
 

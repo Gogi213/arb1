@@ -213,7 +213,17 @@ public class ParquetDataWriter : IDataWriter
                             {
                                 Directory.CreateDirectory(hourlyPartitionDir);
                                 var filePath = Path.Combine(hourlyPartitionDir, $"spreads-{data.Timestamp:mm-ss.fffffff}.parquet");
-                                _ = FlushSpreadBufferAsync(filePath, buffer); // Fire-and-forget
+                                // SPRINT 1 FIX: Copy buffer before async flush
+                                var bufferCopy = new List<SpreadData>(buffer);
+                                buffer.Clear();
+                                _ = Task.Run(async () => {
+                                    try {
+                                        await WriteSpreadsAsync(filePath, bufferCopy);
+                                        Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} spread records to {filePath}.");
+                                    } catch (Exception ex) {
+                                        Console.WriteLine($"[DataCollector-ERROR] {ex.Message}");
+                                    }
+                                });
                             }
                         }
                     }
@@ -234,7 +244,17 @@ public class ParquetDataWriter : IDataWriter
                             {
                                 Directory.CreateDirectory(hourlyPartitionDir);
                                 var filePath = Path.Combine(hourlyPartitionDir, $"trades-{data.Timestamp:mm-ss.fffffff}.parquet");
-                                _ = FlushTradeBufferAsync(filePath, buffer); // Fire-and-forget
+                                // SPRINT 1 FIX: Copy buffer before async flush
+                                var bufferCopy = new List<TradeData>(buffer);
+                                buffer.Clear();
+                                _ = Task.Run(async () => {
+                                    try {
+                                        await WriteTradesAsync(filePath, bufferCopy);
+                                        Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} trade records to {filePath}.");
+                                    } catch (Exception ex) {
+                                        Console.WriteLine($"[DataCollector-ERROR] {ex.Message}");
+                                    }
+                                });
                             }
                         }
                     }

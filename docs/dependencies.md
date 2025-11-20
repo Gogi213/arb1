@@ -1,7 +1,7 @@
 # System Dependencies Map
 **Version:** 1.0 (Created on 2025-11-18)
 
-This document outlines the dependencies between the three main projects: `collections`, `trader`, and `analyzer`.
+This document outlines the dependencies between the three main projects: `collections`, `trader`, and `analyzer`. For definitions of key terms, see the [Glossary](glossary.md).
 
 ```mermaid
 graph TD

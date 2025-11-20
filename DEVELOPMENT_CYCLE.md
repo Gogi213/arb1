@@ -1,6 +1,6 @@
 # Development Cycle - HFT Ecosystem
 
-**Version:** 3.0 (Pragmatic)  
+**Version:** 3.0  
 **Updated:** 2025-11-20  
 **Philosophy:** Ship fast, iterate on reality
 
@@ -8,328 +8,253 @@
 
 ## TL;DR
 
-**Процесс:**
+**Process:**
 
-1. Pick task из `docs/gemini3/roadmap/README.md`
-2. TDD для bugs, pragmatic для features
-3. Ship ASAP (даже at 80-90%)
-4. Learn from production
-5. Iterate
+1. Pick task from roadmap
+2. **Analyze against HFT requirements** (latency <5ms, no stale data)
+3. If conflicts → propose alternative BEFORE coding
+4. Get approval → implement
+5. Ship ASAP
 
-**Структура:**
-
-- **5 фаз** (0→4, убрали backtesting и лишнее)
-- **Sprint-based** (1-2 недели)
-- **Solo developer** + AI assistant (Gemini)
-
-**Главное:** Reality > Plan
+**Key Principle:** Reality > Plan
 
 ---
 
-## Roadmap Structure
+## PROJECT CONTEXT
 
-### Phases (Revised)
+### What We're Building
 
-| Phase | Priority | Goal |
-|-------|----------|------|
-| **0: Foundation** | 🔴 CRITICAL | Stability (no crashes) |
-| **1: Brain** | 🔴 CRITICAL | Intelligent trading (signal detection) |
-| **2: Monitoring** | 🟡 HIGH | Production observability |
-| **3: Latency** | 🟡 HIGH | Speed = competitive edge |
-| **4: Automation** | 🟢 MEDIUM | 24/7 operation |
-| **5: Web UI** | ⚪ LOW | Deferred (CLI sufficient) |
+**HFT Arbitrage System:**
 
-**REMOVED:**
+- Strategy: Mean-reversion (buy cheap, sell when converged)
+- Exchanges: Gate.io ↔ Bybit
+- Entry: |deviation| >= 0.35%
+- Exit: deviation → 0
+- Window: Arbitrage lives 200-500ms
 
-- ~~Phase 0.5: Backtesting~~ → Test live с $100 instead
-- ~~8 phases~~ → 5 phases (merged duplicates)
+**Critical Requirements:**
 
-См. `docs/gemini3/roadmap/README.md` для деталей.
-
----
-
-## Current Status
-
-**Phase:** 0 (Foundation) - ✅ 100% COMPLETE  
-**Sprint:** 2 - ✅ COMPLETE (36/36 tests, 5.5h vs 8h estimated)  
-**Next:** Pre-Phase Consilium → Phase 1 (Brain)
+| Requirement | Target | Why |
+|-------------|--------|-----|
+| **Latency** | <5ms signal→execution | Opportunities disappear in 200ms |
+| **No Stale Data** | Always fresh | Trading on old data = losses |
+| **Uptime** | 99.9% | Miss uptime = miss money |
 
 ---
 
-## Task Workflow
+### Architectural Principles for HFT
 
-### Lifecycle
+**1. Latency is KING**
+
+❌ NEVER:
+
+- REST API for execution (2000ms polling)
+- Microservices when monolith works (<5ms vs 10ms+)
+- Network calls in hot path
+
+✅ ALWAYS:
+
+- Direct function calls (<1ms)
+- Monolith for solo HFT
+- WebSocket for monitoring only
+
+**2. Data Freshness = Life**
+
+❌ NEVER:
+
+- Send signal over network then execute (prices changed!)
+
+✅ ALWAYS:
+
+- Execute immediately on signal (same process)
+
+**3. Graceful Degradation**
+
+**When exchange/component fails:**
+
+- ❌ NEVER: Crash or throw unhandled exception
+- ✅ ALWAYS: Stop trading gracefully, keep system running
+- ✅ Log error, skip signal, wait for recovery
+
+**Example:**
+
+```
+Gate.io unavailable → skip signals, don't crash
+Bad price data → validate, reject if invalid
+```
+
+**4. Backpressure Handling**
+
+**Expected load:** 30-50 signals/sec peak
+
+- ✅ Drop oldest if buffer full (fresh data > old data)
+- ✅ Log when dropping (monitoring)
+- ❌ Don't block/wait (latency > data loss)
+
+**5. Simplicity Budget**
+
+| Pattern | Use When | AVOID When |
+|---------|----------|------------|
+| Monolith | Solo dev, need <5ms | Never for HFT solo! |
+| Microservices | Team >5 people | Solo HFT (adds latency) |
+| REST API | Monitoring, UI | Execution (too slow) |
+| WebSocket | Real-time monitor | OK for non-critical |
+| Shared Memory | Ultra-HFT <0.1ms | Overkill if monolith works |
+
+---
+
+## DECISION FRAMEWORK
+
+**Before implementing ANY task:**
+
+1. **Latency impact?**
+   - If >5ms on critical path → CHALLENGE IT!
+
+2. **Data validation?**
+   - Check for bad/invalid data from exchanges
+   - Reject if price = $0 or unrealistic values
+
+3. **Failure handling?**
+   - What if exchange unavailable?
+   - Graceful degradation (stop trading, don't crash)
+
+4. **Simplest solution?**
+   - Order: Monolith < WebSocket < REST
+
+5. **Matches HFT requirements?**
+   - 200ms window, <5ms execution, no stale data
+
+6. **Testable?**
+   - Can mock/integration test easily
+
+**CRITICAL:** If roadmap conflicts with HFT requirements → **STOP and PROPOSE ALTERNATIVE**
+
+**Example:**
+
+- ❌ Roadmap says: "REST API for signals"
+- ✅ Analysis: REST = 2000ms latency, HFT needs <5ms
+- ✅ Action: STOP, propose Monolith (<1ms)
+- ✅ Wait for approval → implement
+
+---
+
+## ROLES
+
+### Developer (You)
+
+- Pick tasks from roadmap
+- Final authority on all decisions
+- **Challenge Gemini** if solution doesn't match HFT requirements
+
+### Gemini (AI)
+
+**Process for EVERY task:**
+
+1. **Critical Analysis** (BEFORE coding):
+   - Read task from roadmap
+   - Check latency impact
+   - Check data validation needs
+   - Check failure handling
+   - Check graceful degradation
+   - Check simplicity
+   - **If conflicts with HFT requirements → STOP**
+
+2. **Propose Alternative**:
+   - Explain why roadmap fails (metrics: 2000ms vs 5ms target)
+   - Suggest solution that meets requirements
+   - Wait for approval
+
+3. **Implementation** (AFTER approval):
+   - Write code
+   - Update roadmap status
+
+**Constraints:**
+
+- No authority (advisor only)
+- Must justify with metrics
+- Cannot blindly follow roadmap
+
+**Decision Checklist:**
+
+```
+Before implementing:
+1. Latency impact? (must be <5ms critical path)
+2. Data validation? (reject bad prices)
+3. Failure handling? (graceful degradation)
+4. Simplest solution? (monolith < WebSocket < REST)
+5. Matches HFT? (200ms window, mean-reversion)
+6. Testable?
+
+If ANY fails → STOP, propose alternative
+```
+
+---
+
+## PRE-PHASE CONSILIUM
+
+**Mandatory before EACH phase.**
+
+**Purpose:** Align business expectations with technical implementation.
+
+**When:** After previous phase complete, before first commit of new phase
+
+**Duration:** ~30 min
+
+### Structure
+
+**1. Business Expectations (5-10 min)**
+
+- What changes in metrics? (fill rate, latency, P&L)
+- What problem solved?
+- How measure success?
+
+**2. Current State Validation (10-15 min)**
+
+- Validate existing code
+- Find gaps (what's missing?)
+- Identify blockers
+
+**3. Phase Definition (5-10 min)**
+
+- Tasks: concrete, not abstract
+- Acceptance criteria: measurable (latency <10ms, not "fast")
+- Estimate: realistic
+
+**4. Risk Assessment (5 min)**
+
+- What can fail?
+- Assumptions made?
+- Plan B?
+
+**Deliverables:**
+
+- Updated phase file with concrete tasks
+- Clear acceptance criteria (metrics)
+- Risk mitigation plan
+- Go/No-Go decision
+
+---
+
+## TASK WORKFLOW
+
+**Lifecycle:**
 
 ```
 ⏸️ PENDING → 🟡 IN PROGRESS → ✅ COMPLETE
 ```
 
-**Keep it simple:** No review step, no blocked state tracking (solo developer)
+**Status Updates:**
 
-### Task Format (in phase files)
+- Mark ✅ COMPLETE in phase file when done
+- Update README.md with progress
 
-```markdown
-## Task X.Y: [Title]
+**Testing:**
 
-**Problem:** [What's broken]
-**Solution:** [How to fix]
-**Target:** [File to change]
-**Priority:** HIGH/MEDIUM/LOW
-**Estimate:** [Hours]
-```
+- TDD for bugs only
+- Integration tests for features
+- Pragmatic: ship at 80-90%
 
 ---
 
-## Roles
-
-### Developer (You)
-
-- Pick tasks
-- Write code
-- Ship to production
-- Final authority on all decisions
-
-### Gemini (AI)
-
-- Update roadmap/phase files
-- Validate code vs docs
-- Suggest solutions
-- No authority (advisor only)
-
-См. `GEMINI.md` для Gemini role details.
-
----
-
-## Tools
-
-### Essential
-
-```bash
-# Code
-dotnet test              # C# tests
-pytest                   # Python tests
-
-# Docs (Gemini only)
-python get_structure.py  # Update project structure
-```
-
-### Documentation
-
-**Location:** `docs/gemini3/`
-
-```
-└── roadmap/
-    ├── README.md              # Main backlog ← START HERE
-    ├── phase-0-foundation.md  # Phase details
-    └── phase-X-*.md
-```
-
-**Rule:** Update phase file when task done (mark ✅ COMPLETE)
-
----
-
-## Testing
-
-### TDD (Test-Driven Development)
-
-**Use for:**
-
-- ✅ Bug fixes (concurrency, data corruption)
-- ❌ NOT for new features (too slow)
-
-**Cycle:**
-
-```
-1. RED: Write failing test
-2. GREEN: Minimal fix
-3. REFACTOR: Clean up
-```
-
-### Integration Tests
-
-**When:** Before production deploy  
-**What:** Run live 2-3 days, monitor for crashes  
-**Pass:** 0 crashes = good to go
-
----
-
-## Best Practices
-
-### Code
-
-1. **Atomic commits** - one logical change per commit
-
-   ```bash
-   git commit -m "Fix LruCache mutation (Task 0.3)"
-   ```
-
-2. **Immutability** - use `record` for DTOs (prevents bugs)
-
-3. **Ship at 80%** - don't wait for perfection
-
-### Roadmap
-
-1. **Estimates ≠ reality** - Sprint 1: 3h actual vs 1 week estimated (OK!)
-2. **Bugs → backlog** - discovered during sprint → add to next sprint
-3. **Phase validation** - basic check, not comprehensive report
-
-### Documentation
-
-**Minimal approach:**
-
-- ✅ Update `roadmap/README.md` (progress)
-- ✅ Update phase files (task status)
-- ❌ No validation reports
-- ❌ No architecture docs (unless team scales)
-
----
-
-## Phase Transition
-
-**From Phase 0 → 1:**
-
-1. All Phase 0 tasks ✅ COMPLETE
-2. Tests passing (basic check)
-3. Ship to production
-4. Monitor 2-3 days
-5. IF stable → **Pre-Phase Consilium** → Phase 1
-6. IF issues → hotfix → re-deploy
-
-**Don't wait for 100% perfect** - 80-90% is enough.
-
----
-
-## Pre-Phase Consilium 🎯
-
-**Обязательный процесс перед началом КАЖДОЙ фазы.**
-
-**Цель:** Убедиться что техническая реализация соответствует бизнес-ожиданиям.
-
-### Когда проводим
-
-- ✅ После завершения предыдущей фазы
-- ✅ Перед первым коммитом новой фазы
-- ⏱️ Duration: ~30 минут
-
-### Структура консилиума
-
-#### 1. Business Expectations Review (5-10 мин)
-
-**Вопросы:**
-
-- Что должно измениться в **бизнес-метриках**? (fill rate? latency? P&L?)
-- Какая **конкретная проблема** решается?
-- Как измерим **success**? (acceptance criteria в числах)
-
-**Output:** Clear business goal в метриках
-
----
-
-#### 2. Current State Validation (10-15 мин)
-
-**Действия:**
-
-- Провалидировать **текущий код** (что уже есть?)
-- Найти **gaps** между "как есть" и "как должно быть"
-- Выявить **tech debt / blockers**
-
-**Output:** Gap analysis (что нужно добавить/изменить)
-
----
-
-#### 3. Phase Definition (5-10 мин)
-
-**Уточнить:**
-
-- Tasks: не абстрактно ("port algo"), а **конкретно** ("port zero_crossing.py lines 45-120")
-- Acceptance criteria: **measurable** (latency <10ms, not "fast")
-- Estimate: **realistic** (based on previous sprints)
-
-**Output:** Updated phase file с конкретными tasks
-
----
-
-#### 4. Risk Assessment (5 мин)
-
-**Вопросы:**
-
-- Что может **пойти не так**?
-- Какие **assumptions** делаем? (e.g. "Python algo profitable")
-- **Plan B** если не получится?
-
-**Output:** Risk mitigation plan
-
----
-
-### Результат консилиума
-
-**Deliverables:**
-
-1. ✅ Updated `phase-X-*.md` с конкретными tasks
-2. ✅ Clear acceptance criteria (метрики)
-3. ✅ Risk mitigation план
-4. ✅ Go/No-Go решение
-
-**Критерий успеха:**
-
-- Developer понимает **зачем** (business value)
-- Gemini понимает **что** делать (concrete tasks)
-- Оба понимают **как** измерить success (metrics)
-
----
-
-## Next Steps
-
-**This week (Sprint 2):**
-
-- [ ] Task 0.3: LruCache immutable (1h)
-- [ ] Task 0.4: Fix tests (2h) - skip if too hard
-- [ ] Task 0.5: Health Monitor (2h)
-- [ ] **SHIP collections**
-
-**Next 2 weeks (Phase 1):**
-
-- [ ] Port zero-crossing detector
-- [ ] Create signals API
-- [ ] Live test: $100 capital, 1 week
-- [ ] Decision: GO (scale) or NO-GO (pivot)
-
----
-
-## Key Decisions
-
-**What we removed (Skeptic feedback):**
-
-- ❌ Phase 0.5 (Backtesting) - live test > backtest
-- ❌ Extensive docs - solo dev doesn't need 30 files
-- ❌ Validation reports - ship faster instead
-- ❌ 100% completion gates - 80% good enough
-
-**What we kept:**
-
-- ✅ Phase-based planning (clear milestones)
-- ✅ TDD for bugs (quality where it matters)
-- ✅ Task tracking (phase files)
-- ✅ Ship-first mindset
-
----
-
-## Links
-
-**Roadmap:**
-
-- [`docs/gemini3/roadmap/README.md`](docs/gemini3/roadmap/README.md) ← YOUR MAIN FILE
-
-**Roles:**
-
-- [`GEMINI.md`](GEMINI.md) - AI assistant role
-
-**Proposals (architecture decisions):**
-
-- [`docs/gemini3/proposals/`](docs/gemini3/proposals/)
-
----
-
-**Version:** 3.0 (Pragmatic)  
-**Author:** Solo Developer + Gemini
-**Updated:** 2025-11-20
+**Last Updated:** 2025-11-20  
+**See Also:** `docs/gemini3/roadmap/` for tasks and phases

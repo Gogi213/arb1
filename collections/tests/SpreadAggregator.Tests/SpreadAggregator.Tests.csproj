@@ -23,6 +23,7 @@
     <ProjectReference Include="..\..\src\SpreadAggregator.Domain\SpreadAggregator.Domain.csproj" />
     <ProjectReference Include="..\..\src\SpreadAggregator.Application\SpreadAggregator.Application.csproj" />
     <ProjectReference Include="..\..\src\SpreadAggregator.Infrastructure\SpreadAggregator.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\SpreadAggregator.Presentation\SpreadAggregator.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

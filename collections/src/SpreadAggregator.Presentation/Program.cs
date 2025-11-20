@@ -9,6 +9,7 @@ using SpreadAggregator.Domain.Services;
 using SpreadAggregator.Infrastructure.Services;
 using SpreadAggregator.Infrastructure.Services.Exchanges;
 using System;
+using System.Text.Json;
 using System.Threading.Channels;
 using System.Threading.Tasks;
 using BingX.Net.Interfaces.Clients;
@@ -162,6 +163,60 @@ class Program
             var minThreshold = configuration.GetValue<decimal>("Arbitrage:MinDeviationThreshold", 0.10m);
             return new DeviationCalculator(minThreshold);
         });
+
+        // Phase 1, Task 1.2: Register SignalDetector
+        services.AddSingleton<SignalDetector>(sp =>
+        {
+            var entryThreshold = configuration.GetValue<decimal>("Arbitrage:EntryThreshold", 0.35m);
+            var exitThreshold = configuration.GetValue<decimal>("Arbitrage:ExitThreshold", 0.05m);
+            var detector = new SignalDetector(entryThreshold, exitThreshold);
+            
+            // Wire to DeviationCalculator events
+            var deviationCalc = sp.GetRequiredService<DeviationCalculator>();
+            deviationCalc.OnDeviationDetected += detector.ProcessDeviation;
+            
+            // Phase 1, Task 1.3: WebSocket broadcast for monitoring
+            var webSocketServer = sp.GetRequiredService<IWebSocketServer>();
+            detector.OnEntrySignal += signal =>
+            {
+                var wrapper = new WebSocketMessage
+                {
+                    MessageType = "Signal",
+                    Payload = signal
+                };
+                var message = JsonSerializer.Serialize(wrapper);
+                _ = webSocketServer.BroadcastRealtimeAsync(message);
+            };
+            
+            detector.OnExitSignal += signal =>
+            {
+                var wrapper = new WebSocketMessage
+                {
+                    MessageType = "Signal",
+                    Payload = signal
+                };
+                var message = JsonSerializer.Serialize(wrapper);
+                _ = webSocketServer.BroadcastRealtimeAsync(message);
+            };
+            
+            // Phase 1, Task 1.4: Direct execution (monolith, <1ms latency)
+            var executor = sp.GetRequiredService<TradeExecutor>();
+            detector.OnEntrySignal += async signal =>
+            {
+                await executor.ExecuteEntryAsync(signal);
+            };
+            
+            detector.OnExitSignal += async signal =>
+            {
+                await executor.ExecuteExitAsync(signal);
+            };
+            
+            return detector;
+        });
+
+        // Phase 1, Task 1.4: Register TradeExecutor
+        services.AddSingleton<TradeExecutor>();
+
 
         services.AddSingleton<OrchestrationService>(sp =>
         {

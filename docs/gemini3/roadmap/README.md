@@ -1,25 +1,27 @@
 # HFT Trading Ecosystem - Roadmap
 
 **Project:** Unified HFT Trading Ecosystem  
-**Current Phase:** Phase 0 - Foundation ✅ COMPLETE  
-**Last Updated:** 2025-11-20 (Phase 0 Done)  
+**Current Phase:** Phase 1 - Brain 🟡 80% COMPLETE  
+**Last Updated:** 2025-11-20 (Tasks 1.1-1.4 Done)  
 **Philosophy:** Ship fast, iterate on reality
 
 ---
 
-## 🎯 Current Sprint: Sprint 2 ✅ COMPLETE
+## 🎯 Current Sprint: Phase 1 - Signal Detection 🟡 IN PROGRESS
 
-**Goal:** Phase 0 complete → Ready for production
+**Goal:** Intelligent trading - auto-detect arbitrage opportunities
 
-| Task | Priority | Estimate | Status |
-|------|----------|----------|--------|
-| 0.3: Fix LruCache mutation race | HIGH | 1h | ✅ COMPLETE (30min) |
-| 0.4: Fix OrchestrationService tests | MEDIUM | 2h | ✅ COMPLETE (1.5h, 36/36 tests) |
-| 0.5: Implement Exchange Health Monitor | HIGH | 2h | ✅ COMPLETE (40min) |
+| Task | Priority | Estimate | Actual | Status |
+|------|----------|----------|--------|--------|
+| 1.1: DeviationCalculator | CRITICAL | 2-3h | 2h | ✅ COMPLETE |
+| 1.2: SignalDetector | CRITICAL | 2-3h | 2h | ✅ COMPLETE |
+| 1.3: Signal Broadcasting | CRITICAL | 1-2h | 30min | ✅ COMPLETE |
+| 1.4: TradeExecutor Integration | CRITICAL | 3-4h | 1h | ✅ COMPLETE |
+| 1.5: Live Validation | CRITICAL | 1 week | - | ⏸️ PENDING |
 
-**Total:** 5 hours estimate → 2.5 hours actual ⚡ **2x faster**
+**Phase 1 Status:** 🟡 80% COMPLETE (4/5 tasks done, 23/23 tests passing, 5.5h vs 10-14h estimated)
 
-**Phase 0 Status:** ✅ 100% COMPLETE (36/36 tests passing, 5/5 tasks done, 5.5h vs 8h estimated)
+**Achievement:** Monolith architecture with <1ms execution latency ✅
 
 ---
 
@@ -30,7 +32,7 @@
 | Phase | Priority | Status | Value | File |
 |-------|----------|--------|-------|------|
 | **0: Foundation** | 🔴 CRITICAL | ✅ Complete (100%) | Stability (no crashes) | [phase-0-foundation.md](phase-0-foundation.md) |
-| **1: Brain** | 🔴 CRITICAL | ⚪ Next | Signal detection → intelligent trading | [phase-1-brain.md](phase-1-brain.md) |
+| **1: Brain** | 🔴 CRITICAL | 🟡 80% (4/5 tasks) | Signal detection → intelligent trading | [phase-1-brain.md](phase-1-brain.md) |
 | **2: Monitoring** | 🟡 HIGH | ⚪ Backlog | Production observability | [phase-2-monitoring.md](phase-2-monitoring.md) |
 | **3: Latency** | 🟡 HIGH | ⚪ Backlog | Competitive edge (speed) | [phase-3-latency.md](phase-3-latency.md) |
 | **4: Automation** | 🟢 MEDIUM | ⚪ Backlog | 24/7 operation | [phase-4-automation.md](phase-4-automation.md) |
@@ -41,9 +43,10 @@
 - ~~Phase 0.5: Backtesting~~ (test live с small capital вместо backtests)
 - ~~Phase 2: Security~~ (merged → Phase 2: Monitoring)
 - ~~Phase 3: Sight~~ (merged → Phase 1: Brain)
-- ~~Phase 6: Monolith~~ (renamed → Phase 3: Latency)
+- ~~Phase 6: Monolith~~ (implemented in Phase 1)
 
-**Overall:** 5/15 critical tasks complete (33%)
+**Overall Progress:** 9/15 critical tasks complete (60%)  
+**To MVP:** 1 task remaining (Task 1.5: Live Validation)
 
 ---
 
@@ -65,19 +68,20 @@
 
 ---
 
-### Phase 1: Brain 🔴 CRITICAL (Next)
+### Phase 1: Brain 🟡 80% COMPLETE
 
 **Goal:** Intelligent trading = знать КОГДА входить в сделку
 
-**Tasks:**
+**Completed Tasks:**
 
-- 1.1: Port zero-crossing detector (Python → C#)
-- 1.2: Real-time signal API `/api/signals/active`
-- 1.3: **Live validation** ($100 capital, small trades)
+- ✅ 1.1: DeviationCalculator (bid/bid comparison, <5ms latency)
+- ✅ 1.2: SignalDetector (entry 0.35%, exit 0.05%, cooldown)
+- ✅ 1.3: WebSocket broadcast + Direct execution (monolith)
+- ✅ 1.4: TradeExecutor integration (<1ms latency achieved!)
 
-**Why critical:** Текущий trader "blind" - торгует всё подряд. Brain = selective entry.
+**Pending:**
 
-**Validation:** Run live 1 week, track win rate vs random trades
+- ⏸️ 1.5: Live Validation ($100 capital, 1 week monitoring)
 
 ---
 

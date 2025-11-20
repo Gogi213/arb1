@@ -1,19 +1,23 @@
 using SpreadAggregator.Domain.Entities;
 using Microsoft.Extensions.Logging;
+using TraderBot.Core; // IExchange from trader
 
 namespace SpreadAggregator.Application.Services;
 
 /// <summary>
 /// Phase 1, Task 1.4: Trade execution service.
-/// Current: Mock implementation (logs to console).
-/// Future: Real exchange API integration.
+/// Uses existing trader IExchange for order placement.
 /// </summary>
 public class TradeExecutor
 {
+    private readonly Dictionary<string, IExchange> _exchanges;
     private readonly ILogger<TradeExecutor>? _logger;
 
-    public TradeExecutor(ILogger<TradeExecutor>? logger = null)
+    public TradeExecutor(
+        Dictionary<string, IExchange> exchanges,
+        ILogger<TradeExecutor>? logger = null)
     {
+        _exchanges = exchanges ?? throw new ArgumentNullException(nameof(exchanges));
         _logger = logger;
     }
 
@@ -22,17 +26,27 @@ public class TradeExecutor
     /// </summary>
     public async Task ExecuteEntryAsync(Signal signal)
     {
-        // Phase 1: Mock implementation
-        var message = $"[TradeExecutor] ENTRY SIGNAL - BUY {signal.Symbol} on {signal.CheapExchange} " +
-                     $"(deviation: {signal.Deviation:F2}%)";
+        var exchange = GetExchange(signal.CheapExchange);
         
-        _logger?.LogInformation(message);
-        Console.WriteLine(message);
+        _logger?.LogInformation("[TradeExecutor] ENTRY SIGNAL - BUY {Symbol} on {Exchange} (deviation: {Deviation:F2}%)",
+            signal.Symbol, signal.CheapExchange, signal.Deviation);
 
-        // TODO Phase 1.4: Real order placement
-        // await exchange.PlaceOrderAsync(OrderSide.Buy, signal.Symbol, ...);
+        // Real order placement using trader's IExchange
+        var orderId = await exchange.PlaceOrderAsync(
+            symbol: signal.Symbol,
+            side: OrderSide.Buy,
+            type: NewOrderType.Market,
+            quoteQuantity: 6.0m // $6 USDT test
+        );
 
-        await Task.CompletedTask;
+        if (orderId.HasValue)
+        {
+            _logger?.LogInformation("[TradeExecutor] ✅ ORDER PLACED: ID={OrderId}", orderId.Value);
+        }
+        else
+        {
+            _logger?.LogError("[TradeExecutor] ❌ ORDER FAILED");
+        }
     }
 
     /// <summary>
@@ -40,16 +54,16 @@ public class TradeExecutor
     /// </summary>
     public async Task ExecuteExitAsync(Signal signal)
     {
-        // Phase 1: Mock implementation
-        var message = $"[TradeExecutor] EXIT SIGNAL - SELL {signal.Symbol} " +
-                     $"(deviation converged: {signal.Deviation:F2}%)";
-        
-        _logger?.LogInformation(message);
-        Console.WriteLine(message);
-
-        // TODO Phase 1.4: Real order placement
-        // await exchange.PlaceOrderAsync(OrderSide.Sell, signal.Symbol, ...);
-
+        _logger?.LogWarning("[TradeExecutor] EXIT SIGNAL - Need position tracking to implement sell logic");
         await Task.CompletedTask;
+    }
+
+    private IExchange GetExchange(string exchangeName)
+    {
+        if (!_exchanges.TryGetValue(exchangeName.ToLowerInvariant(), out var exchange))
+        {
+            throw new ArgumentException($"Unknown exchange: {exchangeName}");
+        }
+        return exchange;
     }
 }

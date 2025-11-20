@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SpreadAggregator.Domain\SpreadAggregator.Domain.csproj" />
+    <ProjectReference Include="..\..\..\trader\src\Core\TraderBot.Core.csproj" />
   </ItemGroup>
 
   <ItemGroup>

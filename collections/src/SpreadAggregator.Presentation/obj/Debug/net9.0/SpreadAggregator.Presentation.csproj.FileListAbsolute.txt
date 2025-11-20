@@ -264,3 +264,9 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\SpreadAggregator.Presentation.genruntimeconfig.cache
 C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\obj\Debug\net9.0\ref\SpreadAggregator.Presentation.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Core.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Exchanges.GateIo.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Core.pdb
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Exchanges.GateIo.pdb
+C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation\bin\Debug\net9.0\TraderBot.Exchanges.Bybit.pdb

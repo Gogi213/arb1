@@ -43,6 +43,15 @@ class Program
         builder.Logging.AddFilter("Bybit", LogLevel.Debug);
 
         // Configure application services
+        
+        // Load Trader configuration (Single Source of Truth for API keys)
+        // Assuming relative path from collections/src/Presentation to trader/src/Host
+        var traderConfigPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../trader/src/Host/appsettings.json"));
+        if (File.Exists(traderConfigPath))
+        {
+            builder.Configuration.AddJsonFile(traderConfigPath, optional: true, reloadOnChange: true);
+        }
+
         ConfigureServices(builder.Services, builder.Configuration);
 
         // Add ASP.NET Core services for Charts API
@@ -214,9 +223,69 @@ class Program
             return detector;
         });
 
-        // Phase 1, Task 1.4: Register TradeExecutor
-        services.AddSingleton<TradeExecutor>();
 
+        // ... (rest of logging setup)
+
+        // Phase 1, Task 1.5: Register trader IExchange implementations using Trader Config
+        services.AddSingleton<TraderBot.Core.IExchange>(sp =>
+        {
+            var gateApiKey = configuration["ExchangeConfigs:0:ApiKey"];
+            var gateApiSecret = configuration["ExchangeConfigs:0:ApiSecret"];
+            
+            // Fallback search if order changes
+            if (configuration["ExchangeConfigs:0:ExchangeName"] != "GateIo")
+            {
+                 var gateSection = configuration.GetSection("ExchangeConfigs").GetChildren()
+                                    .FirstOrDefault(s => s["ExchangeName"] == "GateIo");
+                 if (gateSection != null)
+                 {
+                     gateApiKey = gateSection["ApiKey"];
+                     gateApiSecret = gateSection["ApiSecret"];
+                 }
+            }
+
+            if (string.IsNullOrEmpty(gateApiKey)) throw new InvalidOperationException("GateIo API Key not found in trader config");
+
+            var exchange = new TraderBot.Exchanges.GateIo.GateIoExchange();
+            exchange.InitializeAsync(gateApiKey, gateApiSecret).Wait();
+            return exchange;
+        });
+
+        services.AddSingleton<TraderBot.Core.IExchange>(sp =>
+        {
+            var bybitApiKey = configuration["ExchangeConfigs:1:ApiKey"];
+            var bybitApiSecret = configuration["ExchangeConfigs:1:ApiSecret"];
+
+            // Fallback search
+            if (configuration["ExchangeConfigs:1:ExchangeName"] != "Bybit")
+            {
+                 var bybitSection = configuration.GetSection("ExchangeConfigs").GetChildren()
+                                    .FirstOrDefault(s => s["ExchangeName"] == "Bybit");
+                 if (bybitSection != null)
+                 {
+                     bybitApiKey = bybitSection["ApiKey"];
+                     bybitApiSecret = bybitSection["ApiSecret"];
+                 }
+            }
+
+            if (string.IsNullOrEmpty(bybitApiKey)) throw new InvalidOperationException("Bybit API Key not found in trader config");
+            
+            var exchange = new TraderBot.Exchanges.Bybit.BybitExchange();
+            exchange.InitializeAsync(bybitApiKey, bybitApiSecret).Wait();
+            return exchange;
+        });
+
+        // Phase 1, Task 1.4: Register TradeExecutor with trader exchanges
+        services.AddSingleton<TradeExecutor>(sp =>
+        {
+            var exchanges = new Dictionary<string, TraderBot.Core.IExchange>
+            {
+                ["gate"] = sp.GetServices<TraderBot.Core.IExchange>().First(e => e.GetType().Name.Contains("Gate")),
+                ["bybit"] = sp.GetServices<TraderBot.Core.IExchange>().First(e => e.GetType().Name.Contains("Bybit"))
+            };
+            var logger = sp.GetRequiredService<ILogger<TradeExecutor>>();
+            return new TradeExecutor(exchanges, logger);
+        });
 
         services.AddSingleton<OrchestrationService>(sp =>
         {

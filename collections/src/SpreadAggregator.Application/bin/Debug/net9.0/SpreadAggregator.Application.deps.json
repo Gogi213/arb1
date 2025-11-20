@@ -11,7 +11,8 @@
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
           "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
-          "SpreadAggregator.Domain": "1.0.0"
+          "SpreadAggregator.Domain": "1.0.0",
+          "TraderBot.Core": "1.0.0"
         },
         "runtime": {
           "SpreadAggregator.Application.dll": {}
@@ -123,6 +124,17 @@
             "fileVersion": "1.0.0.0"
           }
         }
+      },
+      "TraderBot.Core/1.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Options": "9.0.0"
+        },
+        "runtime": {
+          "TraderBot.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
       }
     }
   },
@@ -196,6 +208,11 @@
       "hashPath": "microsoft.extensions.primitives.9.0.9.nupkg.sha512"
     },
     "SpreadAggregator.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TraderBot.Core/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

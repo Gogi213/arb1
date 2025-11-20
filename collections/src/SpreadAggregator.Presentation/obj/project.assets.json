@@ -1021,7 +1021,8 @@
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
           "Microsoft.Extensions.Hosting.Abstractions": "9.0.0",
-          "SpreadAggregator.Domain": "1.0.0"
+          "SpreadAggregator.Domain": "1.0.0",
+          "TraderBot.Core": "1.0.0"
         },
         "compile": {
           "bin/placeholder/SpreadAggregator.Application.dll": {}
@@ -1063,6 +1064,47 @@
         },
         "runtime": {
           "bin/placeholder/SpreadAggregator.Infrastructure.dll": {}
+        }
+      },
+      "TraderBot.Core/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v9.0",
+        "dependencies": {
+          "Microsoft.Extensions.Options": "8.0.0"
+        },
+        "compile": {
+          "bin/placeholder/TraderBot.Core.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/TraderBot.Core.dll": {}
+        }
+      },
+      "TraderBot.Exchanges.Bybit/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v9.0",
+        "dependencies": {
+          "Bybit.Net": "5.10.1",
+          "TraderBot.Core": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/TraderBot.Exchanges.Bybit.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/TraderBot.Exchanges.Bybit.dll": {}
+        }
+      },
+      "TraderBot.Exchanges.GateIo/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v9.0",
+        "dependencies": {
+          "GateIo.Net": "2.11.0",
+          "TraderBot.Core": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/TraderBot.Exchanges.GateIo.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/TraderBot.Exchanges.GateIo.dll": {}
         }
       }
     }
@@ -2550,6 +2592,21 @@
       "type": "project",
       "path": "../SpreadAggregator.Infrastructure/SpreadAggregator.Infrastructure.csproj",
       "msbuildProject": "../SpreadAggregator.Infrastructure/SpreadAggregator.Infrastructure.csproj"
+    },
+    "TraderBot.Core/1.0.0": {
+      "type": "project",
+      "path": "../../../trader/src/Core/TraderBot.Core.csproj",
+      "msbuildProject": "../../../trader/src/Core/TraderBot.Core.csproj"
+    },
+    "TraderBot.Exchanges.Bybit/1.0.0": {
+      "type": "project",
+      "path": "../../../trader/src/Exchanges/Bybit/TraderBot.Exchanges.Bybit.csproj",
+      "msbuildProject": "../../../trader/src/Exchanges/Bybit/TraderBot.Exchanges.Bybit.csproj"
+    },
+    "TraderBot.Exchanges.GateIo/1.0.0": {
+      "type": "project",
+      "path": "../../../trader/src/Exchanges/GateIo/TraderBot.Exchanges.GateIo.csproj",
+      "msbuildProject": "../../../trader/src/Exchanges/GateIo/TraderBot.Exchanges.GateIo.csproj"
     }
   },
   "projectFileDependencyGroups": {
@@ -2557,7 +2614,10 @@
       "Microsoft.Extensions.Configuration.Json >= 9.0.9",
       "Microsoft.Extensions.Hosting >= 9.0.9",
       "SpreadAggregator.Application >= 1.0.0",
-      "SpreadAggregator.Infrastructure >= 1.0.0"
+      "SpreadAggregator.Infrastructure >= 1.0.0",
+      "TraderBot.Core >= 1.0.0",
+      "TraderBot.Exchanges.Bybit >= 1.0.0",
+      "TraderBot.Exchanges.GateIo >= 1.0.0"
     ]
   },
   "packageFolders": {
@@ -2590,6 +2650,15 @@
             },
             "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
               "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
+            },
+            "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
+            },
+            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+            },
+            "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+              "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
             }
           }
         }

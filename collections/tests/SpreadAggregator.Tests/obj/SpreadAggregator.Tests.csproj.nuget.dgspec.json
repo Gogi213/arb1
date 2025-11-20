@@ -28,6 +28,9 @@
             "projectReferences": {
               "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj": {
                 "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Domain\\SpreadAggregator.Domain.csproj"
+              },
+              "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
               }
             }
           }
@@ -280,6 +283,15 @@
               },
               "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj": {
                 "projectPath": "C:\\visual projects\\arb1\\collections\\src\\SpreadAggregator.Infrastructure\\SpreadAggregator.Infrastructure.csproj"
+              },
+              "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
+              },
+              "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj"
+              },
+              "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj"
               }
             }
           }
@@ -404,6 +416,209 @@
             "xunit.runner.visualstudio": {
               "target": "Package",
               "version": "[2.8.2, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj",
+        "projectName": "TraderBot.Core",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj",
+        "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Microsoft.Extensions.Options": {
+              "target": "Package",
+              "version": "[8.0.0, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "projectName": "TraderBot.Exchanges.Bybit",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\TraderBot.Exchanges.Bybit.csproj",
+        "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\Bybit\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "Bybit.Net": {
+              "target": "Package",
+              "version": "[5.10.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.304/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
+        "projectName": "TraderBot.Exchanges.GateIo",
+        "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\TraderBot.Exchanges.GateIo.csproj",
+        "packagesPath": "C:\\Users\\Георгий\\.nuget\\packages\\",
+        "outputPath": "C:\\visual projects\\arb1\\trader\\src\\Exchanges\\GateIo\\obj\\",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "C:\\Users\\Георгий\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net9.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net9.0": {
+            "targetAlias": "net9.0",
+            "projectReferences": {
+              "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj": {
+                "projectPath": "C:\\visual projects\\arb1\\trader\\src\\Core\\TraderBot.Core.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net9.0": {
+          "targetAlias": "net9.0",
+          "dependencies": {
+            "GateIo.Net": {
+              "target": "Package",
+              "version": "[2.11.0, )"
             }
           },
           "imports": [

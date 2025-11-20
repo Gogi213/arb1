@@ -19,9 +19,10 @@
 | 1.4: TradeExecutor Integration | CRITICAL | 3-4h | 1h | ✅ COMPLETE |
 | 1.5: Live Validation | CRITICAL | 1 week | - | ⏸️ PENDING |
 
-**Phase 1 Status:** 🟡 80% COMPLETE (4/5 tasks done, 23/23 tests passing, 5.5h vs 10-14h estimated)
+**Phase 1 Status:** 🟡 90% COMPLETE (4/5 tasks done, ready for live test)
 
 **Achievement:** Monolith architecture with <1ms execution latency ✅
+**Resolved:** Shared configuration between Collections and Trader (Single Source of Truth) ✅
 
 ---
 
@@ -32,7 +33,7 @@
 | Phase | Priority | Status | Value | File |
 |-------|----------|--------|-------|------|
 | **0: Foundation** | 🔴 CRITICAL | ✅ Complete (100%) | Stability (no crashes) | [phase-0-foundation.md](phase-0-foundation.md) |
-| **1: Brain** | 🔴 CRITICAL | 🟡 80% (4/5 tasks) | Signal detection → intelligent trading | [phase-1-brain.md](phase-1-brain.md) |
+| **1: Brain** | 🔴 CRITICAL | 🟡 90% (4/5 tasks) | Signal detection → intelligent trading | [phase-1-brain.md](phase-1-brain.md) |
 | **2: Monitoring** | 🟡 HIGH | ⚪ Backlog | Production observability | [phase-2-monitoring.md](phase-2-monitoring.md) |
 | **3: Latency** | 🟡 HIGH | ⚪ Backlog | Competitive edge (speed) | [phase-3-latency.md](phase-3-latency.md) |
 | **4: Automation** | 🟢 MEDIUM | ⚪ Backlog | 24/7 operation | [phase-4-automation.md](phase-4-automation.md) |
@@ -68,7 +69,7 @@
 
 ---
 
-### Phase 1: Brain 🟡 80% COMPLETE
+### Phase 1: Brain 🟡 90% COMPLETE
 
 **Goal:** Intelligent trading = знать КОГДА входить в сделку
 
@@ -144,11 +145,6 @@
 ---
 
 ## 🐛 Known Issues
-
-**Critical (Sprint 2):**
-
-- ❌ Task 0.3: LruCache mutation → data corruption
-- ❌ Task 0.5: No health monitoring → silent failures
 
 **Deferred:**
 

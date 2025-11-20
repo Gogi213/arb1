@@ -1018,7 +1018,8 @@
           "Microsoft.Extensions.Configuration.Abstractions": "9.0.9",
           "Microsoft.Extensions.Configuration.Binder": "9.0.9",
           "Microsoft.Extensions.Hosting.Abstractions": "9.0.9",
-          "SpreadAggregator.Domain": "1.0.0"
+          "SpreadAggregator.Domain": "1.0.0",
+          "TraderBot.Core": "1.0.0"
         },
         "runtime": {
           "SpreadAggregator.Application.dll": {
@@ -1063,10 +1064,48 @@
           "Microsoft.Extensions.Configuration.Json": "9.0.9",
           "Microsoft.Extensions.Hosting": "9.0.9",
           "SpreadAggregator.Application": "1.0.0",
-          "SpreadAggregator.Infrastructure": "1.0.0"
+          "SpreadAggregator.Infrastructure": "1.0.0",
+          "TraderBot.Core": "1.0.0",
+          "TraderBot.Exchanges.Bybit": "1.0.0",
+          "TraderBot.Exchanges.GateIo": "1.0.0"
         },
         "runtime": {
           "SpreadAggregator.Presentation.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "TraderBot.Core/1.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.Options": "9.0.9"
+        },
+        "runtime": {
+          "TraderBot.Core.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "TraderBot.Exchanges.Bybit/1.0.0": {
+        "dependencies": {
+          "Bybit.Net": "5.10.1",
+          "TraderBot.Core": "1.0.0"
+        },
+        "runtime": {
+          "TraderBot.Exchanges.Bybit.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "TraderBot.Exchanges.GateIo/1.0.0": {
+        "dependencies": {
+          "GateIo.Net": "2.11.0",
+          "TraderBot.Core": "1.0.0"
+        },
+        "runtime": {
+          "TraderBot.Exchanges.GateIo.dll": {
             "assemblyVersion": "1.0.0.0",
             "fileVersion": "1.0.0.0"
           }
@@ -1593,6 +1632,21 @@
       "sha512": ""
     },
     "SpreadAggregator.Presentation/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TraderBot.Core/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TraderBot.Exchanges.Bybit/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "TraderBot.Exchanges.GateIo/1.0.0": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

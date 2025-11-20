@@ -1,0 +1,50 @@
+info: SpreadAggregator.Infrastructure.Services.BidAskLogger[0]
+      BidAsk logger started. Writing to: ..\..\logs\bidask_20251120_212237.log
+info: SpreadAggregator.Infrastructure.Services.BidAskLogger[0]
+      BidAsk ICPUSDT logger started. Writing to: ..\..\logs\bidask_ICPUSDT_20251120_212237.log
+info: SpreadAggregator.Infrastructure.Services.BidBidLogger[0]
+      BidBid ICPUSDT chart logger started. Writing to: ..\..\logs\bidbid_ICPUSDT_20251120_212237.log
+info: SpreadAggregator.Presentation.OrchestrationServiceHost[0]
+      [OrchestrationHost] Starting orchestration service...
+21.11.2025 1:22:37 [Info] Server started at ws://0.0.0.0:8181 (actual port 8181) 
+[ERROR] No client found for exchange: _comment_BingX
+[ERROR] No client found for exchange: _comment_Bitget
+[ERROR] No client found for exchange: _comment_Kucoin
+[ERROR] No client found for exchange: _comment_Mexc
+[ERROR] No client found for exchange: _comment_OKX
+[Orchestration] Started 3 exchange subscription tasks
+info: SpreadAggregator.Application.Services.DataCollectorService[0]
+      [DataCollector] Starting background data collection...
+[DataCollector] Starting to record data with hybrid partitioning into: C:\visual projects\arb1\data\market_data
+info: SpreadAggregator.Presentation.RollingWindowServiceHost[0]
+      [RollingWindowHost] Starting rolling window service...
+info: SpreadAggregator.Application.Services.RollingWindowService[0]
+      RollingWindowService started, waiting for data...
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://0.0.0.0:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\visual projects\arb1\collections\src\SpreadAggregator.Presentation
+dbug: Bybit.RestClient[4008]
+      [Req 1] Sending GET /v5/market/instruments-info request with body (null), query parameters ?category=spot and headers Accept=[application/json], Referer=[Zx000356]
+dbug: Bybit.RestClient[4001]
+      [Req 1] 200 - Response received in 494ms: [Data only available when OutputOriginal = true]
+dbug: Bybit.RestClient[4008]
+      [Req 4] Sending GET /v5/market/tickers request with body (null), query parameters ?category=spot and headers Accept=[application/json], Referer=[Zx000356]
+dbug: Bybit.RestClient[4001]
+      [Req 4] 200 - Response received in 222ms: [Data only available when OutputOriginal = true]
+[Bybit] Received 659 tickers and 659 symbol info objects.
+[Bybit] 127 symbols passed the volume filter.
+[Bybit] Adding ticker subscription task for 127 symbols...
+[Bybit] Adding trade subscription task...
+[Bybit] Awaiting 2 subscription tasks...
+[Bybit] All subscription tasks completed
+[GateIo] Received 2560 tickers and 2560 symbol info objects.
+[GateIo] 204 symbols passed the volume filter.
+[GateIo] Adding ticker subscription task for 204 symbols...
+[GateIo] Adding trade subscription task...
+[GateIo] Awaiting 2 subscription tasks...
+[GateIo] All subscription tasks completed

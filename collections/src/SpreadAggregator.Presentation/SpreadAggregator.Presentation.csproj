@@ -3,7 +3,9 @@
   <ItemGroup>
     <ProjectReference Include="..\SpreadAggregator.Application\SpreadAggregator.Application.csproj" />
     <ProjectReference Include="..\SpreadAggregator.Infrastructure\SpreadAggregator.Infrastructure.csproj" />
-
+    <ProjectReference Include="..\..\..\trader\src\Core\TraderBot.Core.csproj" />
+    <ProjectReference Include="..\..\..\trader\src\Exchanges\GateIo\TraderBot.Exchanges.GateIo.csproj" />
+    <ProjectReference Include="..\..\..\trader\src\Exchanges\Bybit\TraderBot.Exchanges.Bybit.csproj" />
   </ItemGroup>
 
   <ItemGroup>

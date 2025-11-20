@@ -1,6 +1,8 @@
 using SpreadAggregator.Application.Services;
 using SpreadAggregator.Domain.Entities;
 using Xunit;
+using Moq;
+// using TraderBot.Core; // REMOVED to avoid SpreadData ambiguity
 
 namespace SpreadAggregator.Tests.Integration;
 
@@ -10,13 +12,46 @@ namespace SpreadAggregator.Tests.Integration;
 /// </summary>
 public class SignalExecutionIntegrationTests
 {
+    private TradeExecutor CreateExecutor()
+    {
+        var mockGate = new Mock<TraderBot.Core.IExchange>();
+        var mockBybit = new Mock<TraderBot.Core.IExchange>();
+        
+        // Setup successful order placement
+        mockGate.Setup(x => x.PlaceOrderAsync(
+            It.IsAny<string>(), 
+            It.IsAny<TraderBot.Core.OrderSide>(), 
+            It.IsAny<TraderBot.Core.NewOrderType>(), 
+            It.IsAny<decimal?>(), 
+            It.IsAny<decimal?>(), 
+            It.IsAny<decimal?>()))
+            .ReturnsAsync(12345L);
+            
+        mockBybit.Setup(x => x.PlaceOrderAsync(
+            It.IsAny<string>(), 
+            It.IsAny<TraderBot.Core.OrderSide>(), 
+            It.IsAny<TraderBot.Core.NewOrderType>(), 
+            It.IsAny<decimal?>(), 
+            It.IsAny<decimal?>(), 
+            It.IsAny<decimal?>()))
+            .ReturnsAsync(67890L);
+
+        var exchanges = new Dictionary<string, TraderBot.Core.IExchange>
+        {
+            ["gate"] = mockGate.Object,
+            ["bybit"] = mockBybit.Object
+        };
+
+        return new TradeExecutor(exchanges);
+    }
+
     [Fact]
     public void EndToEnd_DeviationToExecution_EntrySignal()
     {
         // Arrange
         var deviationCalc = new DeviationCalculator(minDeviationThreshold: 0.10m);
         var signalDetector = new SignalDetector(entryThreshold: 0.35m, exitThreshold: 0.05m);
-        var tradeExecutor = new TradeExecutor();
+        var tradeExecutor = CreateExecutor();
 
         // Wire components
         deviationCalc.OnDeviationDetected += signalDetector.ProcessDeviation;
@@ -67,7 +102,7 @@ public class SignalExecutionIntegrationTests
         // Arrange
         var deviationCalc = new DeviationCalculator(minDeviationThreshold: 0.01m);
         var signalDetector = new SignalDetector(entryThreshold: 0.35m, exitThreshold: 0.05m);
-        var tradeExecutor = new TradeExecutor();
+        var tradeExecutor = CreateExecutor();
 
         deviationCalc.OnDeviationDetected += signalDetector.ProcessDeviation;
         
@@ -132,7 +167,7 @@ public class SignalExecutionIntegrationTests
         // Arrange
         var deviationCalc = new DeviationCalculator(minDeviationThreshold: 0.10m);
         var signalDetector = new SignalDetector(entryThreshold: 0.35m, exitThreshold: 0.05m);
-        var tradeExecutor = new TradeExecutor();
+        var tradeExecutor = CreateExecutor();
 
         deviationCalc.OnDeviationDetected += signalDetector.ProcessDeviation;
         
@@ -178,7 +213,7 @@ public class SignalExecutionIntegrationTests
             exitThreshold: 0.05m,
             signalCooldown: TimeSpan.FromSeconds(10)
         );
-        var tradeExecutor = new TradeExecutor();
+        var tradeExecutor = CreateExecutor();
 
         deviationCalc.OnDeviationDetected += signalDetector.ProcessDeviation;
         

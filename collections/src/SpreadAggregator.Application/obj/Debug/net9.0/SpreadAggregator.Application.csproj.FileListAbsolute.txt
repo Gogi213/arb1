@@ -46,3 +46,5 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Application\obj\Debug\n
 C:\visual projects\arb1\collections\src\SpreadAggregator.Application\obj\Debug\net9.0\refint\SpreadAggregator.Application.dll
 C:\visual projects\arb1\collections\src\SpreadAggregator.Application\obj\Debug\net9.0\SpreadAggregator.Application.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Application\obj\Debug\net9.0\ref\SpreadAggregator.Application.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Application\bin\Debug\net9.0\TraderBot.Core.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Application\bin\Debug\net9.0\TraderBot.Core.pdb

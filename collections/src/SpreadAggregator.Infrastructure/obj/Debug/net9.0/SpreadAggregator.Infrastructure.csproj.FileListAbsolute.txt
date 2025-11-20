@@ -52,3 +52,5 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debu
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\refint\SpreadAggregator.Infrastructure.dll
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\ref\SpreadAggregator.Infrastructure.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.pdb

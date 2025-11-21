@@ -1,7 +1,0 @@
-POST
-/sapi/v1/simple-earn/locked/redeem
-true
-{
-  "redeemId": 40607,
-  "success": true
-}

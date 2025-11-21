@@ -1,6 +1,0 @@
-GET
-/api/v4/margin/auto_repay
-true
-{
-  "status": "on"
-}

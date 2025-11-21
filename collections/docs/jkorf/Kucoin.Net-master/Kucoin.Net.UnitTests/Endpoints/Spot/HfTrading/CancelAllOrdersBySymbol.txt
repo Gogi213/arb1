@@ -1,4 +1,0 @@
-DELETE
-/api/v1/hf/orders
-true
-{"code":"200000","data":"success"}

@@ -1,7 +1,0 @@
-GET
-/api/v4/margin/cross/borrowable
-true
-{
-  "currency": "ETH",
-  "amount": "10000"
-}

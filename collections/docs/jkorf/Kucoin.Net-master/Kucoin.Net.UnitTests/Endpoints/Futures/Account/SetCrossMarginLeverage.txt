@@ -1,8 +1,0 @@
-POST
-/api/v2/changeCrossUserLeverage
-true
-{"code":"200000","data":{
-  "symbol":"XBTUSDTM",
-  "leverage":"3.00"    
-}
-}

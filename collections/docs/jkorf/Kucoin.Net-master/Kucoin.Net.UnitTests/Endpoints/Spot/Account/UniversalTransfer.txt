@@ -1,9 +1,0 @@
-POST
-/api/v3/accounts/universal-transfer
-true
-{
-  "code": "200000",
-  "data": {
-  "orderId": "64ccc0f164781800010d8c09"
-}
-}

@@ -1,3 +1,0 @@
-DELETE
-/openApi/user/auth/userDataStream
-false

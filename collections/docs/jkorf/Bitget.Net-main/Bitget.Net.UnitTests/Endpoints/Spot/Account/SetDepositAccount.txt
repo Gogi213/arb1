@@ -1,9 +1,0 @@
-POST
-/api/v2/spot/wallet/modify-deposit-account
-true
-{
-    "code": "00000",
-    "msg": "success",
-    "requestTime": 1683875302853,
-    "data": "success"
-}

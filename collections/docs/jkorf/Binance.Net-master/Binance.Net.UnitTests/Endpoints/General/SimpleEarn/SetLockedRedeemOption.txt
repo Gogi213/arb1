@@ -1,6 +1,0 @@
-POST
-/sapi/v1/simple-earn/locked/setRedeemOption
-true
-{
-  "success": true
-}

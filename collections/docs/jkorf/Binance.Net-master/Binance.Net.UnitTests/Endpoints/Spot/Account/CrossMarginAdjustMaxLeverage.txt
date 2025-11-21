@@ -1,6 +1,0 @@
-POST
-/sapi/v1/margin/max-leverage
-true
-{
-    "success": true
-}

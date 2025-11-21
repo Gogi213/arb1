@@ -1,7 +1,0 @@
-POST
-/sapi/v1/asset/convert-transfer
-true
-{
-  "tranId": 118263407119,
-  "status": "S"
-}

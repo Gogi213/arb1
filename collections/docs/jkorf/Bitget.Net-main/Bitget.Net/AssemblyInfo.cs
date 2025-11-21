@@ -1,1 +1,0 @@
-﻿[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("Bitget.Net.UnitTests")]

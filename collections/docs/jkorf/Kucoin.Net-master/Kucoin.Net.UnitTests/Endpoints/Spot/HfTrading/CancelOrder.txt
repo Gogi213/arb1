@@ -1,9 +1,0 @@
-DELETE
-/api/v1/hf/orders/123
-true
-{
-  "code": "200000",
-  "data": {
-    "orderId": "630625dbd9180300014c8d52"
-  }
-}

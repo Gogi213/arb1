@@ -1,4 +1,0 @@
-{
-    "walletBalance":"14009.12164704",
-      "availableBalance":"13998.97749271"
-  }

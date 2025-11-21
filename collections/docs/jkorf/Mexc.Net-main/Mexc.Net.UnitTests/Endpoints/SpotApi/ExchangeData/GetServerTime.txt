@@ -1,6 +1,0 @@
-GET
-/api/v3/time
-false
-{
-    "serverTime" : 1645539742000
-}

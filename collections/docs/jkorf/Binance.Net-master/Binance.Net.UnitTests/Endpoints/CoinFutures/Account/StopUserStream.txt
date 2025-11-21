@@ -1,3 +1,0 @@
-DELETE
-/dapi/v1/listenKey
-false

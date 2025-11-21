@@ -1,9 +1,0 @@
-DELETE
-/sapi/v1/algo/spot/order
-true
-{
-    "algoId": 14511,
-    "success": true,
-    "code": 0,
-    "msg": "OK"
-}

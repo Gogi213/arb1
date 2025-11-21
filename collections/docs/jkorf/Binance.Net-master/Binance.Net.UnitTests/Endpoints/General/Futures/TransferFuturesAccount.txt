@@ -1,6 +1,0 @@
-POST
-/sapi/v1/futures/transfer
-true
-{
-  "tranId": 100000001
-}

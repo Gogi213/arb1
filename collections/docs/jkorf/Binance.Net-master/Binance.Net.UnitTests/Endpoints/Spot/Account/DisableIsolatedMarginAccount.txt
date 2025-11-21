@@ -1,7 +1,0 @@
-DELETE
-/sapi/v1/margin/isolated/account
-true
-{
-  "success": true,
-  "symbol": "BTCUSDT"
-}

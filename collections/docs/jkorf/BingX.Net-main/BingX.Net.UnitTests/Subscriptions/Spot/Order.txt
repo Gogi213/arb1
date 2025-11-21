@@ -1,4 +1,0 @@
-> { "id": "|1|", "reqType": "sub", "dataType": "spot.executionReport" }
-< { "id": "|1|", "code": 0, "msg": "" }
-= 
-{"code":0,"dataType":"spot.executionReport","data":{"e":"executionReport","E":1720876278637,"s":"ETH-USDT","S":"BUY","o":"LIMIT","q":0.1,"p":2000,"x":"NEW","X":"PENDING","i":1812112568701845504,"l":0,"z":0,"L":0,"n":0,"C":"123","N":"","T":0,"t":0,"O":1720876278458,"Z":0,"Y":0,"Q":0,"m":false}}

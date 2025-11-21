@@ -1,3 +1,0 @@
-POST
-/sapi/v1/capital/contract/convertible-coins
-true

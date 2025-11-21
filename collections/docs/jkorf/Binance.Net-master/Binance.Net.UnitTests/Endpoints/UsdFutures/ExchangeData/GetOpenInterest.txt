@@ -1,8 +1,0 @@
-GET
-/fapi/v1/openInterest
-false
-{
-    "openInterest": "10659.509", 
-    "symbol": "BTCUSDT",
-    "time": 1589437530011   
-}

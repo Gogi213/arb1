@@ -39,8 +39,10 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debu
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Infrastructure.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Application.dll
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Domain.dll
+C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.dll
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Application.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\SpreadAggregator.Domain.pdb
+C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.csproj.AssemblyReference.cache
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.GeneratedMSBuildEditorConfig.editorconfig
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.AssemblyInfoInputs.cache
@@ -52,5 +54,3 @@ C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debu
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\refint\SpreadAggregator.Infrastructure.dll
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\SpreadAggregator.Infrastructure.pdb
 C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\obj\Debug\net9.0\ref\SpreadAggregator.Infrastructure.dll
-C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.dll
-C:\visual projects\arb1\collections\src\SpreadAggregator.Infrastructure\bin\Debug\net9.0\TraderBot.Core.pdb

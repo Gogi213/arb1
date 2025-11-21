@@ -138,18 +138,14 @@ Collections вычисляет spread ВНУТРИ биржи, а нужен dev
 
 ---
 
-### Task 1.3: Signal Broadcasting & Execution ✅ CRITICAL
+### Task 1.3: Signal Broadcasting ✅ COMPLETE
 
 **Problem:**  
-Original plan (REST/WebSocket between services) has fatal flaw:
+Trader needs to receive signals from Collections with low latency.
 
-- Latency: 10ms+ (WebSocket) or 2000ms (REST polling)
-- Stale data: by the time trader receives signal, opportunity gone
-- Arbitrage window: 200-500ms → can't afford 10ms+ delay
+**Solution: Distributed Architecture (WebSocket)**
 
-**Solution: Monolith Architecture**
-
-**Collections broadcasts signals via WebSocket** (for monitoring):
+**Collections broadcasts signals via WebSocket**:
 
 ```csharp
 // Program.cs
@@ -163,49 +159,60 @@ detector.OnEntrySignal += signal =>
 };
 ```
 
-**AND executes trades directly** (for speed):
+**Trader subscribes and executes**:
 
-```csharp
-// Program.cs  
-detector.OnEntrySignal += async signal => 
-{
-    var executor = sp.GetRequiredService<TradeExecutor>();
-    await executor.ExecuteEntryAsync(signal); // <1ms latency!
-};
-```
+- Trader connects to Collections WebSocket.
+- On "Signal" message -> Triggers ArbitrageTrader.
 
 **Architecture:**
 
 ```
-collections.exe (ONE process):
+collections.exe (Server):
   - WebSocket → exchanges (spreads)
   - DeviationCalculator → SignalDetector
-  - OnEntrySignal → TradeExecutor (direct call, <1ms)
-  - Optional: REST /api/signals/active (monitoring only)
+  - OnEntrySignal → WebSocket Broadcast
+
+trader.exe (Client):
+  - Connects to collections WebSocket
+  - Listens for Signals
+  - Executes trades via Exchange API
 ```
 
 **Target Files:**
 
-- `collections/src/Presentation/Program.cs` (MODIFY) - add TradeExecutor
-- `collections/src/Application/Services/TradeExecutor.cs` (NEW) - execution logic
-- `collections/src/Presentation/Controllers/SignalsController.cs` (OPTIONAL) - monitoring
+- `collections/src/Presentation/Program.cs` (Broadcast logic)
+- `trader/src/Core/SpreadListener.cs` (Listener logic)
 
 **Acceptance Criteria:**
 
-- ✅ Signal → Execution latency: **<5ms** (direct function call)
-- ✅ No network delays between signal detection and execution
-- ✅ WebSocket broadcast for monitoring (you can see signals in browser)
-- ✅ Optional REST endpoint for debugging
-- ✅ Integration test: signal triggers trade execution
+- ✅ WebSocket broadcast for monitoring/trading
+- ✅ Latency: <10ms (local network)
+- ✅ Integration test: signal triggers broadcast
 
 **Estimate:** 2-3 hours
 
-**Why Monolith:**
+---
 
-- Latency: 1ms vs 10ms (10x faster)
-- No stale data: execute on fresh signal
-- Simpler: one process vs two
-- HFT requirement: arbitrage lives 200ms, need <5ms execution
+### Task 1.4: Trader Execution Wiring ⚪ NEXT
+
+**Problem:**
+Trader has the logic (`ArbitrageTrader`, `SpreadListener`) but is not wired to listen to Collections automatically.
+
+**Solution:**
+Update `trader/src/Host/Program.cs` to support an "Auto-Trading" mode that:
+
+1. Connects to Collections WebSocket using `SpreadListener`.
+2. On Signal -> Calls `ArbitrageTrader.ExecuteAsync`.
+
+**Target Files:**
+
+- `trader/src/Host/Program.cs`
+
+**Acceptance Criteria:**
+
+- ✅ Trader starts in "Auto" mode
+- ✅ Connects to Collections
+- ✅ Receives Signal -> Places Order
 
 ---
 

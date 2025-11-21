@@ -58,7 +58,7 @@ public class RealTimeController : ControllerBase
 
         try
         {
-            var opportunities = _opportunityFilter.GetFilteredOpportunities();
+            var opportunities = _opportunityFilter.GetFilteredOpportunities().Take(20).ToList();
             _logger.LogInformation($"Starting event-driven streaming for {opportunities.Count} opportunities");
 
             // Log first 10 opportunities for debugging
@@ -77,16 +77,29 @@ public class RealTimeController : ControllerBase
             {
                 // opp.Symbol is already normalized by OpportunityFilterService
                 var key = $"{opp.Symbol}_{opp.Exchange1}_{opp.Exchange2}";
+                
+                // THROTTLING: Track last update time to prevent CPU saturation
+                // Only update chart max 4 times per second (250ms)
+                var lastUpdateTime = DateTime.MinValue;
+                var throttleInterval = TimeSpan.FromMilliseconds(250);
 
                 EventHandler<Application.Services.WindowDataUpdatedEventArgs> handler = async (sender, e) =>
                 {
                     // Only process if this event is relevant to our opportunity
                     if ((e.Exchange == opp.Exchange1 || e.Exchange == opp.Exchange2) && e.Symbol == opp.Symbol)
                     {
+                        var now = DateTime.UtcNow;
+                        if (now - lastUpdateTime < throttleInterval)
+                            return;
+
+                        lastUpdateTime = now;
+
                         try
                         {
-                            var chartData = _rollingWindow.JoinRealtimeWindows(
-                                opp.Symbol, opp.Exchange1, opp.Exchange2);
+                            // This calculation is heavy (Sort + Quantiles), so throttling is CRITICAL
+                            // PERFORMANCE FIX: Offload to background thread to avoid blocking the event loop
+                            var chartData = await Task.Run(() => _rollingWindow.JoinRealtimeWindows(
+                                opp.Symbol, opp.Exchange1, opp.Exchange2));
 
                             if (chartData != null)
                             {
@@ -119,7 +132,7 @@ public class RealTimeController : ControllerBase
                                             endOfMessage: true,
                                             CancellationToken.None);
 
-                                        _logger.LogDebug($"Event-driven update sent for {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
+                                        // _logger.LogDebug($"Event-driven update sent for {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
                                     }
                                 }
                                 finally

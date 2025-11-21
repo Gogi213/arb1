@@ -40,6 +40,9 @@
 | |- test_date_filter.py
 | `- test_normalization.py
 |- collections
+| |- TestBuild
+| | |- Program.cs
+| | `- TestBuild.csproj
 | |- docs
 | | |- 1_architecture
 | | | `- architecture.md
@@ -104,14 +107,20 @@
 | | | | `- LruCache.cs
 | | | |- Services
 | | | | |- DataCollectorService.cs
+| | | | |- DeviationCalculator.cs
 | | | | |- ExchangeHealthMonitor.cs
 | | | | |- OrchestrationService.cs
-| | | | `- RollingWindowService.cs
+| | | | |- RollingWindowService.cs
+| | | | |- SignalDetector.cs
+| | | | `- TradeExecutor.cs
 | | | |- Class1.cs
-| | | `- SpreadAggregator.Application.csproj
+| | | |- SpreadAggregator.Application.csproj
+| | | `- build.binlog
 | | |- SpreadAggregator.Domain
 | | | |- Entities
+| | | | |- DeviationData.cs
 | | | | |- MarketData.cs
+| | | | |- Signal.cs
 | | | | |- SpreadData.cs
 | | | | |- SymbolInfo.cs
 | | | | |- TradeData.cs
@@ -155,7 +164,8 @@
 | |   | |- DiagnosticsController.cs
 | |   | |- HealthController.cs
 | |   | |- HomeController.cs
-| |   | `- RealTimeController.cs
+| |   | |- RealTimeController.cs
+| |   | `- SignalsController.cs
 | |   |- Models
 | |   | |- ChartDataDto.cs
 | |   | `- OpportunityDto.cs
@@ -169,24 +179,38 @@
 | | `- SpreadAggregator.Tests
 | |   |- Application
 | |   | `- Services
-| |   |   `- OrchestrationServiceTests.cs
+| |   |   |- DeviationCalculatorTests.cs
+| |   |   |- OrchestrationServiceTests.cs
+| |   |   `- SignalDetectorTests.cs
 | |   |- Domain
 | |   | `- Services
 | |   |   |- SpreadCalculatorTests.cs
 | |   |   `- VolumeFilterTests.cs
 | |   |- Helpers
-| |   | `- LruCacheTests.cs
 | |   |- Infrastructure
-| |   | `- ParquetDataWriterTests.cs
+| |   |- Integration
+| |   | `- SignalExecutionIntegrationTests.cs
+| |   |- Presentation
+| |   | `- Controllers
+| |   |   `- SignalsControllerTests.cs
 | |   |- SpreadAggregator.Tests.csproj
 | |   |- Sprint1_MemorySafetyTests.cs
 | |   |- Sprint2_LifecycleTests.cs
-| |   |- Sprint3_5_ResilienceTests.cs
 | |   `- UnitTest1.cs
+| |- LIVE_TEST_INSTRUCTIONS.md
 | |- NETWORK-ACCESS.md
 | |- QUICK-START-EXTERNAL-ACCESS.md
 | |- README.md
-| `- SpreadAggregator.sln
+| |- SpreadAggregator.sln
+| |- build.log
+| |- build_log.txt
+| |- build_log_3.txt
+| |- run_error.txt
+| |- run_error_2.txt
+| |- run_error_3.txt
+| |- run_log.txt
+| |- run_log_2.txt
+| `- run_log_3.txt
 |- docs
 | |- gemini3
 | | |- proposals
@@ -195,16 +219,19 @@
 | | | |- PROPOSAL_003_CIRCUIT_BREAKER.md
 | | | `- PROPOSAL_004_ANALYZER_FEEDBACK.md
 | | |- roadmap
+| | | |- archive
+| | | | |- phase-0.5-backtesting.md
+| | | | |- phase-2-security.md
+| | | | |- phase-3-sight.md
+| | | | `- phase-6-monolith.md
 | | | |- README.md
 | | | |- phase-0-foundation.md
-| | | |- phase-0.5-backtesting.md
 | | | |- phase-1-brain.md
-| | | |- phase-2-security.md
-| | | |- phase-3-sight.md
-| | | |- phase-4-autopilot.md
-| | | |- phase-5-webui.md
-| | | `- phase-6-monolith.md
-| | `- ROADMAP_UPDATE.md
+| | | |- phase-2-monitoring.md
+| | | |- phase-3-latency.md
+| | | |- phase-4-automation.md
+| | | `- phase-5-webui.md
+| | `- handoff_to_next_session.md
 | |- issues
 | | `- ISSUE-001-realtime-charts-not-showing.md
 | |- overall_architecture
@@ -368,7 +395,7 @@
 | `- TraderBot.sln
 |- DEVELOPMENT_CYCLE.md
 |- GEMINI.md
-|- README.md
+|- dotnet-install.sh
 |- gemini_exclude.txt
 |- get_structure.py
 `- test_websocket.html

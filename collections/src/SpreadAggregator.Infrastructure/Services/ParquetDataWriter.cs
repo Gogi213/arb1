@@ -219,7 +219,7 @@ public class ParquetDataWriter : IDataWriter
                                 _ = Task.Run(async () => {
                                     try {
                                         await WriteSpreadsAsync(filePath, bufferCopy);
-                                        Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} spread records to {filePath}.");
+                                        // Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} spread records to {filePath}.");
                                     } catch (Exception ex) {
                                         Console.WriteLine($"[DataCollector-ERROR] {ex.Message}");
                                     }
@@ -250,7 +250,7 @@ public class ParquetDataWriter : IDataWriter
                                 _ = Task.Run(async () => {
                                     try {
                                         await WriteTradesAsync(filePath, bufferCopy);
-                                        Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} trade records to {filePath}.");
+                                        // Console.WriteLine($"[DataCollector] Wrote {bufferCopy.Count} trade records to {filePath}.");
                                     } catch (Exception ex) {
                                         Console.WriteLine($"[DataCollector-ERROR] {ex.Message}");
                                     }

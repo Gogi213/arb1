@@ -1,0 +1,28 @@
+[12:57:54.728] [Gate API] PlaceOrderAsync WS execution time: 1535ms
+[12:57:54.729] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:57:56.543] [Gate API] ModifyOrderAsync WS took: 2431ms (orderId: -1)
+[12:57:58.385] [Gate API] ModifyOrderAsync WS took: 4169ms (orderId: -1)
+[12:58:02.474] [Gate API] PlaceOrderAsync WS execution time: 2189ms
+[12:58:02.475] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:58:04.208] [Gate API] ModifyOrderAsync WS took: 2341ms (orderId: -1)
+[12:58:07.360] [Gate API] PlaceOrderAsync WS execution time: 1760ms
+[12:58:07.361] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:58:09.028] [Gate API] ModifyOrderAsync WS took: 3324ms (orderId: -1)
+[12:58:10.831] [Gate API] ModifyOrderAsync WS took: 4917ms (orderId: -1)
+[12:58:12.639] [Gate API] ModifyOrderAsync WS took: 6224ms (orderId: -1)
+[12:58:14.446] [Gate API] ModifyOrderAsync WS took: 7315ms (orderId: -1)
+[12:58:15.934] [Gate API] PlaceOrderAsync WS execution time: 8383ms
+[12:58:15.935] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:58:17.775] [Gate API] ModifyOrderAsync WS took: 8513ms (orderId: -1)
+[12:58:19.656] [Gate API] PlaceOrderAsync WS execution time: 1917ms
+[12:58:19.656] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:58:21.924] [Gate API] ModifyOrderAsync WS took: 3543ms (orderId: -1)
+[12:58:23.712] [Gate API] ModifyOrderAsync WS took: 5128ms (orderId: -1)
+[12:58:25.969] [Gate API] ModifyOrderAsync WS took: 7174ms (orderId: -1)
+[12:58:27.472] [Gate API] PlaceOrderAsync WS execution time: 7450ms
+[12:58:27.473] [Gate API ERROR] Failed to place order. Error: [ServerError.Unknown] 401: Authentication failed: Invalid key provided
+[12:58:28.985] [Gate API] ModifyOrderAsync WS took: 8702ms (orderId: -1)
+[12:58:30.919] [Gate API] ModifyOrderAsync WS took: 8682ms (orderId: -1)
+[12:58:32.770] [Gate API] ModifyOrderAsync WS took: 10397ms (orderId: -1)
+[12:58:34.610] [Gate API] ModifyOrderAsync WS took: 11357ms (orderId: -1)
+[12:58:36.101] [Gate API] ModifyOrderAsync WS took: 12635ms (orderId: -1)

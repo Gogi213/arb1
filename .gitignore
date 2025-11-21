@@ -68,9 +68,6 @@ desktop.ini
 
 # --- Твои исключения ---
 *.parquet
-*.csv
-*.log
-logs/
 data/
 collections/docs/jkorf/
 libs/

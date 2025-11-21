@@ -54,7 +54,8 @@ public class RealTimeController : ControllerBase
     {
         var sendLock = new SemaphoreSlim(1, 1);
         var cts = new CancellationTokenSource();
-        var subscriptions = new Dictionary<string, EventHandler<Application.Services.WindowDataUpdatedEventArgs>>();
+        // Store full details needed for unsubscription: (Symbol, Ex1, Ex2, Handler)
+        var subscriptions = new List<(string Symbol, string Ex1, string Ex2, EventHandler<Application.Services.WindowDataUpdatedEventArgs> Handler)>();
 
         try
         {
@@ -85,14 +86,12 @@ public class RealTimeController : ControllerBase
 
                 EventHandler<Application.Services.WindowDataUpdatedEventArgs> handler = async (sender, e) =>
                 {
-                    // Only process if this event is relevant to our opportunity
-                    if ((e.Exchange == opp.Exchange1 || e.Exchange == opp.Exchange2) && e.Symbol == opp.Symbol)
-                    {
-                        var now = DateTime.UtcNow;
-                        if (now - lastUpdateTime < throttleInterval)
-                            return;
+                    // TARGETED EVENTS: No filter needed! Event only fires if relevant to this window
+                    var now = DateTime.UtcNow;
+                    if (now - lastUpdateTime < throttleInterval)
+                        return;
 
-                        lastUpdateTime = now;
+                    lastUpdateTime = now;
 
                         try
                         {
@@ -146,12 +145,12 @@ public class RealTimeController : ControllerBase
                             _logger.LogWarning(ex,
                                 $"Error sending event-driven update for {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
                         }
-                    }
                 };
 
-                subscriptions[key] = handler;
-                _rollingWindow.WindowDataUpdated += handler;
-                _logger.LogInformation($"[RealTime] Subscribed to {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2}) - key: {key}");
+                subscriptions.Add((opp.Symbol, opp.Exchange1, opp.Exchange2, handler));
+                // TARGETED EVENTS: Subscribe to specific window instead of global broadcast
+                _rollingWindow.SubscribeToWindow(opp.Symbol, opp.Exchange1, opp.Exchange2, handler);
+                _logger.LogInformation($"[RealTime] Subscribed to window: {opp.Symbol} ({opp.Exchange1}/{opp.Exchange2})");
 
                 // Test if RollingWindow has data for this pair
                 var testData = _rollingWindow.JoinRealtimeWindows(opp.Symbol, opp.Exchange1, opp.Exchange2);
@@ -182,9 +181,10 @@ public class RealTimeController : ControllerBase
         finally
         {
             // Unsubscribe from all events
-            foreach (var subscription in subscriptions.Values)
+            // Unsubscribe from all events
+            foreach (var sub in subscriptions)
             {
-                _rollingWindow.WindowDataUpdated -= subscription;
+                _rollingWindow.UnsubscribeFromWindow(sub.Symbol, sub.Ex1, sub.Ex2, sub.Handler);
             }
             _logger.LogInformation($"Unsubscribed from {subscriptions.Count} opportunities");
 

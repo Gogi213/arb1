@@ -1,0 +1,18 @@
+========== WS LOG STARTED: 2025-11-18 00:26:48.641 UTC ==========
+
+[00:26:56.463] [WS] [Gate API] ModifyOrderAsync WS took: 1449ms (orderId: -1)
+[00:26:56.463] [WS] [Gate API] ModifyOrderAsync WS took: 1911ms (orderId: -1)
+[00:26:56.552] [WS] [Gate API] PlaceOrderAsync WS execution time: 2071ms
+[00:26:56.565] [WS] [Gate WS] Raw message received at: 00:26:56.564, Orders count: 1
+[00:26:56.572] [WS] [Gate WS] Callback execution took: 6ms
+[00:26:56.573] [WS] [Gate WS] Total processing time (receive -> callback done): 8ms
+[00:27:00.273] [WS] [Gate WS] Raw message received at: 00:27:00.273, Orders count: 1
+[00:27:00.284] [WS] [Gate WS] Callback execution took: 11ms
+[00:27:00.285] [WS] [Gate WS] Total processing time (receive -> callback done): 11ms
+[00:27:06.375] [WS] [Gate WS] Raw message received at: 00:27:06.375, Orders count: 1
+[00:27:06.382] [WS] [Gate WS] Callback execution took: 6ms
+[00:27:06.383] [WS] [Gate WS] Total processing time (receive -> callback done): 7ms
+[00:27:06.385] [WS] [Gate WS] Raw message received at: 00:27:06.385, Orders count: 1
+[00:27:06.387] [WS] [Gate API] PlaceOrderAsync WS execution time: 401ms
+[00:27:06.449] [WS] [Gate WS] Callback execution took: 58ms
+[00:27:06.454] [WS] [Gate WS] Total processing time (receive -> callback done): 64ms

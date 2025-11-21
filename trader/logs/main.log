@@ -1,0 +1,104 @@
+========== LOG STARTED: 2025-11-18 00:26:48.641 UTC ==========
+
+[00:26:48.657] Initializing GateIo trader...
+[00:26:48.698] Creating GateIoExchange...
+[00:26:48.700] Initializing GateIoExchange...
+[00:26:49.146] Creating ConvergentTrader...
+[00:26:49.150] Starting manual ConvergentTrader with amount: 7 for ASTER_USDT
+[00:26:49.152] --- Starting ConvergentTrader for ASTER_USDT ---
+[00:26:49.153] Exchange: GateIoExchange
+[00:26:51.944] All open orders cancelled.
+[00:26:51.998] --- Initial Setup ---
+[00:26:52.405] USDT Balance: 13,0273108579
+[00:26:52.816] Filters for ASTER_USDT: TickSize=0,0001, BasePrecision=1
+[00:26:52.816] Cancelling all open orders for ASTER_USDT...
+[00:26:53.207] All open orders cancelled.
+[00:26:53.207] ---------------------
+
+[00:26:54.323] Listening for price changes...
+[00:26:54.478] Best Bid: 1,1932. Placing order at 1,1932
+[00:26:54.542] [TT] bid=1,1933  tgt=1,1933  last=1,1932  diff%=0,008
+[00:26:54.543] Price changed. Best Bid: 1,1933. Moving order to 1,1933
+[00:26:54.653] [TT] bid=1,1933  tgt=1,1933  last=1,1933  diff%=0,000
+[00:26:54.786] [TT] bid=1,1933  tgt=1,1933  last=1,1933  diff%=0,000
+[00:26:54.886] [TT] bid=1,1933  tgt=1,1933  last=1,1933  diff%=0,000
+[00:26:55.000] [TT] bid=1,1932  tgt=1,1932  last=1,1933  diff%=-0,008
+[00:26:55.001] Price changed. Best Bid: 1,1932. Moving order to 1,1932
+[00:26:55.104] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.243] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.347] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.467] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.596] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.763] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.883] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:55.992] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:56.116] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:56.220] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:56.356] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:56.464]   > Failed to modify order. Time spent: 1462ms
+[00:26:56.465]   > Failed to modify order. Time spent: 1921ms
+[00:26:56.554]   > Successfully placed order 962786030146 at price 1,1932
+[00:26:56.570] [Order Update] Symbol: ASTER_USDT, OrderId: 962786030146, Status: Create, FinishType: Open
+[00:26:56.571] [Timestamps] Created: 00:26:56.471, Updated: 00:26:56.471, LocalReceived: 00:26:56.568
+[00:26:56.572] [Latency] Order fill time: 0ms
+[00:26:56.601] [Convergent-Balance] Received update for USDT: 5,9874308579 (looking for ASTER)
+[00:26:56.603] [Balance Update] Asset: USDT, Available: 5,9874308579
+[00:26:56.605] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:56.932] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:57.145] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:57.433] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:57.711] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:58.034] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:58.210] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:58.400] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:58.543] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:58.695] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:59.074] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:59.705] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:26:59.831] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:27:00.068] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:27:00.237] [TT] bid=1,1932  tgt=1,1932  last=1,1932  diff%=0,000
+[00:27:00.274] [Order Update] Symbol: ASTER_USDT, OrderId: 962786030146, Status: Finish, FinishType: Filled
+[00:27:00.274] [Timestamps] Created: 00:26:56.471, Updated: 00:27:00.246, LocalReceived: 00:27:00.274
+[00:27:00.275] [Latency] Order fill time: 3775ms
+[00:27:00.276] [!!!] Order 962786030146 was FILLED!
+[00:27:00.281] [Convergent] Buy filled: 5,9 ASTER
+[00:27:00.281] [Convergent] Waiting for balance update...
+[00:27:00.286] [Convergent-Balance] Received update for USDT: 5,9874308579 (looking for ASTER)
+[00:27:00.287] [Balance Update] Asset: USDT, Available: 5,9874308579
+[00:27:00.289] [Convergent-Balance] Received update for ASTER: 5,9778 (looking for ASTER)
+[00:27:00.291] [Convergent-Balance] MATCH! Setting debounce timer for ASTER
+[00:27:00.292] [Balance Update] Asset: ASTER, Available: 5,9778
+[00:27:00.293] [Convergent-Balance] Received update for ASTER: 5,9719 (looking for ASTER)
+[00:27:00.293] [Convergent-Balance] MATCH! Setting debounce timer for ASTER
+[00:27:00.295] [Balance Update] Asset: ASTER, Available: 5,9719
+[00:27:00.452] [Convergent-Balance] Debounce timer fired! Setting TCS result: 5,9719
+[00:27:00.456] [Convergent] Balance updated. Available: 5,9719
+[00:27:00.457] [Convergent] Waiting 5 seconds before market sell...
+[00:27:05.471] [Convergent] ========== PRE-SELL VALIDATION ==========
+[00:27:05.472] [Convergent] Base Asset: ASTER
+[00:27:05.472] [Convergent] Available Balance: 5,9719
+[00:27:05.473] [Convergent] Intended Sell Quantity: 5,9719
+[00:27:05.983] [Convergent] Quote Asset (USDT) Balance BEFORE sell: 5,9874308579
+[00:27:05.984] [Convergent] ========== END PRE-SELL VALIDATION ==========
+[00:27:05.985] [Convergent] 📤 Placing market sell for 5,9719 on ASTER_USDT
+[00:27:06.377] [Order Update] Symbol: ASTER_USDT, OrderId: 962786121174, Status: Create, FinishType: Open
+[00:27:06.378] [Timestamps] Created: 00:27:06.348, Updated: 00:27:06.348, LocalReceived: 00:27:06.377
+[00:27:06.381] [Latency] Order fill time: 0ms
+[00:27:06.391] [Order Update] Symbol: ASTER_USDT, OrderId: 962786121174, Status: Finish, FinishType: Filled
+[00:27:06.393] [Convergent] PlaceOrderAsync returned: 962786121174
+[00:27:06.426] [Timestamps] Created: 00:27:06.348, Updated: 00:27:06.348, LocalReceived: 00:27:06.391
+[00:27:06.428] [Convergent] ✅ Market sell placed successfully: 962786121174
+[00:27:06.434] [Latency] Order fill time: 0ms
+[00:27:06.455] [Convergent-Balance] Received update for ASTER: 0,0719 (looking for ASTER)
+[00:27:06.462] [Convergent-Balance] MATCH! Setting debounce timer for ASTER
+[00:27:06.464] [Balance Update] Asset: ASTER, Available: 0,0719
+[00:27:06.470] [Convergent-Balance] Received update for ASTER: 0,0719 (looking for ASTER)
+[00:27:06.471] [Convergent-Balance] MATCH! Setting debounce timer for ASTER
+[00:27:06.478] [Balance Update] Asset: ASTER, Available: 0,0719
+[00:27:06.479] [Convergent-Balance] Received update for USDT: 13,0155108579 (looking for ASTER)
+[00:27:06.492] [Balance Update] Asset: USDT, Available: 13,0155108579
+[00:27:06.494] [Convergent-Balance] Received update for USDT: 13,0084827779 (looking for ASTER)
+[00:27:06.496] [Balance Update] Asset: USDT, Available: 13,0084827779
+[00:27:06.638] [Convergent-Balance] Debounce timer fired! Setting TCS result: 0,0719
+[00:27:07.446] ConvergentTrader completed with result: 5,852462

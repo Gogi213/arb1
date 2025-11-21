@@ -1,0 +1,282 @@
+[12:57:44.974] Initializing GateIo trader...
+[12:57:45.036] Creating GateIoExchange...
+[12:57:45.038] Initializing GateIoExchange...
+[12:57:45.122] Creating ConvergentTrader...
+[12:57:45.129] Starting manual ConvergentTrader with amount: 4 for ASTER_USDT
+[12:57:45.132] --- Starting ConvergentTrader for ASTER_USDT ---
+[12:57:45.133] Exchange: GateIoExchange
+[12:57:47.754] All open orders cancelled.
+[12:57:47.808] --- Initial Setup ---
+[12:57:48.182] USDT Balance: 0
+[12:57:48.557] Filters for ASTER_USDT: TickSize=0,0001, BasePrecision=1
+[12:57:48.557] Cancelling all open orders for ASTER_USDT...
+[12:57:48.944] All open orders cancelled.
+[12:57:48.945] ---------------------
+
+[12:57:53.074] Listening for price changes...
+[12:57:53.182] Best Bid: 1,2575. Placing order at 1,2575
+[12:57:53.415] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:53.551] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:54.009] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:54.108] [TT] bid=1,2576  tgt=1,2576  last=1,2575  diff%=0,008
+[12:57:54.109] Price changed. Best Bid: 1,2576. Moving order to 1,2576
+[12:57:54.214] [TT] bid=1,2575  tgt=1,2575  last=1,2576  diff%=-0,008
+[12:57:54.215] Price changed. Best Bid: 1,2575. Moving order to 1,2575
+[12:57:54.397] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:54.729]   > Failed to place order.
+[12:57:54.955] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.103] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.268] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.373] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.540] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.647] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:55.841] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:56.015] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:56.348] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:56.543]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:57:56.587] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:56.990] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:57.097] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:57.224] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:57.321] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:57.444] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:57.944] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:58.234] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:58.385]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:57:58.445] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:58.650] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:58.808] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:59.274] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:59.624] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:57:59.731] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:00.053] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:00.160] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:00.284] [TT] bid=1,2576  tgt=1,2576  last=1,2575  diff%=0,008
+[12:58:00.285] Best Bid: 1,2576. Placing order at 1,2576
+[12:58:00.989] [TT] bid=1,2576  tgt=1,2576  last=1,2576  diff%=0,000
+[12:58:01.201] [TT] bid=1,2576  tgt=1,2576  last=1,2576  diff%=0,000
+[12:58:01.354] [TT] bid=1,2576  tgt=1,2576  last=1,2576  diff%=0,000
+[12:58:01.468] [TT] bid=1,2576  tgt=1,2576  last=1,2576  diff%=0,000
+[12:58:01.560] [TT] bid=1,2576  tgt=1,2576  last=1,2576  diff%=0,000
+[12:58:01.866] [TT] bid=1,2575  tgt=1,2575  last=1,2576  diff%=-0,008
+[12:58:01.866] Price changed. Best Bid: 1,2575. Moving order to 1,2575
+[12:58:02.074] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:02.189] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:02.475]   > Failed to place order.
+[12:58:02.865] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:03.188] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:03.546] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:03.737] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:03.856] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:04.136] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:04.209]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:58:04.338] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:04.685] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:05.129] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:05.499] [TT] bid=1,2575  tgt=1,2575  last=1,2575  diff%=0,000
+[12:58:05.599] [TT] bid=1,2573  tgt=1,2573  last=1,2575  diff%=-0,016
+[12:58:05.600] Best Bid: 1,2573. Placing order at 1,2573
+[12:58:05.702] [TT] bid=1,257  tgt=1,2570  last=1,2573  diff%=-0,024
+[12:58:05.703] Price changed. Best Bid: 1,257. Moving order to 1,2570
+[12:58:05.813] [TT] bid=1,257  tgt=1,2570  last=1,2570  diff%=0,000
+[12:58:05.913] [TT] bid=1,2566  tgt=1,2566  last=1,2570  diff%=-0,032
+[12:58:05.914] Price changed. Best Bid: 1,2566. Moving order to 1,2566
+[12:58:06.041] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:06.146] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:06.256] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:06.413] [TT] bid=1,2564  tgt=1,2564  last=1,2566  diff%=-0,016
+[12:58:06.414] Price changed. Best Bid: 1,2564. Moving order to 1,2564
+[12:58:06.577] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:06.677] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:06.924] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:07.028] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:07.130] [TT] bid=1,2562  tgt=1,2562  last=1,2564  diff%=-0,016
+[12:58:07.130] Price changed. Best Bid: 1,2562. Moving order to 1,2562
+[12:58:07.236] [TT] bid=1,2562  tgt=1,2562  last=1,2562  diff%=0,000
+[12:58:07.361]   > Failed to place order.
+[12:58:07.378] [TT] bid=1,2562  tgt=1,2562  last=1,2562  diff%=0,000
+[12:58:07.550] [TT] bid=1,2561  tgt=1,2561  last=1,2562  diff%=-0,008
+[12:58:07.551] Best Bid: 1,2561. Placing order at 1,2561
+[12:58:07.791] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:07.891] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.055] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.156] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.327] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.515] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.631] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:08.716] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:09.028]   > Failed to modify order. Time spent: 3325ms
+[12:58:09.034] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:09.149] [TT] bid=1,2561  tgt=1,2561  last=1,2561  diff%=0,000
+[12:58:09.261] [TT] bid=1,256  tgt=1,2559  last=1,2561  diff%=-0,016
+[12:58:09.261] Price changed. Best Bid: 1,256. Moving order to 1,2559
+[12:58:09.419] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:09.605] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:09.709] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:09.864] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:10.009] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:10.185] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:10.317] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:10.570] [TT] bid=1,256  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:10.831]   > Failed to modify order. Time spent: 4917ms
+[12:58:10.955] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.076] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.196] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.299] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.430] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.729] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.834] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:11.966] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.166] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.521] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.623] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.639]   > Failed to modify order. Time spent: 6225ms
+[12:58:12.725] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.862] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:12.963] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:13.068] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:13.220] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:13.448] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:13.658] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:13.917] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:14.024] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:14.131] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:14.233] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:14.446]   > Failed to modify order. Time spent: 7315ms
+[12:58:14.650] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:14.892] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:15.013] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:15.540] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:15.799] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:15.933] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:15.935]   > Failed to place order.
+[12:58:16.034] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:16.559] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:16.845] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:16.945] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:17.115] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:17.406] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:17.583] [TT] bid=1,2559  tgt=1,2559  last=1,2559  diff%=0,000
+[12:58:17.738] [TT] bid=1,256  tgt=1,2560  last=1,2559  diff%=0,008
+[12:58:17.739] Best Bid: 1,256. Placing order at 1,2560
+[12:58:17.776]   > Failed to modify order. Time spent: 8514ms
+[12:58:17.889] [TT] bid=1,256  tgt=1,2560  last=1,2560  diff%=0,000
+[12:58:18.001] [TT] bid=1,256  tgt=1,2560  last=1,2560  diff%=0,000
+[12:58:18.122] [TT] bid=1,256  tgt=1,2560  last=1,2560  diff%=0,000
+[12:58:18.279] [TT] bid=1,256  tgt=1,2560  last=1,2560  diff%=0,000
+[12:58:18.380] [TT] bid=1,2565  tgt=1,2565  last=1,2560  diff%=0,040
+[12:58:18.381] Price changed. Best Bid: 1,2565. Moving order to 1,2565
+[12:58:18.482] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:18.583] [TT] bid=1,2563  tgt=1,2563  last=1,2565  diff%=-0,016
+[12:58:18.583] Price changed. Best Bid: 1,2563. Moving order to 1,2563
+[12:58:18.793] [TT] bid=1,2564  tgt=1,2564  last=1,2563  diff%=0,008
+[12:58:18.794] Price changed. Best Bid: 1,2564. Moving order to 1,2564
+[12:58:18.954] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:19.153] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:19.290] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:19.451] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:19.657]   > Failed to place order.
+[12:58:19.755] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:19.905] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:20.021] [TT] bid=1,2563  tgt=1,2563  last=1,2564  diff%=-0,008
+[12:58:20.022] Best Bid: 1,2563. Placing order at 1,2563
+[12:58:20.123] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:20.281] [TT] bid=1,2565  tgt=1,2565  last=1,2563  diff%=0,016
+[12:58:20.282] Price changed. Best Bid: 1,2565. Moving order to 1,2565
+[12:58:20.463] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:20.632] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:20.746] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:20.948] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:21.189] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:21.319] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:21.477] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:21.627] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:21.924]   > Failed to modify order. Time spent: 3543ms
+[12:58:21.947] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:22.235] [TT] bid=1,2563  tgt=1,2563  last=1,2565  diff%=-0,016
+[12:58:22.236] Price changed. Best Bid: 1,2563. Moving order to 1,2563
+[12:58:22.371] [TT] bid=1,2564  tgt=1,2564  last=1,2563  diff%=0,008
+[12:58:22.371] Price changed. Best Bid: 1,2564. Moving order to 1,2564
+[12:58:22.589] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:22.695] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:23.146] [TT] bid=1,2564  tgt=1,2564  last=1,2564  diff%=0,000
+[12:58:23.252] [TT] bid=1,2566  tgt=1,2566  last=1,2564  diff%=0,016
+[12:58:23.253] Price changed. Best Bid: 1,2566. Moving order to 1,2566
+[12:58:23.352] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:23.464] [TT] bid=1,2565  tgt=1,2565  last=1,2566  diff%=-0,008
+[12:58:23.465] Price changed. Best Bid: 1,2565. Moving order to 1,2565
+[12:58:23.570] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:23.673] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:23.713]   > Failed to modify order. Time spent: 5129ms
+[12:58:23.801] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:23.946] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:24.058] [TT] bid=1,2566  tgt=1,2566  last=1,2565  diff%=0,008
+[12:58:24.059] Price changed. Best Bid: 1,2566. Moving order to 1,2566
+[12:58:24.241] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:24.350] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:24.649] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:24.750] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:24.857] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:24.957] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:25.201] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:25.359] [TT] bid=1,2566  tgt=1,2566  last=1,2566  diff%=0,000
+[12:58:25.464] [TT] bid=1,2568  tgt=1,2568  last=1,2566  diff%=0,016
+[12:58:25.465] Price changed. Best Bid: 1,2568. Moving order to 1,2568
+[12:58:25.585] [TT] bid=1,2565  tgt=1,2565  last=1,2568  diff%=-0,024
+[12:58:25.586] Price changed. Best Bid: 1,2565. Moving order to 1,2565
+[12:58:25.691] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:25.898] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:25.969]   > Failed to modify order. Time spent: 7175ms
+[12:58:26.003] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:26.162] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:26.346] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:26.478] [TT] bid=1,2565  tgt=1,2565  last=1,2565  diff%=0,000
+[12:58:26.598] [TT] bid=1,2563  tgt=1,2563  last=1,2565  diff%=-0,016
+[12:58:26.599] Price changed. Best Bid: 1,2563. Moving order to 1,2563
+[12:58:26.789] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:26.939] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.044] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.158] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.384] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.473]   > Failed to place order.
+[12:58:27.577] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.705] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:27.900] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.034] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.226] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.393] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.551] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.726] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.888] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:28.985]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:58:29.061] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:29.225] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:29.507] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:29.726] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:30.502] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:30.866] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:30.919]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:58:31.083] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:31.196] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:31.301] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:31.474] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:31.591] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:31.713] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:32.420] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:32.640] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:32.770]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:58:32.834] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.076] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.181] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.300] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.405] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.561] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:33.955] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:34.209] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:34.408] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:34.509] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:34.611]   > Modify ignored, order -1 was filled or cancelled in the meantime.
+[12:58:34.811] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:35.031] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:35.385] [TT] bid=1,2563  tgt=1,2563  last=1,2563  diff%=0,000
+[12:58:36.101]   > Modify ignored, order -1 was filled or cancelled in the meantime.

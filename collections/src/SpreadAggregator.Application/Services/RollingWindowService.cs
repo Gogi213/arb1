@@ -34,10 +34,19 @@ public class RollingWindowService : IDisposable
     // PERFORMANCE: Index to quickly find which exchanges trade a symbol
     private readonly ConcurrentDictionary<string, HashSet<string>> _symbolExchanges = new();
 
+    // TARGETED EVENTS: Index mapping "Exchange_Symbol" → ["WindowKey1", "WindowKey2", ...]
+    // Allows efficient lookup of which windows are affected by an exchange+symbol update
+    private readonly ConcurrentDictionary<string, HashSet<string>> _exchangeSymbolIndex = new();
+    
+    // TARGETED EVENTS: Per-window event handlers (replaces global broadcast)
+    // Key format: "Exchange1_Exchange2_Symbol"
+    private readonly ConcurrentDictionary<string, EventHandler<WindowDataUpdatedEventArgs>?> _windowEvents = new();
+
     // PROFILING SYSTEM
     private readonly Profiler _profiler = new();
     private readonly Timer _profilingTimer;
 
+    [Obsolete("Use SubscribeToWindow instead for better performance. Global broadcast causes unnecessary CPU load.")]
     public event EventHandler<WindowDataUpdatedEventArgs>? WindowDataUpdated;
 
     public RollingWindowService(
@@ -237,6 +246,19 @@ public class RollingWindowService : IDisposable
                     WindowEnd = spreadPoint.Timestamp
                 };
                 _windows.AddOrUpdate(windowKey, window);
+                
+                // TARGETED EVENTS: Populate index for efficient event routing
+                // Map both exchanges to this window so we can find it quickly
+                var index1 = $"{spreadPoint.Exchange1}_{spreadPoint.Symbol}";
+                var index2 = $"{spreadPoint.Exchange2}_{spreadPoint.Symbol}";
+                
+                _exchangeSymbolIndex.AddOrUpdate(index1,
+                    new HashSet<string> { windowKey },
+                    (k, set) => { lock (set) { set.Add(windowKey); } return set; });
+                
+                _exchangeSymbolIndex.AddOrUpdate(index2,
+                    new HashSet<string> { windowKey },
+                    (k, set) => { lock (set) { set.Add(windowKey); } return set; });
             }
         }
 
@@ -272,12 +294,69 @@ public class RollingWindowService : IDisposable
         // _logger.LogDebug($"RollingWindow event: {exchange}/{symbol}");
         // Diagnostics.DiagnosticCounters.Instance.RecordOutgoingEvent(exchange, symbol);
         
+        // TARGETED EVENTS: Find affected windows and notify only their subscribers
+        var indexKey = $"{exchange}_{symbol}";
+        if (_exchangeSymbolIndex.TryGetValue(indexKey, out var affectedWindows))
+        {
+            var eventArgs = new WindowDataUpdatedEventArgs
+            {
+                Exchange = exchange,
+                Symbol = symbol,
+                Timestamp = DateTime.UtcNow
+            };
+            
+            HashSet<string> windowsCopy;
+            lock (affectedWindows)
+            {
+                windowsCopy = new HashSet<string>(affectedWindows);
+            }
+            
+            foreach (var windowKey in windowsCopy)
+            {
+                if (_windowEvents.TryGetValue(windowKey, out var handler) && handler != null)
+                {
+                    handler.Invoke(this, eventArgs);
+                }
+            }
+        }
+        
+        // LEGACY: Support old global event (marked as Obsolete)
+        // TODO: Remove after all subscribers migrated to SubscribeToWindow
+        #pragma warning disable CS0618 // Type or member is obsolete
         WindowDataUpdated?.Invoke(this, new WindowDataUpdatedEventArgs
         {
             Exchange = exchange,
             Symbol = symbol,
             Timestamp = DateTime.UtcNow
         });
+        #pragma warning restore CS0618
+    }
+    
+    /// <summary>
+    /// Subscribe to updates for a specific window (targeted event delivery).
+    /// Replaces global WindowDataUpdated event for better performance.
+    /// </summary>
+    public void SubscribeToWindow(string symbol, string exchange1, string exchange2, 
+        EventHandler<WindowDataUpdatedEventArgs> handler)
+    {
+        var windowKey = $"{exchange1}_{exchange2}_{symbol}";
+        _windowEvents.AddOrUpdate(windowKey, handler, (k, existing) => existing + handler);
+        
+        _logger.LogDebug($"[RollingWindow] Subscribed to window: {windowKey}");
+    }
+    
+    /// <summary>
+    /// Unsubscribe from updates for a specific window.
+    /// </summary>
+    public void UnsubscribeFromWindow(string symbol, string exchange1, string exchange2,
+        EventHandler<WindowDataUpdatedEventArgs> handler)
+    {
+        var windowKey = $"{exchange1}_{exchange2}_{symbol}";
+        if (_windowEvents.TryGetValue(windowKey, out var existing) && existing != null)
+        {
+            _windowEvents[windowKey] = existing - handler;
+            _logger.LogDebug($"[RollingWindow] Unsubscribed from window: {windowKey}");
+        }
     }
 
     private void CleanupOldData(object? state)

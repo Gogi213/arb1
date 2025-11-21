@@ -1,0 +1,69 @@
+﻿2025-11-21 14:32:55.038 | [Bybit] SubscribeToTickersAsync called with 99 symbols
+2025-11-21 14:32:55.044 | [Bybit] Creating 10 connection chunks
+2025-11-21 14:32:55.056 | [Bybit] Starting 10 connections...
+2025-11-21 14:32:55.064 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.136 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.137 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.138 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.139 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.141 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.142 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.143 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.144 | [BybitExchangeClient] Subscribing to a chunk of 10 symbols.
+2025-11-21 14:32:55.144 | [BybitExchangeClient] Subscribing to a chunk of 9 symbols.
+2025-11-21 14:32:55.147 | [Bybit] Trades stream not implemented yet.
+2025-11-21 14:32:56.323 | [Bybit] Successfully subscribed to ticker chunk starting with VIRTUALUSDT.
+2025-11-21 14:32:56.331 | [Bybit] Successfully subscribed to ticker chunk starting with XAIUSDT.
+2025-11-21 14:32:56.361 | [Bybit] Successfully subscribed to ticker chunk starting with NEARUSDT.
+2025-11-21 14:32:56.362 | [Bybit] Successfully subscribed to ticker chunk starting with LDOUSDT.
+2025-11-21 14:32:56.362 | [Bybit] Successfully subscribed to ticker chunk starting with XPLUSDT.
+2025-11-21 14:32:56.367 | [Bybit] Successfully subscribed to ticker chunk starting with INITUSDT.
+2025-11-21 14:32:56.368 | [Bybit] Successfully subscribed to ticker chunk starting with ADAUSDT.
+2025-11-21 14:32:56.375 | [Bybit] Successfully subscribed to ticker chunk starting with ETHUSDT.
+2025-11-21 14:32:56.376 | [Bybit] Successfully subscribed to ticker chunk starting with SUIUSDC.
+2025-11-21 14:32:56.395 | [Bybit] Successfully subscribed to ticker chunk starting with WIFUSDT.
+2025-11-21 14:32:56.397 | [Bybit] All connections started
+2025-11-21 14:32:56.787 | [GateIo] SubscribeToTickersAsync called with 147 symbols
+2025-11-21 14:32:56.789 | [GateIo] Creating 5 connection chunks
+2025-11-21 14:32:56.796 | [GateIo] Starting 5 connections...
+2025-11-21 14:32:56.797 | [GateIoExchangeClient] Subscribing to a chunk of 30 symbols.
+2025-11-21 14:32:56.805 | [GateIoExchangeClient] Subscribing to a chunk of 30 symbols.
+2025-11-21 14:32:56.806 | [GateIoExchangeClient] Subscribing to a chunk of 30 symbols.
+2025-11-21 14:32:56.807 | [GateIoExchangeClient] Subscribing to a chunk of 30 symbols.
+2025-11-21 14:32:56.808 | [GateIoExchangeClient] Subscribing to a chunk of 27 symbols.
+2025-11-21 14:32:58.224 | [GateIo] Successfully subscribed to ticker chunk starting with ETH5S_USDT.
+2025-11-21 14:32:58.360 | [GateIo] Successfully subscribed to ticker chunk starting with LDO_USDT.
+2025-11-21 14:32:58.368 | [GateIo] Successfully subscribed to ticker chunk starting with S_USDT.
+2025-11-21 14:32:58.370 | [GateIo] Successfully subscribed to ticker chunk starting with HFT_USDT.
+2025-11-21 14:32:58.379 | [GateIo] Successfully subscribed to ticker chunk starting with 2Z_USDT.
+2025-11-21 14:32:58.380 | [GateIo] All connections started
+2025-11-21 14:33:07.926 | [Binance] SubscribeToTickersAsync called with 275 symbols
+2025-11-21 14:33:07.927 | [Binance] Creating 14 connection chunks
+2025-11-21 14:33:07.967 | [Binance] Starting 14 connections...
+2025-11-21 14:33:07.968 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.979 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.980 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.981 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.982 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.989 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.990 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.990 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.991 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.992 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.992 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.993 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.995 | [BinanceExchangeClient] Subscribing to a chunk of 20 symbols.
+2025-11-21 14:33:07.996 | [BinanceExchangeClient] Subscribing to a chunk of 15 symbols.
+2025-11-21 14:33:11.113 | [Binance] Successfully subscribed to ticker chunk starting with CTSIUSDT.
+2025-11-21 14:33:11.158 | [Binance] Successfully subscribed to ticker chunk starting with YBUSDT.
+2025-11-21 14:33:11.175 | [Binance] Successfully subscribed to ticker chunk starting with DYDXUSDT.
+2025-11-21 14:33:11.235 | [Binance] Successfully subscribed to ticker chunk starting with 1MBABYDOGEUSDT.
+2025-11-21 14:33:11.264 | [Binance] Successfully subscribed to ticker chunk starting with FILUSDT.
+2025-11-21 14:33:11.280 | [Binance] Successfully subscribed to ticker chunk starting with JTOUSDT.
+2025-11-21 14:33:11.286 | [Binance] Successfully subscribed to ticker chunk starting with ZECUSDC.
+2025-11-21 14:33:11.294 | [Binance] Successfully subscribed to ticker chunk starting with SYRUPUSDC.
+2025-11-21 14:33:11.314 | [Binance] Successfully subscribed to ticker chunk starting with MAGICUSDT.
+2025-11-21 14:33:11.340 | [Binance] Successfully subscribed to ticker chunk starting with UNIUSDC.
+2025-11-21 14:33:11.369 | [Binance] Successfully subscribed to ticker chunk starting with APTUSDC.
+2025-11-21 14:33:11.910 | [Binance] Successfully subscribed to ticker chunk starting with PUMPUSDT.
+2025-11-21 14:33:15.135 | [Binance] Successfully subscribed to ticker chunk starting with BNBUSDT.

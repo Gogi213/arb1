@@ -13,6 +13,6 @@ public class RollingWindowData
     public required string Symbol { get; init; }
     public DateTime WindowStart { get; set; }
     public DateTime WindowEnd { get; set; }
-    public List<SpreadData> Spreads { get; set; } = new();
-    public List<TradeData> Trades { get; set; } = new();
+    public Queue<SpreadData> Spreads { get; set; } = new();
+    public Queue<TradeData> Trades { get; set; } = new();
 }

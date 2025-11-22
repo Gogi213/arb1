@@ -11,6 +11,7 @@ using System;
 using System.Diagnostics;
 using System.Text;
 using System.IO;
+using SpreadAggregator.Application.Diagnostics;
 
 namespace SpreadAggregator.Application.Services;
 
@@ -45,6 +46,10 @@ public class RollingWindowService : IDisposable
     // PROFILING SYSTEM
     private readonly Profiler _profiler = new();
     private readonly Timer _profilingTimer;
+    private int _cleanupRunning = 0; // Atomic flag for cleanup
+    
+    // PERFORMANCE MONITOR
+    private readonly PerformanceMonitor? _perfMonitor;
 
     [Obsolete("Use SubscribeToWindow instead for better performance. Global broadcast causes unnecessary CPU load.")]
     public event EventHandler<WindowDataUpdatedEventArgs>? WindowDataUpdated;
@@ -52,11 +57,13 @@ public class RollingWindowService : IDisposable
     public RollingWindowService(
         Channel<MarketData> channel,
         Abstractions.IBidBidLogger? bidBidLogger = null,
-        ILogger<RollingWindowService>? logger = null)
+        ILogger<RollingWindowService>? logger = null,
+        PerformanceMonitor? perfMonitor = null)
     {
         _channelReader = channel.Reader;
         _bidBidLogger = bidBidLogger;
         _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<RollingWindowService>.Instance;
+        _perfMonitor = perfMonitor;
 
         _windows = new LruCache<string, RollingWindowData>(MAX_WINDOWS);
         _latestTicks = new LruCache<string, TickData>(MAX_LATEST_TICKS);
@@ -120,6 +127,7 @@ public class RollingWindowService : IDisposable
     private void ProcessData(MarketData data)
     {
         using var _ = _profiler.Measure("Total_ProcessData");
+        _perfMonitor?.RecordEvent("ProcessData");
 
         if (data is not SpreadData spreadData)
             return;
@@ -277,10 +285,23 @@ public class RollingWindowService : IDisposable
                 BestAsk = spreadPoint.BestAsk
             };
 
-            // PERFORMANCE FIX: Removed O(N) RemoveAll
+            // PERFORMANCE FIX: Sliding Window with Queue (O(1) removal)
             lock (window.Spreads)
             {
-                window.Spreads.Add(legacySpread);
+                window.Spreads.Enqueue(legacySpread);
+                
+                // Incremental cleanup: Remove old data immediately (Sliding Window)
+                var threshold = spreadPoint.Timestamp - _windowSize;
+                while (window.Spreads.Count > 0 && window.Spreads.Peek().Timestamp < threshold)
+                {
+                    window.Spreads.Dequeue();
+                }
+                
+                // Safety Cap: Prevent infinite growth if timestamps are weird
+                while (window.Spreads.Count > 5000)
+                {
+                    window.Spreads.Dequeue();
+                }
             }
         }
 
@@ -361,21 +382,74 @@ public class RollingWindowService : IDisposable
 
     private void CleanupOldData(object? state)
     {
-        using (_profiler.Measure("Cleanup_Timer"))
+        // TASK 2: Prevent concurrent cleanup execution
+        if (Interlocked.CompareExchange(ref _cleanupRunning, 1, 0) != 0)
         {
+            _logger.LogWarning("[RollingWindow] Cleanup skipped - previous cleanup still running");
+            return;
+        }
+
+        // Offload to background thread to avoid blocking Timer thread
+        Task.Run(async () =>
+        {
+            try
+            {
+                await CleanupAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[RollingWindow] Error during cleanup");
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _cleanupRunning, 0);
+            }
+        });
+    }
+
+    private async Task CleanupAsync()
+    {
+        using (_profiler.Measure("Cleanup_Async"))
+        {
+            _perfMonitor?.RecordEvent("Cleanup_Start");
+            
             var now = DateTime.UtcNow;
             var threshold = now - _windowSize;
+            
+            // 1. Evict empty/old windows (fast)
             var removedCount = _windows.EvictWhere((key, window) => window.WindowEnd < threshold);
 
-            // Also cleanup internal lists
+            // 2. Cleanup internal lists (slow - needs batching)
             int pointsRemoved = 0;
-            foreach(var window in _windows.Values)
+            var windowsSnapshot = _windows.Values.ToList(); // Snapshot to avoid locking dictionary
+            int processedCount = 0;
+            const int BATCH_SIZE = 100;
+
+            foreach(var window in windowsSnapshot)
             {
-                lock (window.Spreads)
+                // Cleanup is now handled incrementally in AddSpreadPointToWindow
+                // We only need to check for empty windows here (which is handled by EvictWhere above)
+                // But strictly speaking, we might want to ensure consistency
+                
+                // Optional: Double check cap (fast O(1) check)
+                if (window.Spreads.Count > 5000)
                 {
-                    pointsRemoved += window.Spreads.RemoveAll(s => s.Timestamp < window.WindowStart);
+                    lock (window.Spreads)
+                    {
+                        while (window.Spreads.Count > 5000) window.Spreads.Dequeue();
+                    }
+                }
+                
+                processedCount++;
+                
+                // Yield every BATCH_SIZE windows to prevent ThreadPool starvation
+                if (processedCount % BATCH_SIZE == 0)
+                {
+                    await Task.Yield(); 
                 }
             }
+
+            _perfMonitor?.RecordEvent("Cleanup_End");
 
             if (removedCount > 0 || pointsRemoved > 0)
             {
@@ -533,19 +607,21 @@ public class RollingWindowService : IDisposable
         {
             private readonly string _scope;
             private readonly Profiler _profiler;
-            private readonly long _startTicks;
+            // TASK 1: Removed Stopwatch from hot path (2500 calls/sec overhead)
+            // private readonly long _startTicks;
 
             public ScopeTimer(string scope, Profiler profiler)
             {
                 _scope = scope;
                 _profiler = profiler;
-                _startTicks = Stopwatch.GetTimestamp();
+                // _startTicks = Stopwatch.GetTimestamp();
             }
 
             public void Dispose()
             {
-                var elapsed = Stopwatch.GetTimestamp() - _startTicks;
-                _profiler.Record(_scope, elapsed);
+                // TASK 1: Profiling disabled in hot path
+                // var elapsed = Stopwatch.GetTimestamp() - _startTicks;
+                // _profiler.Record(_scope, elapsed);
             }
         }
     }

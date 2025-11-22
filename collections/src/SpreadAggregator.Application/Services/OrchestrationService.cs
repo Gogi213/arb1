@@ -266,12 +266,14 @@ public class OrchestrationService
                 // Preferred over WriteAsync for HFT - 20-100x faster, no blocking
                 if (!_rawDataChannel.Writer.TryWrite(normalizedSpreadData))
                 {
-                    Console.WriteLine($"[Orchestration-WARN] Raw data channel full (system overload), dropping spread data");
+                    // TASK 1: Removed Console.WriteLine from hot path (could spam 2500/sec)
+                    // Console.WriteLine($"[Orchestration-WARN] Raw data channel full (system overload), dropping spread data");
                 }
 
                 if (!_rollingWindowChannel.Writer.TryWrite(normalizedSpreadData))
                 {
-                    Console.WriteLine($"[Orchestration-WARN] Rolling window channel full (system overload), dropping spread data");
+                    // TASK 1: Removed Console.WriteLine from hot path
+                    // Console.WriteLine($"[Orchestration-WARN] Rolling window channel full (system overload), dropping spread data");
                 }
             }));
         }

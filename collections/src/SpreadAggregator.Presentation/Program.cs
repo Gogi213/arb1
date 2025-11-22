@@ -16,6 +16,7 @@ using BingX.Net.Interfaces.Clients;
 using BingX.Net.Clients;
 using Bybit.Net.Interfaces.Clients;
 using Bybit.Net.Clients;
+using SpreadAggregator.Application.Diagnostics;
 
 namespace SpreadAggregator.Presentation;
 
@@ -44,7 +45,9 @@ class Program
 
         // Configure application services
         
-
+        // PERFORMANCE MONITOR: Initialize before anything else
+        var perfMonitor = new PerformanceMonitor(@"C:\visual projects\arb1\collections\logs\performance");
+        builder.Services.AddSingleton(perfMonitor);
 
         ConfigureServices(builder.Services, builder.Configuration);
 
@@ -150,7 +153,8 @@ class Program
             var rollingChannel = sp.GetRequiredService<RollingWindowChannel>().Channel;
             var bidBidLogger = sp.GetRequiredService<IBidBidLogger>();
             var logger = sp.GetRequiredService<ILogger<RollingWindowService>>();
-            return new RollingWindowService(rollingChannel, bidBidLogger, logger);
+            var perfMonitor = sp.GetRequiredService<PerformanceMonitor>();
+            return new RollingWindowService(rollingChannel, bidBidLogger, logger, perfMonitor);
         });
 
         // Task 0.5: Register ExchangeHealthMonitor

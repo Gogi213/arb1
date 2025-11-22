@@ -13,6 +13,10 @@ public class DeviationCalculator
     // Key: "Exchange:Symbol" (e.g., "Gate:BTC_USDT")
     private readonly ConcurrentDictionary<string, SpreadData> _latestSpreads = new();
 
+    // FIX 2+3: Secondary index by Symbol for O(1) lookup (prevents CPU leak)
+    // Key: Symbol (e.g., "BTC_USDT"), Value: Dictionary of Exchange -> Latest SpreadData
+    private readonly ConcurrentDictionary<string, ConcurrentDictionary<string, SpreadData>> _spreadsBySymbol = new();
+
     // Deviation threshold for filtering (configurable)
     private readonly decimal _minDeviationThreshold;
 
@@ -37,16 +41,26 @@ public class DeviationCalculator
         // Update latest spread for this exchange:symbol
         _latestSpreads[key] = spread;
 
+        // FIX 2+3: Update secondary index - stores only LATEST spread per exchange (prevents leak)
+        var exchangeDict = _spreadsBySymbol.GetOrAdd(spread.Symbol, _ => new ConcurrentDictionary<string, SpreadData>());
+        exchangeDict[spread.Exchange] = spread;  // Overwrites old - no accumulation!
+
         // Try to find matching spread from other exchange
         TryCalculateDeviation(spread);
     }
 
     private void TryCalculateDeviation(SpreadData newSpread)
     {
-        // Look for spreads from other exchanges for the same symbol
-        var otherExchangeSpreads = _latestSpreads
-            .Where(kvp => kvp.Key.EndsWith($":{newSpread.Symbol}") && 
-                         !kvp.Key.StartsWith($"{newSpread.Exchange}:"))
+        // FIX 2+3: Use secondary index - O(1) instead of O(N) LINQ query!
+        if (!_spreadsBySymbol.TryGetValue(newSpread.Symbol, out var exchangeDict))
+        {
+            // No data for this symbol yet
+            return;
+        }
+
+        // Get spreads from other exchanges (only ~3 items, not hundreds!)
+        var otherExchangeSpreads = exchangeDict
+            .Where(kvp => kvp.Key != newSpread.Exchange)
             .Select(kvp => kvp.Value)
             .ToList();
 
